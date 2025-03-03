@@ -149,6 +149,12 @@ measures.overhead_camera_height = params.overhead_camera_height;
 
 if isempty(nt_data) 
     % no previous tracking data, using overhead camera movie as main time
+
+    if isempty(active_cameras)
+        errormsg('No neurotar data and no video data. I don''t know what to do. I quit.');
+        return
+    end
+
     nt_data.Time = NaN(handles.vidobj{params.nt_overhead_camera}.NumFrames,1);
     nt_data.Time = 0:1/handles.vidobj{params.nt_overhead_camera}.FrameRate:handles.vidobj{params.nt_overhead_camera}.Duration;
     nt_data.Speed = NaN(size(nt_data.Time));
@@ -379,7 +385,7 @@ handles.speed_yaxis.XData = [state.master_time state.master_time];
 handles.speed_yaxis.YData = [-250 250];
 xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
 xlim(handles.panel_neurotar_speed,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_speed,params.nt_show_behavior_markers,xl,[-250 250]);
+nt_show_markers(measures.markers,handles.panel_neurotar_speed,params,xl,[-250 250]);
 
 handles.rotation_trace.XData = nt_data.Time(ind);
 handles.rotation_trace.YData = nt_data.Angular_velocity(ind);
@@ -389,7 +395,7 @@ handles.rotation_yaxis.XData = [state.master_time state.master_time];
 handles.rotation_yaxis.YData = [-360 360];
 xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
 xlim(handles.panel_neurotar_rotation,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params.nt_show_behavior_markers,xl,[-360 360]);
+nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params,xl,[-360 360]);
 
 handles.distance_trace.XData = nt_data.Time(ind);
 if isreal(nt_data.Object_distance(ind))
@@ -405,7 +411,7 @@ handles.distance_yaxis.XData = [state.master_time state.master_time];
 handles.distance_yaxis.YData = [0 300];
 xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
 xlim(handles.panel_neurotar_distance,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_distance,params.nt_show_behavior_markers,xl,[0 300]);
+nt_show_markers(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
 
 set(handles.text_fps,'String',num2str(round(state.fps)));
 
@@ -501,7 +507,7 @@ hold on
 handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'k-','linewidth',3);
 plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
 ylim([0 params.nt_track_timeline_max_speed]);
-nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+nt_show_markers(measures.markers,handles.panel_timeline,params);
 set(handles.panel_timeline,'ButtonDownFcn',@click_on_timeline);
 
 % Panel with neurotar speed
@@ -719,7 +725,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                         measures.markers = insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
                 end
             end
-            nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+            nt_show_markers(measures.markers,handles.panel_timeline,params);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
             logmsg('Imported laser log')
@@ -738,7 +744,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 [~,ind] = sort(measures.object_positions(:,1));
                 measures.object_positions = measures.object_positions(ind,:);
             end
-            nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+            nt_show_markers(measures.markers,handles.panel_timeline,params);
             set(handles.text_state,'String',prev_state);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -755,7 +761,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                             measures.object_positions(ind,:) = [];
                         end
                     end
-                    nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+                    nt_show_markers(measures.markers,handles.panel_timeline,params);
                     state.newframe = true;
                     state.jumptime = -state.interframe_time;
             end
@@ -764,7 +770,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             switch answer
                 case 'Yes'
                     measures.markers = [];
-                    nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+                    nt_show_markers(measures.markers,handles.panel_timeline,params);
                     state.newframe = true;
                     state.jumptime = -state.interframe_time;
             end
@@ -818,12 +824,11 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
             if ~nt_is_stimulus_present(measures.markers,state.master_time,'o')
-                logmsg('No physical stimulus was marked present. Adding marker')
+                logmsg('No physical stimulus was marked present. Adding marker ''o''');
                 measures.markers = insert_marker(measures.markers,state.master_time,'o',params);
             end
-            nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
-            draw now
-
+            nt_show_markers(measures.markers,handles.panel_timeline,params);
+            drawnow
             state.newframe = true;
             state.jumptime = -state.interframe_time;
         case 'set_virtual_object_position' % set in params.OVERHEAD coordinates
@@ -833,11 +838,14 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             measures.object_positions(end+1,:) = [state.master_time overhead_x overhead_y params.OVERHEAD object_id]; 
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
-            if ~nt_is_stimulus_present(measures.markers,state.master_time,'v')
-                logmsg('No virtual stimulus was marked present. Adding marker')
+            n_stimuli_present = nt_is_stimulus_present(measures.markers,state.master_time,'v');
+            if ~n_stimuli_present
+                logmsg('No virtual stimulus was marked present. Adding marker ''v''');
                 measures.markers = insert_marker(measures.markers,state.master_time,'v',params);
+            elseif n_stimuli_present>1
+                logmsg('Multiple virtual stimuli present');
             end
-            nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+            nt_show_markers(measures.markers,handles.panel_timeline,params);
             drawnow
 
             state.newframe = true;
@@ -871,7 +879,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             set(handles.text_playback_speed,'String',num2str(state.playback_speed))
         case 'toggle_behavior_markers'
             params.nt_show_behavior_markers = ~params.nt_show_behavior_markers;
-            nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
+            nt_show_markers(measures.markers,handles.panel_timeline,params);
         case 'toggle_drawnow_limitrate'
             params.nt_drawnow_limitrate = ~params.nt_drawnow_limitrate;
         case 'toggle_play'
@@ -1255,16 +1263,21 @@ end
 function update_neurotar_frame(overhead_neurotar_frame,params)
 n_points = 50;
 d = params.neurotar_halfwidth_mm;
-neurotar_x = [...
-    linspace(-d,-d,n_points) ...
-    linspace(-d,d,n_points) ...
-    linspace(d,d,n_points) ...
-    linspace(d,-d,n_points) ];
-neurotar_y = [...
-    linspace(-d,d,n_points) ...
-    linspace(d,d,n_points) ...
-    linspace(d,-d,n_points) ...
-    linspace(-d,-d,n_points)  ];
+neurotar_x = [NaN];
+neurotar_y = [NaN];
+
+if params.nt_show_boundaries
+    neurotar_x = [  ...
+        linspace(-d,-d,n_points) ...
+        linspace(-d,d,n_points) ...
+        linspace(d,d,n_points) ...
+        linspace(d,-d,n_points) ];
+    neurotar_y = [  ...
+        linspace(-d,d,n_points) ...
+        linspace(d,d,n_points) ...
+        linspace(d,-d,n_points) ...
+        linspace(-d,-d,n_points)  ];
+end
 if params.nt_show_bridge
     neurotar_x = [ neurotar_x NaN ...
         linspace(-d,d,n_points) ];

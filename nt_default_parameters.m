@@ -60,40 +60,49 @@ end
 % placeholder values that are overwritten by actual values
 params.overhead_camera_width = 752;
 params.overhead_camera_height = 550;
-params.overhead_camera_distortion_method = 'fisheye_orthographic';
-params.overhead_camera_distortion = [339 339];         
-% distortion(1) = distance_neurotar_center_to_camera_mm
-% distortion(2) = focal_distance_pxl
-params.overhead_camera_angle = -0.13;
-params.overhead_camera_rotated = true;
+switch lower(record.setup)
+    case 'neurotar'
+        params.overhead_camera_distortion_method = 'fisheye_orthographic';
+        params.overhead_camera_distortion = [339 339];
+        % distortion(1) = distance_neurotar_center_to_camera_mm
+        % distortion(2) = focal_distance_pxl
+        params.overhead_camera_rotated = true;
+        params.overhead_camera_angle = -0.13;
+    case 'behavior_arena'
+        params.overhead_camera_distortion_method = 'normal';
+        params.overhead_camera_distortion = [0.9 NaN];
+        % distortion(1) = scale
+        params.overhead_camera_rotated = true;
+        params.overhead_camera_angle = -2.5;
+end
 params.neurotar_snout_distance_mm = 32;
 params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
 
+if strcmpi(record.setup,'neurotar')
+    if nargin<1 || isempty(record.date) ||datetime(record.date,'inputformat','yyyy-MM-dd') >  datetime('2023-11-03','inputformat','yyyy-MM-dd')
+        % since about 2023-11-03
+        params.overhead_camera_rotated = true;
+        % params.overhead_camera_pixels_per_mm  = 2.0;
+        % params.overhead_camera_distortion_method = 'fisheye_log';
+        % params.overhead_camera_distortion = 0.011; % Use 0 to remove distortion
+        % params.overhead_camera_shear = [0.90;0.90];
+        % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
+        params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
+        params.neurotar_snout_distance_mm = 32; % distance from snout to center of neurotar
+    end
 
-if nargin<1 || isempty(record.date) || datetime(record.date,'inputformat','yyyy-MM-dd') >  datetime('2023-11-03','inputformat','yyyy-MM-dd')
-    % since about 2023-11-03
-    params.overhead_camera_rotated = true;
-    % params.overhead_camera_pixels_per_mm  = 2.0;
-    % params.overhead_camera_distortion_method = 'fisheye_log';
-    % params.overhead_camera_distortion = 0.011; % Use 0 to remove distortion
-    % params.overhead_camera_shear = [0.90;0.90];
-    % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
-    params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
-    params.neurotar_snout_distance_mm = 32; % distance from snout to center of neurotar
+    if nargin<1 || isempty(record.date) || datetime(record.date,'inputformat','yyyy-MM-dd') <  datetime('2023-06-21','inputformat','yyyy-MM-dd')
+        % before 2023-06-21
+        params.overhead_camera_rotated = true;
+        % params.overhead_camera_pixels_per_mm  = 2.0;
+        % params.overhead_camera_distortion_method = 'fisheye_log';
+        % params.overhead_camera_distortion = 0.003; % Use 0 to remove distortion
+        % params.overhead_camera_shear = [1.15;1.15];
+        % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
+        params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
+        params.neurotar_snout_distance_mm = 0; % distance from snout to center of neurotar
+    end
 end
-
-if nargin<1 || isempty(record.date) || datetime(record.date,'inputformat','yyyy-MM-dd') <  datetime('2023-06-21','inputformat','yyyy-MM-dd') 
-    % before 2023-06-21
-    params.overhead_camera_rotated = true;
-    % params.overhead_camera_pixels_per_mm  = 2.0;
-    % params.overhead_camera_distortion_method = 'fisheye_log';
-    % params.overhead_camera_distortion = 0.003; % Use 0 to remove distortion
-    % params.overhead_camera_shear = [1.15;1.15];
-    % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
-    params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
-    params.neurotar_snout_distance_mm = 0; % distance from snout to center of neurotar
-end
-
 
 % Time synchronization
 % Time of neurotar acquisition is taken as the master time
@@ -155,10 +164,11 @@ switch lower(record.setup)
             {'r','begin retreat from object',[0.7 0 0],true}} ;
     case 'behavior_arena'
         markers = { ...
+            {'o','place object',[0 0 1],false} , ... % place object
             {'a','approach',[0.03 0.46 0.73],true} , ...
             {'s','sniff',[0.83 0.34 0.12],true} , ...
             {'b','bite',[0.94 0.68 0.11],true} , ...
-            {'g','grab',[0.51 0.17 0.57],true} , ...v
+            {'g','grab',[0.51 0.17 0.57],true} , ...
             {'c','carry',[0.45 0.69 0.28],true} , ...
             {'v','avoid',[0.29 0.76 0.92],true} , ...
             {'r','groom',[0 0 0],true} , ...
@@ -217,11 +227,12 @@ params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to
 params.nt_result_shows_individual_object_insertions = true;
 
 % Tracking
-params.nt_show_behavior_markers = false;
+params.nt_show_behavior_markers = true;
 params.nt_track_timeline_max_speed = 375; 
 params.nt_show_help = false;
 params.nt_show_bridge = true;
 params.nt_show_horizon = true;
+params.nt_show_boundaries = true; % neurotar frame or arena boundaries
 params.nt_mouse_trace_window = 3; % s
 params.nt_show_leave_wall_boundary = true;
 

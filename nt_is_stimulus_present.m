@@ -1,5 +1,5 @@
 function stimulus_present = nt_is_stimulus_present(markers,t,stimulus_types)
-%nt_is_stimulus_present. Returns number of particular stimuli present at certain time
+%nt_is_stimulus_present. Returns if particular stimuli is present at certain time
 %
 %   stimulus_present = nt_is_stimulus_present(markers,t,[stimulus_types=params.nt_stimulus_types])
 %

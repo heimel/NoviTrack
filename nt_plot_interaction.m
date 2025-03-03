@@ -54,7 +54,7 @@ plot(neurotar_data.Time(ind_full),neurotar_data.Forward_speed(ind_full))
 plot(xlim,params.nt_min_approach_speed*[1 1],'--k');
 ylabel('Forward speed')
 ylim([-100 300])
-nt_show_markers(measures.markers,ax);
+nt_show_markers(measures.markers,ax,params);
 nt_show_behaviors(measures.behaviors,ax);
 
 % Object distance derivative vs Time
@@ -67,7 +67,7 @@ ax_num = ax_num + 1;
     plot(xlim,params.nt_min_retreat_speed*[1 1],'--k');
     ylabel('Approach speed')
     ylim([-300 300])
-    nt_show_markers(measures.markers,ax);
+    nt_show_markers(measures.markers,ax,params);
     nt_show_behaviors(measures.behaviors,ax);
 end
 
@@ -80,7 +80,7 @@ plot(neurotar_data.Time(ind_full),neurotar_data.Angular_velocity(ind_full))
 plot(xlim,params.nt_min_angular_velocity*[1 1],'--k');
 ylabel('Ang. vel.')
 ylim([-250 250])
-nt_show_markers(measures.markers,ax);
+nt_show_markers(measures.markers,ax,params);
 nt_show_behaviors(measures.behaviors,ax);
 
 % Angular velocity towards object vs Time
@@ -91,7 +91,7 @@ plot(neurotar_data.Time(ind_full),neurotar_data.Angular_velocity_towards_object(
 plot(xlim,params.nt_min_angular_velocity*[1 1],'--k');
 ylabel('Ang. vel. towards')
 ylim([-250 250])
-nt_show_markers(measures.markers,ax);
+nt_show_markers(measures.markers,ax,params);
 nt_show_behaviors(measures.behaviors,ax);
 
 % Object distance vs Time
@@ -104,7 +104,7 @@ if 0
     plot(xlim,params.nt_max_touching_distance*[1 1],'--k');
     ylabel('Object distance')
     ylim([0 300])
-    nt_show_markers(measures.markers,ax);
+    nt_show_markers(measures.markers,ax,params);
     nt_show_behaviors(measures.behaviors,ax);
 end
 
@@ -116,7 +116,7 @@ plot(neurotar_data.Time(ind_full),neurotar_data.Distance_to_wall(ind_full))
 plot(xlim,params.nt_max_distance_to_wall*[1 1],'--k');
 ylabel('Distance to wall')
 ylim([0 params.arena_radius_mm])
-nt_show_markers(measures.markers,ax);
+nt_show_markers(measures.markers,ax,params);
 nt_show_behaviors(measures.behaviors,ax);
 
 % Position in arena
