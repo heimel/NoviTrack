@@ -10,6 +10,7 @@ function params = nt_default_parameters(record)
 
 if nargin<1 
     record = [];
+    record.setup = 'neurotar';
 end
 
 % General
