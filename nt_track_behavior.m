@@ -34,9 +34,6 @@ if nargin<2 || isempty(verbose)
     verbose = true;
 end
 
-
-
-
 %% Preamble
 measures = record.measures;
 params = nt_default_parameters(record);
@@ -74,12 +71,11 @@ elseif size(measures.object_positions,2) ~= 5 % old format
 end
 
 %% Load Neurotar data
-neurotar_data = nt_load_neurotar_data(record);
-if isempty(neurotar_data)
+nt_data = nt_load_neurotar_data(record);
+if isempty(nt_data)
     logmsg(['Could not load Neurotar data for ' recordfilter(record)]);
-    return
+    logmsg('Creating empty tracking data');
 end
-max_time = neurotar_data.Time(end);
 
 
 %% Open movies
@@ -91,19 +87,31 @@ handles.vidobj = cell(1,num_cameras);
 
 available_cameras = [];
 for i = 1:num_cameras
-    filename = fullfile(session_path,[record.sessionid  '_' params.nt_camera_names{i} ]);
-    if ~exist([filename '.mp4'],'file') && ~exist([filename '.h264'],'file')
+
+    filename = fullfile(session_path,[record.sessionid '_' record.condition '_' record.stimulus '_' params.nt_camera_names{i} ]);
+    d = dir( [filename '.*'] );
+    if isempty(d)
+        filename = fullfile(session_path,[record.sessionid  '_' params.nt_camera_names{i} ]);
+    end
+
+
+    if ~exist([filename '.mp4'],'file') && ~exist([filename '.MP4'],'file') && ~exist([filename '.h264'],'file')
         logmsg(['Cannot find movie '  filename ]);
         handles.vidobj{i} = struct('FrameRate',30,'Width',params.overhead_camera_width,'Height',params.overhead_camera_height);
         continue
     end
-    if ~exist([filename '.mp4'],'file')
+    if ~exist([filename '.mp4'],'file') && ~exist([filename '.MP4'],'file') 
         logmsg(['Converting movie '  filename '.h264 to mp4']);
         system(['MP4Box -add "' filename '.h264:fps=30" -fps original -new "' filename '.mp4"'])
     end
+    if exist([filename '.mp4'],'file')
+        ext = '.mp4';
+    elseif exist([filename '.MP4'],'file')
+        ext = '.MP4';
+    end
 
-    logmsg(['Opening movie ' filename '.mp4']);
-    handles.vidobj{i} = VideoReader([filename '.mp4']);
+    logmsg(['Opening movie ' filename ext]);
+    handles.vidobj{i} = VideoReader([filename ext]);
     available_cameras = [available_cameras i]; %#ok<AGROW>
 
     if handles.vidobj{i}.FrameRate~=30
@@ -113,11 +121,7 @@ for i = 1:num_cameras
     if length(measures.trigger_times)<i || isempty(measures.trigger_times{i})
         trigger_filename = [filename '_triggers.csv'];
         if ~exist(trigger_filename,'file')
-            if length(measures.trigger_times)<i || isempty(measures.trigger_times{i})
-                errormsg(['Cannot find trigger file ' trigger_filename '. Setting trigger at start.']);
-            else
-                logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger at start.']);
-            end
+            logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger at start.']);
             measures.trigger_times{i} = 1 / handles.vidobj{i}.FrameRate; % set trigger on first frame
         else
             data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1);
@@ -143,7 +147,284 @@ params.overhead_camera_height = handles.vidobj{2}.Height;
 measures.overhead_camera_height = params.overhead_camera_height;
 
 
+if isempty(nt_data) 
+    % no previous tracking data, using overhead camera movie as main time
+    nt_data.Time = NaN(handles.vidobj{params.nt_overhead_camera}.NumFrames,1);
+    nt_data.Time = 0:1/handles.vidobj{params.nt_overhead_camera}.FrameRate:handles.vidobj{params.nt_overhead_camera}.Duration;
+    nt_data.Speed = NaN(size(nt_data.Time));
+    nt_data.X = NaN(size(nt_data.Time));
+    nt_data.Y = NaN(size(nt_data.Time));
+    nt_data.alpha = NaN(size(nt_data.Time));
+    nt_data.Forward_speed = NaN(size(nt_data.Time));
+    nt_data.Angular_velocity = NaN(size(nt_data.Time));
+    nt_data.Object_distance = NaN(size(nt_data.Time));
+end
+
+%max_time = nt_data.Time(end);
+
+
 %% Set up figure
+handles = nt_draw_track_window(handles,record,get_list_of_actions(),nt_data,state,measures,params);
+
+%% Main playback
+logmsg('Starting play')
+set(handles.text_state,'String','Playing');
+state.playback_speed = 1;
+state.loop = true;
+state.play = true;
+state.newframe = false;
+state.close_window = false;
+state.jumptime = 0;
+state.video_framerate = handles.vidobj{1}.FrameRate; % should go to params
+state.interframe_time = 1/state.video_framerate; % should go to params
+state.frame_update = 1;
+state.loop_time = 0.03; % s
+state.fps = state.video_framerate;
+state.extra_delay = 0.0; % to get fps to video_framerate
+
+set(handles.text_playback_speed,'String',num2str(state.playback_speed))
+
+figure(handles.fig_main);
+real_time_start = tic;
+real_time_prev = toc(real_time_start);
+while state.loop
+    if state.play || state.newframe
+        if state.jumptime ~= 0
+            % adjust jump to fit in recording of all camera's
+            for c = active_cameras
+                if handles.vidobj{c}.CurrentTime + state.jumptime > handles.vidobj{c}.Duration
+                    state.jumptime = handles.vidobj{c}.Duration - handles.vidobj{c}.CurrentTime;
+                end
+                if handles.vidobj{c}.CurrentTime + state.jumptime < 0
+                    state.jumptime = -handles.vidobj{c}.CurrentTime;
+                end
+            end % c
+            % make jump if jump still exists
+            if state.jumptime~=0
+                for c = active_cameras
+                    handles.vidobj{c}.CurrentTime = handles.vidobj{c}.CurrentTime + state.jumptime;
+                end % c
+            end
+            state.jumptime = 0;
+        end
+        % check if all cameras have frames
+        for c = active_cameras
+            if ~hasFrame(handles.vidobj{c})
+                state.newframe = false;
+                state.play = false;
+                set(handles.text_state,'String','Paused')
+            end
+        end % c
+
+        if state.play || state.newframe
+            camera_times_in_master_time = zeros(1,num_cameras);
+            for c = active_cameras
+                handles.camera_image(c).CData = readFrame(handles.vidobj{c});
+                camera_times_in_master_time(c) = (handles.vidobj{c}.CurrentTime - measures.trigger_times{c}(1)) / params.picamera_time_multiplier;
+            end
+            state.master_time = mean(camera_times_in_master_time(active_cameras));
+            state.newframe = false;
+        end
+
+        state.ind_past = find( nt_data.Time > state.master_time - params.nt_mouse_trace_window,1);
+        state.ind_current = state.ind_past + find( nt_data.Time(state.ind_past:end) > state.master_time,1 ) - 2 ;
+        state.ind_future = state.ind_current + find( nt_data.Time(state.ind_current:end) > state.master_time + params.nt_mouse_trace_window,1) - 2;
+
+        if isempty(state.ind_current) || state.ind_current == 0
+            state.ind_current = 1;
+            logmsg('No time before current time.')
+        end
+        state.X = nt_data.X(state.ind_current);
+        state.Y = nt_data.Y(state.ind_current);
+        state.alpha = nt_data.alpha(state.ind_current);
+               
+        update_all_panels(nt_data,measures,state,handles,params);
+    end % newframe
+
+    % Pause to maintain the natural frame rate
+    if state.playback_speed>1
+        for f = 2:state.playback_speed
+            for c = active_cameras
+                if ~hasFrame(handles.vidobj{c})
+                    state.newframe = false;
+                    state.play = false;
+                    set(handles.text_state,'String','Paused')
+                else
+                    readFrame(handles.vidobj{c});
+                end
+            end
+        end
+    end
+
+    real_time = toc(real_time_start);
+    d = real_time - real_time_prev;
+    if d < state.interframe_time/state.playback_speed
+        pause(state.interframe_time/state.playback_speed - d + state.extra_delay);
+        real_time = toc(real_time_start);
+    end
+    d = real_time - real_time_prev;
+
+    state.fps = 0.9*state.fps + 0.1*round(1/d);
+    real_time_prev = real_time;
+    
+    if state.fps < state.video_framerate*state.playback_speed && state.extra_delay>-state.interframe_time
+        state.extra_delay = state.extra_delay - 0.001;
+    elseif state.fps > state.video_framerate*state.playback_speed && state.extra_delay<state.interframe_time
+        state.extra_delay = state.extra_delay + 0.001;
+    end
+
+    % Perform action
+    action = get(handles.fig_main,'Userdata').('action');
+    [measures,state,handles,params] = take_action(action,measures,state,handles,record,params);
+
+    
+end % play loop
+set(handles.text_state,'String','Stopped')
+set(handles.fig_main,'WindowKeyPressFcn',[]);
+set(handles.fig_main,'CloseRequestFcn','closereq');
+if ishandle(handles.fig_main_help)
+    close(handles.fig_main_help);
+end
+logmsg('Finished tracking and updating record.');
+record.measures = measures;
+if state.close_window
+    close(handles.fig_main);
+    delete(handles.fig_main);
+end
+clear handles.vidobj
+
+global_record = record;
+
+end
+
+
+%% Update all panels
+function update_all_panels(nt_data,measures,state,handles,params)
+
+set(handles.text_time,'String',num2str(state.master_time,'%0.2f'))
+handles.timeline_current_time.XData = state.master_time * [1 1];
+
+% update arena on overhead camera image
+[neurotar_x,neurotar_y] = nt_change_arena_to_neurotar_coordinates(...
+    0,0,state.X,state.Y,state.alpha,params);
+neurotar_x = neurotar_x + params.arena_radius_mm * sin(handles.theta) ;
+neurotar_y = neurotar_y + params.arena_radius_mm * cos(handles.theta) ;
+[handles.overhead_arena.XData,handles.overhead_arena.YData] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
+
+% xlim(handles.panel_video(2),[0 params.overhead_camera_width]);
+% ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
+
+% update mouse in arena drawing
+handles.arena_trace.XData = nt_data.X(state.ind_past:state.ind_current);
+handles.arena_trace.YData = nt_data.Y(state.ind_past:state.ind_current);
+mouse_poly = 1.5* [0 10;-3 -2;3 -2;0 10]';
+alpha_rad = state.alpha/180*pi;
+rot = [cos(alpha_rad) -sin(alpha_rad); sin(alpha_rad) cos(alpha_rad) ];
+mouse_poly = rot * mouse_poly;
+handles.arena_mouse.XData = state.X + mouse_poly(1,:);
+handles.arena_mouse.YData = state.Y + mouse_poly(2,:);
+
+% draw object position
+if ~isempty(measures.object_positions)
+    ind_object = find(measures.object_positions(:,1)<state.master_time,1,'last');
+    if isempty(ind_object)
+        handles.arena_object.XData = NaN;
+        handles.arena_object.YData = NaN;
+        handles.overhead_object.XData = NaN;
+        handles.overhead_object.YData = NaN;
+    else
+        % if object is out, then object_positions will be NaN,NaN
+        switch measures.object_positions(ind_object,4)
+            case params.ARENA
+                handles.arena_object.XData = measures.object_positions(ind_object,2);
+                handles.arena_object.YData = measures.object_positions(ind_object,3);
+                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
+                    nt_change_arena_to_overhead_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+            case params.NEUROTAR
+                [handles.arena_object.XData,handles.arena_object.YData] = ...
+                    nt_change_neurotar_to_arena_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
+                    nt_change_neurotar_to_overhead_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    params);
+            case params.OVERHEAD
+                [handles.arena_object.XData,handles.arena_object.YData] = ...
+                    nt_change_overhead_to_arena_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+                handles.overhead_object.XData = measures.object_positions(ind_object,2);
+                handles.overhead_object.YData = measures.object_positions(ind_object,3);
+        end
+    end
+end
+
+% update speed and angular velocity plots
+ind = state.ind_past:state.ind_future;
+handles.speed_trace.XData = nt_data.Time(ind);
+handles.speed_trace.YData = nt_data.Forward_speed(ind);
+handles.speed_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+handles.speed_xaxis.YData = [0 0];
+handles.speed_yaxis.XData = [state.master_time state.master_time];
+handles.speed_yaxis.YData = [-250 250];
+xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+xlim(handles.panel_neurotar_speed,xl);
+nt_show_markers(measures.markers,handles.panel_neurotar_speed,params.nt_show_behavior_markers,xl,[-250 250]);
+
+handles.rotation_trace.XData = nt_data.Time(ind);
+handles.rotation_trace.YData = nt_data.Angular_velocity(ind);
+handles.rotation_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+handles.rotation_xaxis.YData = [0 0];
+handles.rotation_yaxis.XData = [state.master_time state.master_time];
+handles.rotation_yaxis.YData = [-360 360];
+xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+xlim(handles.panel_neurotar_rotation,xl);
+nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params.nt_show_behavior_markers,xl,[-360 360]);
+
+handles.distance_trace.XData = nt_data.Time(ind);
+if isreal(nt_data.Object_distance(ind))
+    handles.distance_trace.YData = nt_data.Object_distance(ind);
+else
+    handles.distance_trace.YData = NaN(size(ind));
+    warning('NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE','Complex object distance')
+    warning('off','NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE')
+end
+handles.distance_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+handles.distance_xaxis.YData = [0 0];
+handles.distance_yaxis.XData = [state.master_time state.master_time];
+handles.distance_yaxis.YData = [0 300];
+xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+xlim(handles.panel_neurotar_distance,xl);
+nt_show_markers(measures.markers,handles.panel_neurotar_distance,params.nt_show_behavior_markers,xl,[0 300]);
+
+set(handles.text_fps,'String',num2str(round(state.fps)));
+
+
+if params.nt_drawnow_limitrate
+    drawnow limitrate % only update at 20 fps
+else
+    drawnow
+end
+
+end
+
+%% Draw figure
+
+function handles = nt_draw_track_window(handles,record,actions,nt_data,state,measures,params)
+%nt_draw_track_window. Draws tracking figure
+
+max_time = nt_data.Time(end);
+
 handles.fig_main = figure('units','pixels','MenuBar','none','ToolBar','none',...
     'Name',['Tracking - ' subst_ctlchars(record.sessionid)],'NumberTitle','off','WindowStyle','normal');
 
@@ -153,7 +434,6 @@ set(handles.fig_main, 'Renderer', params.nt_renderer);
 
 % Toolbar buttons
 toolbar = uitoolbar(handles.fig_main);
-actions = get_list_of_actions();
 actions = actions([actions.toolbutton_position]>0);
 [~,ind] = sort([actions.toolbutton_position]);
 actions = actions(ind);
@@ -184,6 +464,8 @@ handles.text_playback_speed = uicontrol('Style','text','String','','Position',[3
 
 % Movie panels
 handles.panel_video = [];
+num_cameras = length(params.nt_camera_names);
+
 for i = 1:num_cameras
     handles.panel_video(i) = subplot(2,3,i);
     hold on
@@ -217,7 +499,7 @@ xlim([0 max_time]);
 ylim([0 1]);
 hold on
 handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'k-','linewidth',3);
-plot(neurotar_data.Time,rescale(neurotar_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
+plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
 ylim([0 params.nt_track_timeline_max_speed]);
 nt_show_markers(measures.markers,handles.panel_timeline,params.nt_show_behavior_markers);
 set(handles.panel_timeline,'ButtonDownFcn',@click_on_timeline);
@@ -325,10 +607,12 @@ set(gca,'xtick',[])
 set(gca,'ytick',[])
 box off
 
-handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);
-update_neurotar_headring(handles.overhead_neurotar_headring,params);
-handles.overhead_neurotar_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
-update_neurotar_center(handles.overhead_neurotar_center,params);
+if params.neurotar
+    handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);
+    update_neurotar_headring(handles.overhead_neurotar_headring,params);
+    handles.overhead_neurotar_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
+    update_neurotar_center(handles.overhead_neurotar_center,params);
+end
 
 % draw arena on overhead image
 handles.theta = linspace(0,2*pi,30);
@@ -354,261 +638,10 @@ end
 nt_check_markers(record,params); % to give information about marker consistency
 
 set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
-set(handles.fig_main,'UserData',struct('action',action));
+set(handles.fig_main,'UserData',struct('action',''));
 set(handles.fig_main,'CloseRequestFcn',@closerequestfcn);
-
-
-%% Main playback
-logmsg('Starting play')
-set(handles.text_state,'String','Playing')
-state.playback_speed = 1;
-state.loop = true;
-state.play = true;
-state.newframe = false;
-state.close_window = false;
-state.jumptime = 0;
-state.video_framerate = handles.vidobj{1}.FrameRate; % should go to params
-state.interframe_time = 1/state.video_framerate; % should go to params
-state.frame_update = 1;
-state.loop_time = 0.03; % s
-state.fps = state.video_framerate;
-state.extra_delay = 0.0; % to get fps to video_framerate
-
-set(handles.text_playback_speed,'String',num2str(state.playback_speed))
-
-figure(handles.fig_main);
-real_time_start = tic;
-real_time_prev = toc(real_time_start);
-while state.loop
-    if state.play || state.newframe
-        if state.jumptime ~= 0
-            % adjust jump to fit in recording of all camera's
-            for c = active_cameras
-                if handles.vidobj{c}.CurrentTime + state.jumptime > handles.vidobj{c}.Duration
-                    state.jumptime = handles.vidobj{c}.Duration - handles.vidobj{c}.CurrentTime;
-                end
-                if handles.vidobj{c}.CurrentTime + state.jumptime < 0
-                    state.jumptime = -handles.vidobj{c}.CurrentTime;
-                end
-            end % c
-            % make jump if jump still exists
-            if state.jumptime~=0
-                for c = active_cameras
-                    handles.vidobj{c}.CurrentTime = handles.vidobj{c}.CurrentTime + state.jumptime;
-                end % c
-            end
-            state.jumptime = 0;
-        end
-        % check if all cameras have frames
-        for c = active_cameras
-            if ~hasFrame(handles.vidobj{c})
-                state.newframe = false;
-                state.play = false;
-                set(handles.text_state,'String','Paused')
-            end
-        end % c
-
-        if state.play || state.newframe
-            camera_times_in_master_time = zeros(1,num_cameras);
-            for c = active_cameras
-                handles.camera_image(c).CData = readFrame(handles.vidobj{c});
-                camera_times_in_master_time(c) = (handles.vidobj{c}.CurrentTime - measures.trigger_times{c}(1)) / params.picamera_time_multiplier;
-            end
-            state.master_time = mean(camera_times_in_master_time(active_cameras));
-            state.newframe = false;
-        end
-
-        state.ind_past = find( neurotar_data.Time > state.master_time - params.nt_mouse_trace_window,1);
-        state.ind_current = state.ind_past + find( neurotar_data.Time(state.ind_past:end) > state.master_time,1 ) - 2 ;
-        state.ind_future = state.ind_current + find( neurotar_data.Time(state.ind_current:end) > state.master_time + params.nt_mouse_trace_window,1) - 2;
-
-        if isempty(state.ind_current) || state.ind_current == 0
-            state.ind_current = 1;
-            logmsg('No time before current time.')
-        end
-        state.X = neurotar_data.X(state.ind_current);
-        state.Y = neurotar_data.Y(state.ind_current);
-        state.alpha = neurotar_data.alpha(state.ind_current);
-               
-        update_all_panels(neurotar_data,measures,state,handles,params);
-    end % newframe
-
-    % Pause to maintain the natural frame rate
-    if state.playback_speed>1
-        for f = 2:state.playback_speed
-            for c = active_cameras
-                if ~hasFrame(handles.vidobj{c})
-                    state.newframe = false;
-                    state.play = false;
-                    set(handles.text_state,'String','Paused')
-                else
-                    readFrame(handles.vidobj{c});
-                end
-            end
-        end
-    end
-
-    real_time = toc(real_time_start);
-    d = real_time - real_time_prev;
-    if d < state.interframe_time/state.playback_speed
-        pause(state.interframe_time/state.playback_speed - d + state.extra_delay);
-        real_time = toc(real_time_start);
-    end
-    d = real_time - real_time_prev;
-
-    state.fps = 0.9*state.fps + 0.1*round(1/d);
-    real_time_prev = real_time;
-    
-    if state.fps < state.video_framerate*state.playback_speed && state.extra_delay>-state.interframe_time
-        state.extra_delay = state.extra_delay - 0.001;
-    elseif state.fps > state.video_framerate*state.playback_speed && state.extra_delay<state.interframe_time
-        state.extra_delay = state.extra_delay + 0.001;
-    end
-
-    % Perform action
-    action = get(handles.fig_main,'Userdata').('action');
-    [measures,state,handles,params] = take_action(action,measures,state,handles,record,params);
-
-    
-end % play loop
-set(handles.text_state,'String','Stopped')
-set(handles.fig_main,'WindowKeyPressFcn',[]);
-set(handles.fig_main,'CloseRequestFcn','closereq');
-if ishandle(handles.fig_main_help)
-    close(handles.fig_main_help);
-end
-logmsg('Finished tracking and updating record.');
-record.measures = measures;
-if state.close_window
-    close(handles.fig_main);
-    delete(handles.fig_main);
-end
-clear handles.vidobj
-
-global_record = record;
-
 end
 
-
-%% Update all panels
-function update_all_panels(neurotar_data,measures,state,handles,params)
-
-set(handles.text_time,'String',num2str(state.master_time,'%0.2f'))
-handles.timeline_current_time.XData = state.master_time * [1 1];
-
-% update arena on overhead camera image
-[neurotar_x,neurotar_y] = nt_change_arena_to_neurotar_coordinates(...
-    0,0,state.X,state.Y,state.alpha,params);
-neurotar_x = neurotar_x + params.arena_radius_mm * sin(handles.theta) ;
-neurotar_y = neurotar_y + params.arena_radius_mm * cos(handles.theta) ;
-[handles.overhead_arena.XData,handles.overhead_arena.YData] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
-
-% xlim(handles.panel_video(2),[0 params.overhead_camera_width]);
-% ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
-
-% update mouse in arena drawing
-handles.arena_trace.XData = neurotar_data.X(state.ind_past:state.ind_current);
-handles.arena_trace.YData = neurotar_data.Y(state.ind_past:state.ind_current);
-mouse_poly = 1.5* [0 10;-3 -2;3 -2;0 10]';
-alpha_rad = state.alpha/180*pi;
-rot = [cos(alpha_rad) -sin(alpha_rad); sin(alpha_rad) cos(alpha_rad) ];
-mouse_poly = rot * mouse_poly;
-handles.arena_mouse.XData = state.X + mouse_poly(1,:);
-handles.arena_mouse.YData = state.Y + mouse_poly(2,:);
-
-% draw object position
-if ~isempty(measures.object_positions)
-    ind_object = find(measures.object_positions(:,1)<state.master_time,1,'last');
-    if isempty(ind_object)
-        handles.arena_object.XData = NaN;
-        handles.arena_object.YData = NaN;
-        handles.overhead_object.XData = NaN;
-        handles.overhead_object.YData = NaN;
-    else
-        % if object is out, then object_positions will be NaN,NaN
-        switch measures.object_positions(ind_object,4)
-            case params.ARENA
-                handles.arena_object.XData = measures.object_positions(ind_object,2);
-                handles.arena_object.YData = measures.object_positions(ind_object,3);
-                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
-                    nt_change_arena_to_overhead_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-            case params.NEUROTAR
-                [handles.arena_object.XData,handles.arena_object.YData] = ...
-                    nt_change_neurotar_to_arena_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
-                    nt_change_neurotar_to_overhead_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    params);
-            case params.OVERHEAD
-                [handles.arena_object.XData,handles.arena_object.YData] = ...
-                    nt_change_overhead_to_arena_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-                handles.overhead_object.XData = measures.object_positions(ind_object,2);
-                handles.overhead_object.YData = measures.object_positions(ind_object,3);
-        end
-    end
-end
-
-% update speed and angular velocity plots
-ind = state.ind_past:state.ind_future;
-handles.speed_trace.XData = neurotar_data.Time(ind);
-handles.speed_trace.YData = neurotar_data.Forward_speed(ind);
-handles.speed_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-handles.speed_xaxis.YData = [0 0];
-handles.speed_yaxis.XData = [state.master_time state.master_time];
-handles.speed_yaxis.YData = [-250 250];
-xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-xlim(handles.panel_neurotar_speed,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_speed,params.nt_show_behavior_markers,xl,[-250 250]);
-
-handles.rotation_trace.XData = neurotar_data.Time(ind);
-handles.rotation_trace.YData = neurotar_data.Angular_velocity(ind);
-handles.rotation_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-handles.rotation_xaxis.YData = [0 0];
-handles.rotation_yaxis.XData = [state.master_time state.master_time];
-handles.rotation_yaxis.YData = [-360 360];
-xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-xlim(handles.panel_neurotar_rotation,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params.nt_show_behavior_markers,xl,[-360 360]);
-
-handles.distance_trace.XData = neurotar_data.Time(ind);
-if isreal(neurotar_data.Object_distance(ind))
-    handles.distance_trace.YData = neurotar_data.Object_distance(ind);
-else
-    handles.distance_trace.YData = NaN(size(ind));
-    warning('NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE','Complex object distance')
-    warning('off','NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE')
-end
-handles.distance_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-handles.distance_xaxis.YData = [0 0];
-handles.distance_yaxis.XData = [state.master_time state.master_time];
-handles.distance_yaxis.YData = [0 300];
-xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-xlim(handles.panel_neurotar_distance,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_distance,params.nt_show_behavior_markers,xl,[0 300]);
-
-set(handles.text_fps,'String',num2str(round(state.fps)));
-
-
-if params.nt_drawnow_limitrate
-    drawnow limitrate % only update at 20 fps
-else
-    drawnow
-end
-
-end
 
 
 %% Take action
@@ -877,8 +910,9 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             set(handles.edit_time_multiplier,'String',mat2str(params.picamera_time_multiplier));
 
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
-            update_neurotar_center(handles.overhead_neurotar_center,params);
-
+            if params.neurotar
+                update_neurotar_center(handles.overhead_neurotar_center,params);
+            end
             state.newframe = true;
     end
     userdata = get(handles.fig_main,'UserData');
@@ -889,55 +923,7 @@ end
 
 
 %% Action functions
-function update_neurotar_frame(overhead_neurotar_frame,params)
-n_points = 50;
-d = params.neurotar_halfwidth_mm;
-neurotar_x = [...
-    linspace(-d,-d,n_points) ...
-    linspace(-d,d,n_points) ...
-    linspace(d,d,n_points) ...
-    linspace(d,-d,n_points) ];
-neurotar_y = [...
-    linspace(-d,d,n_points) ...
-    linspace(d,d,n_points) ...
-    linspace(d,-d,n_points) ...
-    linspace(-d,-d,n_points)  ];
-if params.nt_show_bridge
-    neurotar_x = [ neurotar_x NaN ...
-        linspace(-d,d,n_points) ];
-    neurotar_y = [ neurotar_y NaN ...
-        linspace(0,0,n_points) ];
-end
-if params.nt_show_horizon
-    d = 10000;
-    neurotar_x = [neurotar_x NaN ...
-        linspace(-d,-d,n_points) ...
-        linspace(-d,d,n_points) ...
-        linspace(d,d,n_points) ...
-        linspace(d,-d,n_points) ];
-    neurotar_y = [neurotar_y NaN...
-        linspace(-d,d,n_points) ...
-        linspace(d,d,n_points) ...
-        linspace(d,-d,n_points) ...
-        linspace(-d,-d,n_points)  ];
-end
 
-
-[overhead_x,overhead_y] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
-overhead_neurotar_frame.XData = overhead_x;
-overhead_neurotar_frame.YData = overhead_y;
-
-end
-
-function update_neurotar_headring(overhead_neurotar_headring,params)
-overhead_neurotar_headring.XData = params.overhead_neurotar_headring(1);
-overhead_neurotar_headring.YData = params.overhead_neurotar_headring(2);
-end
-
-function update_neurotar_center(overhead_neurotar_center,params)
-overhead_neurotar_center.XData = params.overhead_neurotar_center(1);
-overhead_neurotar_center.YData = params.overhead_neurotar_center(2);
-end
 
 function playback_speed = increase_speed(playback_speed)
 switch playback_speed
@@ -981,12 +967,12 @@ switch playback_speed
 end
 end
 
-function help_fig = show_help
+function help_fig = show_help()
 actions = get_list_of_actions();
 help_fig = uifigure('Name','Help','NumberTitle','off');
 pos = get(help_fig,'position');
 actions = actions(arrayfun(@(x) ~isempty(x.keys),actions)); % select actions with keys
-uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],actions,'UniformOutput',false),'Position',[10 10 pos(3)-20 pos(4)-20]);
+uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],actions,'UniformOutput',false),'Position',[10 10 (pos(3)-30)/2 pos(4)-20]);
 end
 
 function markers_fig = show_markers( params )
@@ -1255,80 +1241,55 @@ userdata.action = 'update_camera_distortion';
 set(fig,'UserData',userdata);
 end
 
-function set_button_icon(button,arg)
 
-switch button.Tag
-    case 'toggle_play'
-        if arg
-            ico = [
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 1 1 1 1 0 0 0 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                ];
-        else
-            ico = [
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 0 0 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 0 0 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 0 0 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 0 0 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                ];
-
-        end
-        ico = ico*0.95;
-        ico = repmat(ico,[1 1 3]);
-    otherwise
-        filename = fullfile(fileparts(mfilename("fullpath")),'Icons',[button.Tag,'.png']);
-        if exist(filename,'file')
-            ico = imread(filename);
-        else
-            logmsg(['Icon for action ' button.Tag ' not yet defined.'])
-            ico = [
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 0 0 1 1 1 1 1 1 1 1 1 0 0 1 ;
-                1 1 1 0 0 1 1 1 1 1 1 1 0 0 1 1 ;
-                1 1 1 1 0 0 1 1 1 1 1 0 0 1 1 1 ;
-                1 1 1 1 1 0 0 1 1 1 0 0 1 1 1 1 ;
-                1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 0 0 0 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 0 0 0 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 ;
-                1 1 1 1 1 0 0 1 1 1 0 0 1 1 1 1 ;
-                1 1 1 1 0 0 1 1 1 1 1 0 0 1 1 1 ;
-                1 1 1 0 0 1 1 1 1 1 1 1 0 0 1 1 ;
-                1 1 0 0 1 1 1 1 1 1 1 1 1 0 0 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-                1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ;
-
-                ];
-            ico = ico*0.95;
-            ico = repmat(ico,[1 1 3]);
-        end
+function update_neurotar_headring(overhead_neurotar_headring,params)
+overhead_neurotar_headring.XData = params.overhead_neurotar_headring(1);
+overhead_neurotar_headring.YData = params.overhead_neurotar_headring(2);
 end
-button.CData = ico;
+
+function update_neurotar_center(overhead_neurotar_center,params)
+overhead_neurotar_center.XData = params.overhead_neurotar_center(1);
+overhead_neurotar_center.YData = params.overhead_neurotar_center(2);
 end
+
+function update_neurotar_frame(overhead_neurotar_frame,params)
+n_points = 50;
+d = params.neurotar_halfwidth_mm;
+neurotar_x = [...
+    linspace(-d,-d,n_points) ...
+    linspace(-d,d,n_points) ...
+    linspace(d,d,n_points) ...
+    linspace(d,-d,n_points) ];
+neurotar_y = [...
+    linspace(-d,d,n_points) ...
+    linspace(d,d,n_points) ...
+    linspace(d,-d,n_points) ...
+    linspace(-d,-d,n_points)  ];
+if params.nt_show_bridge
+    neurotar_x = [ neurotar_x NaN ...
+        linspace(-d,d,n_points) ];
+    neurotar_y = [ neurotar_y NaN ...
+        linspace(0,0,n_points) ];
+end
+if params.nt_show_horizon
+    d = 10000;
+    neurotar_x = [neurotar_x NaN ...
+        linspace(-d,-d,n_points) ...
+        linspace(-d,d,n_points) ...
+        linspace(d,d,n_points) ...
+        linspace(d,-d,n_points) ];
+    neurotar_y = [neurotar_y NaN...
+        linspace(-d,d,n_points) ...
+        linspace(d,d,n_points) ...
+        linspace(d,-d,n_points) ...
+        linspace(-d,-d,n_points)  ];
+end
+
+
+[overhead_x,overhead_y] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
+overhead_neurotar_frame.XData = overhead_x;
+overhead_neurotar_frame.YData = overhead_y;
+
+end
+
+

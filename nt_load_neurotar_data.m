@@ -25,7 +25,7 @@ if isempty(d) && strcmp(record.subject,'exampleVideo')
 end
 
 if isempty(d)
-    errormsg(['Cannot find Neurotar data in ' neurotar_mask]);
+    logmsg(['Cannot find Neurotar data in ' neurotar_mask]);
     return
 end
 if length(d)>1
