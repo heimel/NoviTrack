@@ -1,0 +1,2 @@
+sudo mount -t cifs -o user=ren,uid=$(id -u),gid=$(id -g),workgroup=herseninstituut,vers=1.0 //vs03.herseninstituut.knaw.nl/vs03-csf-1 /mnt/VS03-CSF-1
+
