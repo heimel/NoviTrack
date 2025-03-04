@@ -24,12 +24,18 @@ if params.markers(ind).linked
     if params.neurotar 
         stim_id = 1; % don't ask
     else
-        fprintf('Choose which stim_id (1,2,...) by pressing number key: ')
-        drawnow
-        waitforbuttonpress;
-        key = get(gcf,'CurrentCharacter');
-        fprintf([key '\n']);
-        stim_id = str2double(key);
+        stim_id = NaN;
+        while isnan(stim_id)
+            fprintf('Choose which stim_id (1,2,...) by pressing number key: ')
+            drawnow
+            waitforbuttonpress;
+            key = get(gcf,'CurrentCharacter');
+            fprintf([key '\n']);
+            stim_id = str2double(key);
+            if isnan(stim_id)
+                disp([key ' is not a digit. Choose again.']);
+            end
+        end
     end
     marker = [marker num2str(stim_id)];
 else 

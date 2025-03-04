@@ -27,7 +27,7 @@ while m<=length(markers) && markers(m).time <= t
         if ~ismember(stim_id,stim_ids)
             stim_ids = [stim_ids stim_id]; %#ok<AGROW>
         end
-    elseif markers(m).marker(1)==params.stop_marker % stop marker
+    elseif markers(m).marker(1)==params.nt_stop_marker % stop marker
         if isempty(stim_ids)
             logmsg(['Marker indicating stimulus removed, but no stimuli present at time ' num2str(markers(m).time)]);
         else
