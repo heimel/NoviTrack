@@ -21,5 +21,5 @@ end
 
 disp('Markers')
 for m = 1:length(markers)
-    fprintf('%9.3f,  %c\n',markers(m).time,markers(m).marker)    
+    fprintf('%9.3f,  %s\n',markers(m).time,markers(m).marker)    
 end

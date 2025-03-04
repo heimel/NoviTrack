@@ -32,7 +32,7 @@ for m = 1:length(measures.markers)
                 break
             end
             stimulus_present = false;
-        case params.nt_stimulus_types 
+        case params.nt_stim_markers 
             if stimulus_present
                 msg = ['Stimulus started twice at ' num2str(measures.markers(m).time,2) ' s'];
                 correct = false;

@@ -234,12 +234,13 @@ while state.loop
 
         state.ind_past = find( nt_data.Time > state.master_time - params.nt_mouse_trace_window,1);
         state.ind_current = state.ind_past + find( nt_data.Time(state.ind_past:end) > state.master_time,1 ) - 2 ;
-        state.ind_future = state.ind_current + find( nt_data.Time(state.ind_current:end) > state.master_time + params.nt_mouse_trace_window,1) - 2;
 
         if isempty(state.ind_current) || state.ind_current == 0
             state.ind_current = 1;
             logmsg('No time before current time.')
         end
+        state.ind_future = state.ind_current + find( nt_data.Time(state.ind_current:end) > state.master_time + params.nt_mouse_trace_window,1) - 2;
+
         state.X = nt_data.X(state.ind_current);
         state.Y = nt_data.Y(state.ind_current);
         state.alpha = nt_data.alpha(state.ind_current);
@@ -330,50 +331,7 @@ mouse_poly = rot * mouse_poly;
 handles.arena_mouse.XData = state.X + mouse_poly(1,:);
 handles.arena_mouse.YData = state.Y + mouse_poly(2,:);
 
-% draw object position
-if ~isempty(measures.object_positions)
-    ind_object = find(measures.object_positions(:,1)<state.master_time,1,'last');
-    if isempty(ind_object)
-        handles.arena_object.XData = NaN;
-        handles.arena_object.YData = NaN;
-        handles.overhead_object.XData = NaN;
-        handles.overhead_object.YData = NaN;
-    else
-        % if object is out, then object_positions will be NaN,NaN
-        switch measures.object_positions(ind_object,4)
-            case params.ARENA
-                handles.arena_object.XData = measures.object_positions(ind_object,2);
-                handles.arena_object.YData = measures.object_positions(ind_object,3);
-                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
-                    nt_change_arena_to_overhead_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-            case params.NEUROTAR
-                [handles.arena_object.XData,handles.arena_object.YData] = ...
-                    nt_change_neurotar_to_arena_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
-                    nt_change_neurotar_to_overhead_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    params);
-            case params.OVERHEAD
-                [handles.arena_object.XData,handles.arena_object.YData] = ...
-                    nt_change_overhead_to_arena_coordinates(...
-                    measures.object_positions(ind_object,2),...
-                    measures.object_positions(ind_object,3),...
-                    state.X,state.Y,state.alpha,...
-                    params);
-                handles.overhead_object.XData = measures.object_positions(ind_object,2);
-                handles.overhead_object.YData = measures.object_positions(ind_object,3);
-        end
-    end
-end
+update_object_positions(measures,state,handles,params);
 
 % update speed and angular velocity plots
 ind = state.ind_past:state.ind_future;
@@ -423,6 +381,55 @@ else
 end
 
 end
+
+
+function update_object_positions(measures,state,handles,params)
+
+if ~isempty(measures.object_positions)
+    ind_object = find(measures.object_positions(:,1)<=state.master_time,1,'last');
+    if isempty(ind_object)
+        handles.arena_object.XData = NaN;
+        handles.arena_object.YData = NaN;
+        handles.overhead_object.XData = NaN;
+        handles.overhead_object.YData = NaN;
+    else
+        % if object is out, then object_positions will be NaN,NaN
+        switch measures.object_positions(ind_object,4)
+            case params.ARENA
+                handles.arena_object.XData = measures.object_positions(ind_object,2);
+                handles.arena_object.YData = measures.object_positions(ind_object,3);
+                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
+                    nt_change_arena_to_overhead_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+            case params.NEUROTAR
+                [handles.arena_object.XData,handles.arena_object.YData] = ...
+                    nt_change_neurotar_to_arena_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+                [handles.overhead_object.XData,handles.overhead_object.YData] = ...
+                    nt_change_neurotar_to_overhead_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    params);
+            case params.OVERHEAD
+                [handles.arena_object.XData,handles.arena_object.YData] = ...
+                    nt_change_overhead_to_arena_coordinates(...
+                    measures.object_positions(ind_object,2),...
+                    measures.object_positions(ind_object,3),...
+                    state.X,state.Y,state.alpha,...
+                    params);
+                handles.overhead_object.XData = measures.object_positions(ind_object,2);
+                handles.overhead_object.YData = measures.object_positions(ind_object,3);
+        end
+    end
+end
+end
+
 
 %% Draw figure
 
@@ -636,7 +643,7 @@ ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
 
 
 if params.nt_show_help
-    handles.fig_main_help = show_help();
+    handles.fig_main_help = show_help(params);
 else
     handles.fig_main_help = [];
 end
@@ -713,16 +720,16 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             for i = 1:length(events)
                 switch events(i).code
                     case 'p' % prey
-                        measures.markers = insert_marker(measures.markers,events(i).time,'v',params);
-                        measures.markers = insert_marker(measures.markers,events(i).time + events(i).duration,'t',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time,'v',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'t',params);
                     case 'b' % both
-                        measures.markers = insert_marker(measures.markers,events(i).time,'v',params);
-                        measures.markers = insert_marker(measures.markers,events(i).time + events(i).duration,'t',params);
-                        measures.markers = insert_marker(measures.markers,events(i).time,'1',params);
-                        measures.markers = insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time,'v',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'t',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time,'1',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
                     case 'o' % opto                        
-                        measures.markers = insert_marker(measures.markers,events(i).time,'1',params);
-                        measures.markers = insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time,'1',params);
+                        measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
                 end
             end
             nt_show_markers(measures.markers,handles.panel_timeline,params);
@@ -734,13 +741,14 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             pause(0.01)
             prev_state = get(handles.text_state,'String');
             set(handles.text_state,'String','Choose marker');
-            disp('Adding marker. Choose which marker by pressing key...')
+            fprintf('Choose which marker to add by pressing key: ')
             drawnow
             waitforbuttonpress;
-            key = get(handles.fig_main,'CurrentCharacter');
-            measures.markers = insert_marker(measures.markers,state.master_time,key,params);
-            if strcmp(key,'t') % take out object KEY SHOULD BE GOTTEN FROM NT_TRACK_BEHAVIOR
-                measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA 1]; % obj_id = 1
+            key = get(gcf,'CurrentCharacter');
+            fprintf([key '\n']);
+            [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true);
+            if strcmp(key,params.nt_stop_marker) 
+                measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id]; 
                 [~,ind] = sort(measures.object_positions(:,1));
                 measures.object_positions = measures.object_positions(ind,:);
             end
@@ -754,7 +762,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             switch answer
                 case 'Yes'
                     [measures.markers,removed_marker] = delete_next_marker(measures.markers,state.master_time);
-                    if strcmp(removed_marker.marker,'t')  % take out object KEY SHOULD BE GOTTEN FROM NT_TRACK_BEHAVIOR
+                    if strcmp(removed_marker.marker,params.nt_stop_marker)  
                         % remove object_position entries too
                         ind = find(measures.object_positions(:,1)==removed_marker.time);
                         if ~isempty(ind)
@@ -775,9 +783,12 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                     state.jumptime = -state.interframe_time;
             end
         case 'position_delete'
-            ind = find(measures.object_positions(:,1)<state.master_time,1,'last');
+            ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
             if ~isempty(ind)
+                logmsg(['Deleting object position: ' mat2str(measures.object_positions(ind,:))])
                 measures.object_positions(ind,:) = [];
+            else
+                logmsg('No previous object position to delete');
             end
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -789,7 +800,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             if ishandle(handles.fig_main_help)
                 figure(handles.fig_main_help);
             else
-                handles.fig_main_help = show_help();
+                handles.fig_main_help = show_help(params);
             end
         case 'stop'
             logmsg('Stopped tracking. Exiting main loop.');
@@ -814,40 +825,48 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 logmsg(['Putative trigger time from start of movie: ' num2str(putative_trigger_time) ' s.']);
                 logmsg(['Putative trigger time on current timeline: ' num2str(putative_trigger_time-measures.trigger_times{camera}(1)) ' s.']);
             end
-        case 'set_real_object_position' % set in arena coordinates
-            object_id = 1;
+        case {'set_real_object_position','set_virtual_object_position'}
+            stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
+            if isempty(stim_ids)
+                if strcmp(action,'set_real_object_position')
+                    marker = 'o';
+                else
+                    marker = 'v';
+                end
+                logmsg(['No stimulus currently present. Adding marker ''' marker '''']);
+                [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,marker,params);
+            elseif length(stim_ids)>1
+                stim_id = -1;
+                while ~ismember(stim_id,stim_ids)
+                    fprintf(['Choose which stim_id ' mat2str(stim_ids) ' by pressing number key: '])
+                    drawnow
+                    waitforbuttonpress;
+                    key = get(gcf,'CurrentCharacter');
+                    fprintf([key '\n']);
+                    stim_id = str2double(key);
+                    if ~ismember(stim_id,stim_ids)
+                        disp(['Stim_id ' key ' is not currently present.']);
+                    end
+                end
+            else 
+                stim_id = stim_ids;
+            end
             [overhead_x,overhead_y] = get_location_on_camera(handles,params.nt_overhead_camera);
-            [neurotar_x,neurotar_y] = nt_change_overhead_to_neurotar_coordinates(overhead_x,overhead_y,params);
-            [arena_x,arena_y] = nt_change_neurotar_to_arena_coordinates(neurotar_x,neurotar_y,...
-                state.X,state.Y,state.alpha,params);
-            measures.object_positions(end+1,:) = [state.master_time arena_x arena_y params.ARENA object_id]; 
+            if params.neurotar && strcmp(action,'set_real_object_position')
+                [neurotar_x,neurotar_y] = nt_change_overhead_to_neurotar_coordinates(overhead_x,overhead_y,params);
+                [arena_x,arena_y] = nt_change_neurotar_to_arena_coordinates(neurotar_x,neurotar_y,...
+                    state.X,state.Y,state.alpha,params);
+                measures.object_positions(end+1,:) = [state.master_time arena_x arena_y params.ARENA stim_id];
+            else
+                measures.object_positions(end+1,:) = [state.master_time overhead_x overhead_y params.OVERHEAD stim_id];
+                
+            end
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
-            if ~nt_is_stimulus_present(measures.markers,state.master_time,'o')
-                logmsg('No physical stimulus was marked present. Adding marker ''o''');
-                measures.markers = insert_marker(measures.markers,state.master_time,'o',params);
-            end
             nt_show_markers(measures.markers,handles.panel_timeline,params);
-            drawnow
-            state.newframe = true;
-            state.jumptime = -state.interframe_time;
-        case 'set_virtual_object_position' % set in params.OVERHEAD coordinates
-            camera = params.nt_overhead_camera;
-            object_id = 1;
-            [overhead_x,overhead_y] = get_location_on_camera(handles,camera);
-            measures.object_positions(end+1,:) = [state.master_time overhead_x overhead_y params.OVERHEAD object_id]; 
-            [~,ind] = sort(measures.object_positions(:,1));
-            measures.object_positions = measures.object_positions(ind,:);
-            n_stimuli_present = nt_is_stimulus_present(measures.markers,state.master_time,'v');
-            if ~n_stimuli_present
-                logmsg('No virtual stimulus was marked present. Adding marker ''v''');
-                measures.markers = insert_marker(measures.markers,state.master_time,'v',params);
-            elseif n_stimuli_present>1
-                logmsg('Multiple virtual stimuli present');
-            end
-            nt_show_markers(measures.markers,handles.panel_timeline,params);
-            drawnow
+            %update_object_positions(measures,state,handles,params);
 
+            drawnow
             state.newframe = true;
             state.jumptime = -state.interframe_time;
         case 'set_neurotar_center'
@@ -975,19 +994,23 @@ switch playback_speed
 end
 end
 
-function help_fig = show_help()
+function help_fig = show_help(params)
 actions = get_list_of_actions();
 help_fig = uifigure('Name','Help','NumberTitle','off');
 pos = get(help_fig,'position');
 actions = actions(arrayfun(@(x) ~isempty(x.keys),actions)); % select actions with keys
-uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],actions,'UniformOutput',false),'Position',[10 10 (pos(3)-30)/2 pos(4)-20]);
+margin = 10;
+left = margin;
+bottom = margin;
+width = (pos(3)-3*margin)/2;
+height = pos(4)-2*margin;
+uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],actions,'UniformOutput',false),'Position',[left bottom width height]);
+
+uitextarea(help_fig,'Value',arrayfun(@(x) [x.marker ' - ' x.description],params.markers,'UniformOutput',false),'Position',[left+width+margin bottom width height]);
+
+
 end
 
-function markers_fig = show_markers( params )
-markers_fig = uifigure('Name','Markers','NumberTitle','off');
-pos = get(markers_fig,'position');
-uitextarea(markers_fig,'Value',arrayfun(@(x) [x.marker ' - ' x.description],params.markers,'UniformOutput',false),'Position',[10 10 pos(3)-20 pos(4)-20]);
-end
 
 
 
@@ -1094,32 +1117,6 @@ removed_marker = markers(ind);
 markers(ind) = [];
 end
 
-function markers = insert_marker( markers, t, key, params)
-ind = find_record(params.markers,['marker=' key]);
-if isempty(ind)
-    logmsg(['Unknown marker ' key '. Not inserted the marker.']);
-    show_markers( params );
-    return
-end
-if isempty(markers)
-    markers(1).time = t;
-    markers(1).marker = key;
-    return
-end
-
-% insert marker at proper time
-mt = [markers.time];
-ind = find(mt<t,1,'last'); 
-if isempty(ind)
-    markers(2:end+1) = markers;
-    markers(1).time = t;
-    markers(1).marker = key;
-else
-    markers(ind+2:end+1) = markers(ind+1:end);
-    markers(ind+1).time = t;
-    markers(ind+1).marker = key;
-end
-end
 
 function click_on_timeline(src, event)
 % goto time clicked on timeline

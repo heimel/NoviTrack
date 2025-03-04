@@ -1,15 +1,17 @@
 function stimulus_present = nt_is_stimulus_present(markers,t,stimulus_types)
 %nt_is_stimulus_present. Returns if particular stimuli is present at certain time
 %
-%   stimulus_present = nt_is_stimulus_present(markers,t,[stimulus_types=params.nt_stimulus_types])
+%   stimulus_present = nt_is_stimulus_present(markers,t,[stimulus_types=params.nt_stim_markers])
 %
 %    interpreting marker 't' as LIFO!
 %
 % 2024, Alexander Heimel
 
+logmsg('DEPRECATED SHOULD BE REMOVED')
+
 if nargin<3 || isempty(stimulus_types)
     params = nt_default_parameters();
-    stimulus_types = params.nt_stimulus_types;
+    stimulus_types = params.nt_stim_markers;
 end
 if iscell(stimulus_types)
     stimulus_types = [stimulus_types{:}];

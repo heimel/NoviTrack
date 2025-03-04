@@ -30,7 +30,7 @@ end
 markers = markers([markers(:).time]>=bounds(1) & [markers(:).time]<=bounds(2));
 
 for i=1:length(markers)
-    ind = find_record(params.markers,['marker=' markers(i).marker]);
+    ind = find_record(params.markers,['marker=' markers(i).marker(1)]);
     if ~isempty(ind)
         color = params.markers(ind).color;
         if params.markers(ind).behavior && ~params.nt_show_behavior_markers
