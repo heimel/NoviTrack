@@ -12,17 +12,18 @@ stim_ids = [];
 m = 1;
 while m<=length(markers) && markers(m).time <= t
     if any(contains(params.nt_stim_markers,markers(m).marker(1))) % stimulus marker
-        if length(markers(m).marker)==1
+        if isscalar(markers(m).marker)
             if isempty(stim_ids)
                 stim_id = 1;
             else
                 stim_id = max(stim_ids) + 1;
             end
         else
-            stim_id = str2double(markers(m).marker(2:end));
-            if ismember(stim_id,stim_ids)
-                logmsg(['Stim_id ' num2str(stim_id) ' was already present at time ' num2str(markers(m).time) ]);
-            end
+            % stim_id = str2double(markers(m).marker(2:end));  % slower
+            stim_id = markers(m).marker(2)-48; % converts '1' to 1
+            % if ismember(stim_id,stim_ids)
+            %     logmsg(['Stim_id ' num2str(stim_id) ' was already present at time ' num2str(markers(m).time) ]);
+            % end
         end
         if ~ismember(stim_id,stim_ids)
             stim_ids = [stim_ids stim_id]; %#ok<AGROW>

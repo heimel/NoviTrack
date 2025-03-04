@@ -33,9 +33,6 @@ behaviors = behaviors([behaviors(:).time]>=bounds(1) & [behaviors(:).time]<=boun
 yl = ylim(ax);
 
 for i=1:length(behaviors)
-    
-
-
     ind = find_record(params.nt_behaviors,['behavior=' behaviors(i).behavior]);
     if ~isempty(ind)
         color = params.nt_behaviors(ind).color;

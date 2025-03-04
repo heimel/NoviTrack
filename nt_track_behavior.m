@@ -245,7 +245,7 @@ while state.loop
         state.Y = nt_data.Y(state.ind_current);
         state.alpha = nt_data.alpha(state.ind_current);
                
-        update_all_panels(nt_data,measures,state,handles,params);
+        handles = update_all_panels(nt_data,measures,state,handles,params);
     end % newframe
 
     % Pause to maintain the natural frame rate
@@ -306,7 +306,7 @@ end
 
 
 %% Update all panels
-function update_all_panels(nt_data,measures,state,handles,params)
+function handles = update_all_panels(nt_data,measures,state,handles,params)
 
 set(handles.text_time,'String',num2str(state.master_time,'%0.2f'))
 handles.timeline_current_time.XData = state.master_time * [1 1];
@@ -322,16 +322,18 @@ neurotar_y = neurotar_y + params.arena_radius_mm * cos(handles.theta) ;
 % ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
 
 % update mouse in arena drawing
-handles.arena_trace.XData = nt_data.X(state.ind_past:state.ind_current);
-handles.arena_trace.YData = nt_data.Y(state.ind_past:state.ind_current);
-mouse_poly = 1.5* [0 10;-3 -2;3 -2;0 10]';
-alpha_rad = state.alpha/180*pi;
-rot = [cos(alpha_rad) -sin(alpha_rad); sin(alpha_rad) cos(alpha_rad) ];
-mouse_poly = rot * mouse_poly;
-handles.arena_mouse.XData = state.X + mouse_poly(1,:);
-handles.arena_mouse.YData = state.Y + mouse_poly(2,:);
+if params.nt_show_arena_panel
+    handles.arena_trace.XData = nt_data.X(state.ind_past:state.ind_current);
+    handles.arena_trace.YData = nt_data.Y(state.ind_past:state.ind_current);
+    mouse_poly = 1.5* [0 10;-3 -2;3 -2;0 10]';
+    alpha_rad = state.alpha/180*pi;
+    rot = [cos(alpha_rad) -sin(alpha_rad); sin(alpha_rad) cos(alpha_rad) ];
+    mouse_poly = rot * mouse_poly;
+    handles.arena_mouse.XData = state.X + mouse_poly(1,:);
+    handles.arena_mouse.YData = state.Y + mouse_poly(2,:);
+end
 
-update_object_positions(measures,state,handles,params);
+handles = update_object_positions(measures,state,handles,params);
 
 % update speed and angular velocity plots
 ind = state.ind_past:state.ind_future;
@@ -355,24 +357,25 @@ xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt
 xlim(handles.panel_neurotar_rotation,xl);
 nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params,xl,[-360 360]);
 
-handles.distance_trace.XData = nt_data.Time(ind);
-if isreal(nt_data.Object_distance(ind))
-    handles.distance_trace.YData = nt_data.Object_distance(ind);
-else
-    handles.distance_trace.YData = NaN(size(ind));
-    warning('NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE','Complex object distance')
-    warning('off','NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE')
+if params.nt_show_distance_trace
+    handles.distance_trace.XData = nt_data.Time(ind);
+    if isreal(nt_data.Object_distance(ind))
+        handles.distance_trace.YData = nt_data.Object_distance(ind);
+    else
+        handles.distance_trace.YData = NaN(size(ind));
+        warning('NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE','Complex object distance')
+        warning('off','NT_TRACK_BEHAVIOR:COMPLEX_OBJECT_DISTANCE')
+    end
+    handles.distance_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+    handles.distance_xaxis.YData = [0 0];
+    handles.distance_yaxis.XData = [state.master_time state.master_time];
+    handles.distance_yaxis.YData = [0 300];
+    xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+    xlim(handles.panel_neurotar_distance,xl);
+    nt_show_markers(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
 end
-handles.distance_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-handles.distance_xaxis.YData = [0 0];
-handles.distance_yaxis.XData = [state.master_time state.master_time];
-handles.distance_yaxis.YData = [0 300];
-xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-xlim(handles.panel_neurotar_distance,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
 
 set(handles.text_fps,'String',num2str(round(state.fps)));
-
 
 if params.nt_drawnow_limitrate
     drawnow limitrate % only update at 20 fps
@@ -383,15 +386,20 @@ end
 end
 
 
-function update_object_positions(measures,state,handles,params)
+
+
+function handles = update_object_positions(measures,state,handles,params)
 % updates the location of the objects
-handles.arena_object.XData = NaN;
-handles.arena_object.YData = NaN;
-handles.overhead_object.XData = NaN;
-handles.overhead_object.YData = NaN;
-if isempty(measures.object_positions)
-    return
-end
+% if isempty(measures.object_positions)
+%     ind = find(cellfun(@(x) ~isempty(x),handles.arena_object));
+%     cellfun(@delete,handles.arena_object(ind));
+%     handles.arena_object(ind) = {[]};
+% 
+%     ind = find(cellfun(@(x) ~isempty(x),handles.overhead_object));
+%     cellfun(@delete,handles.overhead_object(ind));
+%     handles.overhead_object(ind) = {[]};
+% end
+
 stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
 for i=1:length(stim_ids)
     ind_object = find(measures.object_positions(:,1)<=state.master_time & ...
@@ -433,11 +441,43 @@ for i=1:length(stim_ids)
             overhead_x = measures.object_positions(ind_object,2);
             overhead_y = measures.object_positions(ind_object,3);
     end % switch
-    handles.arena_object.XData = [ handles.arena_object.XData  arena_x];
-    handles.arena_object.YData = [ handles.arena_object.YData  arena_y];
-    handles.overhead_object.XData = [handles.overhead_object.XData overhead_x];
-    handles.overhead_object.YData = [handles.overhead_object.YData overhead_y];
+
+    if params.nt_show_arena_panel
+        if ~isnan(arena_x) && ~isnan(arena_y)
+            if ishandle(handles.arena_object{stim_ids(i)})
+                if handles.arena_object{stim_ids(i)}.XData ~= arena_x || handles.arena_object{stim_ids(i)}.YData ~= arena_y
+                    handles.arena_object{stim_ids(i)}.XData = arena_x;
+                    handles.arena_object{stim_ids(i)}.YData = arena_y;
+                end
+            else
+                hold(handles.panel_arena,'on');
+                handles.arena_object{stim_ids(i)} = plot(handles.panel_arena,arena_x,arena_y,'x','Color',[0 1 0],'MarkerSize',8);
+            end
+        end
+    end
+
+    if ishandle(handles.overhead_object{stim_ids(i)})
+        if handles.overhead_object{stim_ids(i)}.XData ~= overhead_x || handles.overhead_object{stim_ids(i)}.YData ~= overhead_y
+            handles.overhead_object{stim_ids(i)}.XData = overhead_x;
+            handles.overhead_object{stim_ids(i)}.YData = overhead_y;
+        end
+    else
+        hold(handles.panel_video(2),'on');
+        handles.overhead_object{stim_ids(i)} = plot(handles.panel_video(2),overhead_x,overhead_y,'s','Color',[0 1 0]);
+    end
 end % i
+
+%ind_not_present = setdiff(1:9,stim_ids); % slow
+ind_not_present = 1:9;
+ind_not_present(stim_ids) = [];
+mask_handles = cellfun( @(x) ~isempty(x),handles.overhead_object(ind_not_present));
+cellfun(@delete,handles.overhead_object(ind_not_present(mask_handles)));
+handles.overhead_object(ind_not_present(mask_handles)) = {[]};
+
+mask_handles = cellfun( @(x) ~isempty(x),handles.arena_object(ind_not_present));
+cellfun(@delete,handles.arena_object(ind_not_present(mask_handles)));
+handles.arena_object(ind_not_present(mask_handles)) = {[]};
+
 
 end
 
@@ -522,7 +562,9 @@ set(gca,'ytick',[])
 xlim([0 max_time]);
 ylim([0 1]);
 hold on
-handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'k-','linewidth',3);
+%handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'k-','linewidth',3);
+handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'-','Color',[0 0 0],'linewidth',3);
+
 plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
 ylim([0 params.nt_track_timeline_max_speed]);
 nt_show_markers(measures.markers,handles.panel_timeline,params);
@@ -531,10 +573,11 @@ set(handles.panel_timeline,'ButtonDownFcn',@click_on_timeline);
 % Panel with neurotar speed
 handles.panel_neurotar_speed = subplot('Position',[0.05 0.25 0.25 0.1]);
 hold on
-handles.speed_xaxis = plot([0 max_time],[0 0],'-','Color' ,0.7*[1 1 1]);
-handles.speed_yaxis = plot([0 0],[-1 1],'-','Color' ,0.7*[1 1 1]);
+handles.speed_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+handles.speed_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
 disableDefaultInteractivity(handle(handles.panel_neurotar_speed))
-handles.speed_trace = plot(0,0,'-k');
+%handles.speed_trace = plot(0,0,'-k');
+handles.speed_trace = line(0,0,'Color',[0 0 0]);
 set(handles.panel_neurotar_speed.XAxis,'visible','off')
 ylabel('Fwd speed');
 ylim(handles.panel_neurotar_speed,[-250 250]);
@@ -591,39 +634,46 @@ left = left + width + sep; %#ok<NASGU>
 % Panel with neurotar rotation
 handles.panel_neurotar_rotation = subplot('Position',[0.05 0.1 0.25 0.1]);
 hold on
-handles.rotation_xaxis = plot([0 max_time],[0 0],'-','Color' ,0.7*[1 1 1]);
-handles.rotation_yaxis = plot([0 0],[-1 1],'-','Color' ,0.7*[1 1 1]);
+handles.rotation_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+handles.rotation_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
 disableDefaultInteractivity(handle(handles.panel_neurotar_rotation))
-handles.rotation_trace = plot(0,0,'-k');
+%handles.rotation_trace = plot(0,0,'-k');
+handles.rotation_trace = line(0,0,'Color',[0 0 0]);
 ylabel('\Delta\theta');
 ylim(handles.panel_neurotar_rotation,[-360 360]);
 
 set(handles.panel_neurotar_rotation,'ButtonDownFcn',@click_on_timeline);
 
 % Panel with neurotar object distance
-handles.panel_neurotar_distance = subplot('Position',[0.70 0.25 0.25 0.1]);
-hold on
-handles.distance_xaxis = plot([0 max_time],[0 0],'-','Color' ,0.7*[1 1 1]);
-handles.distance_yaxis = plot([0 0],[-1 1],'-','Color' ,0.7*[1 1 1]);
-disableDefaultInteractivity(handle(handles.panel_neurotar_distance))
-handles.distance_trace = plot(0,0,'-k');
-set(handles.panel_neurotar_distance.XAxis,'visible','off')
-ylabel('Distance');
-ylim(handles.panel_neurotar_distance,[0 300]);
+if params.nt_show_distance_trace
+    handles.panel_neurotar_distance = subplot('Position',[0.70 0.25 0.25 0.1]);
+    hold on
+    handles.distance_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+    handles.distance_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
+    disableDefaultInteractivity(handle(handles.panel_neurotar_distance))
+    %handles.distance_trace = plot(0,0,'-k');
+    handles.distance_trace = line(0,0,'Color',[0 0 0]);
+    set(handles.panel_neurotar_distance.XAxis,'visible','off')
+    ylabel('Distance');
+    ylim(handles.panel_neurotar_distance,[0 300]);
+end
 
 % Panel with neurotar arena
-panel_arena = subplot('Position',[0.33 0.08 0.33 0.2]);
-disableDefaultInteractivity(handle(panel_arena))
-viscircles(panel_arena,[0 0],params.arena_radius_mm,'Color',[0 0 0]);
+handles.panel_arena = subplot('Position',[0.33 0.08 0.33 0.2]);
+hold(handles.panel_arena,'on');
+disableDefaultInteractivity(handle(handles.panel_arena))
+viscircles(handles.panel_arena,[0 0],params.arena_radius_mm,'Color',[0 0 0]);
 if params.nt_show_leave_wall_boundary
-    viscircles(panel_arena,[0 0],params.arena_radius_mm-params.nt_max_distance_to_wall,'Color',[0 0 0 0.5]);
+    viscircles(handles.panel_arena,[0 0],params.arena_radius_mm-params.nt_max_distance_to_wall,'Color',[0 0 0 0.5]);
 
 end
-hold('on');
-handles.arena_trace = plot(0,0,'-k');
-handles.arena_mouse = plot(0,0,'-r','LineWidth',2);
-handles.arena_object = plot(NaN,NaN,'x','Color',[0 1 0],'MarkerSize',8);
-hold('off');
+%hold('on');
+handles.arena_trace = line(handles.panel_arena,0,0,'Color',[0 0 0]);
+handles.arena_mouse = line(handles.panel_arena,0,0,'Color',[1 0 0],'LineWidth',2);
+handles.arena_object = cell(9,1); % objects 1-9
+
+%handles.arena_object = plot(panel_arena,NaN,NaN,'x','Color',[0 1 0],'MarkerSize',8);
+%hold('off');
 xlim([-params.arena_radius_mm params.arena_radius_mm]);
 ylim([-params.arena_radius_mm params.arena_radius_mm]);
 axis square off;
@@ -643,12 +693,12 @@ handles.theta = linspace(0,2*pi,30);
 x = 0 + params.arena_radius_mm * sin(handles.theta) ;
 y = 0 + params.arena_radius_mm * cos(handles.theta) ;
 [x,y] = nt_change_neurotar_to_overhead_coordinates(x,y,params);
-handles.overhead_arena = plot(handles.panel_video(2),x,y,'Color',[1 0 0]);
-
-handles.overhead_neurotar_frame = plot(handles.panel_video(2),0,0,'w-');
+handles.overhead_arena = line(handle(handles.panel_video(2)),x,y,'Color',[1 0 0]);
+handles.overhead_neurotar_frame = line(handle(handles.panel_video(2)),0,0,'Color',[1 1 1]);
 update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
-handles.overhead_object = plot(handles.panel_video(2),0,0,'s','Color',[0 1 0]);
+%handles.overhead_object = plot(handles.panel_video(2),0,0,'s','Color',[0 1 0]);
+handles.overhead_object = cell(9,1); % objects 1-9
 xlim(handles.panel_video(2),[0 params.overhead_camera_width]);
 ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
 

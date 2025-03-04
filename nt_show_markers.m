@@ -5,6 +5,10 @@ function nt_show_markers(markers,ax,params,bounds,yl)
 %
 % 2023-2025, Alexander Heimel
 
+if ~params.nt_show_markers 
+    return;
+end
+
 if nargin<4 || isempty(bounds)
     bounds = xlim(ax);
 end
@@ -39,6 +43,7 @@ for i=1:length(markers)
     else
         color = [0 0 0];
     end
-    plot(ax,markers(i).time*[1 1],yl,'-','Color',color,'LineWidth',1,'Tag','Marker');
+  %  plot(ax,markers(i).time*[1 1],yl,'-','Color',color,'LineWidth',1,'Tag','Marker');
+    line(ax,markers(i).time*[1 1],yl,'Color',color,'LineWidth',1,'Tag','Marker');
 end
 end

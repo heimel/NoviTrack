@@ -189,6 +189,10 @@ params.nt_stop_marker = 't';
 mask = (~[params.markers(:).behavior]) & [params.markers(:).linked];
 params.nt_stim_markers = setdiff({params.markers(mask).marker},params.nt_stop_marker);
 
+params.nt_show_markers = true; % mostly for speed debugging
+
+params.nt_show_distance_trace = true; 
+
 
 % Analysis
 behaviors = {...
@@ -251,9 +255,11 @@ switch lower(record.setup)
     case 'neurotar'
         params.nt_show_bridge = true;
         params.nt_show_horizon = true;
+        params.nt_show_arena_panel = true;
     case 'behavior_arena'
         params.nt_show_bridge = false;
         params.nt_show_horizon = false;
+        params.nt_show_arena_panel = false;
     otherwise
         logmsg(['Unknown setup ' record.setup]);
 end
