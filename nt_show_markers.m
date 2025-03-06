@@ -5,6 +5,7 @@ function nt_show_markers(markers,ax,params,bounds,yl)
 %
 % 2023-2025, Alexander Heimel
 
+
 if ~params.nt_show_markers 
     return;
 end
@@ -12,9 +13,11 @@ end
 if nargin<4 || isempty(bounds)
     bounds = xlim(ax);
 end
+
 if nargin<5 || isempty(yl)
     yl = ylim(ax);
 end
+
 
 c = get(ax,'Children');
 for i=1:length(c)

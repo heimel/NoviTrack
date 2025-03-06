@@ -193,7 +193,6 @@ params.nt_stim_markers = setdiff({params.markers(mask).marker},params.nt_stop_ma
 
 params.nt_show_markers = true; % mostly for speed debugging
 
-params.nt_show_distance_trace = true; 
 
 
 % Analysis
@@ -252,6 +251,14 @@ params.nt_show_horizon = true;
 params.nt_show_boundaries = true; % neurotar frame or arena boundaries
 params.nt_mouse_trace_window = 3; % s
 params.nt_show_leave_wall_boundary = true;
+
+if params.neurotar
+    params.nt_show_distance_trace = true;
+    params.nt_show_rotation_trace = true;
+else
+    params.nt_show_distance_trace = false;
+    params.nt_show_rotation_trace = false;
+end
 
 switch lower(record.setup)
     case 'neurotar'

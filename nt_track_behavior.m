@@ -193,9 +193,11 @@ set(handles.text_playback_speed,'String',num2str(state.playback_speed))
 figure(handles.fig_main);
 real_time_start = tic;
 real_time_prev = toc(real_time_start);
+jumped = false;
 while state.loop
     if state.play || state.newframe
         if state.jumptime ~= 0
+         
             % adjust jump to fit in recording of all camera's
             for c = active_cameras
                 if handles.vidobj{c}.CurrentTime + state.jumptime > handles.vidobj{c}.Duration
@@ -212,6 +214,8 @@ while state.loop
                 end % c
             end
             state.jumptime = 0;
+            jumped = true;
+
         end
         % check if all cameras have frames
         for c = active_cameras
@@ -245,7 +249,8 @@ while state.loop
         state.Y = nt_data.Y(state.ind_current);
         state.alpha = nt_data.alpha(state.ind_current);
                
-        handles = update_all_panels(nt_data,measures,state,handles,params);
+        handles = update_all_panels(nt_data,measures,state,handles,jumped,params);
+        jumped = false;
     end % newframe
 
     % Pause to maintain the natural frame rate
@@ -306,7 +311,7 @@ end
 
 
 %% Update all panels
-function handles = update_all_panels(nt_data,measures,state,handles,params)
+function handles = update_all_panels(nt_data,measures,state,handles,jumped,params)
 
 set(handles.text_time,'String',num2str(state.master_time,'%0.2f'))
 handles.timeline_current_time.XData = state.master_time * [1 1];
@@ -345,17 +350,27 @@ handles.speed_yaxis.XData = [state.master_time state.master_time];
 handles.speed_yaxis.YData = [-250 250];
 xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
 xlim(handles.panel_neurotar_speed,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_speed,params,xl,[-250 250]);
+if ~jumped
+    nt_show_markers_fast(measures.markers,handles.panel_neurotar_speed,params,xl,[-250 250]);
+else
+    nt_show_markers(measures.markers,handles.panel_neurotar_speed,params,xl,[-250 250]);
+end
 
-handles.rotation_trace.XData = nt_data.Time(ind);
-handles.rotation_trace.YData = nt_data.Angular_velocity(ind);
-handles.rotation_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-handles.rotation_xaxis.YData = [0 0];
-handles.rotation_yaxis.XData = [state.master_time state.master_time];
-handles.rotation_yaxis.YData = [-360 360];
-xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
-xlim(handles.panel_neurotar_rotation,xl);
-nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params,xl,[-360 360]);
+if params.nt_show_rotation_trace
+    handles.rotation_trace.XData = nt_data.Time(ind);
+    handles.rotation_trace.YData = nt_data.Angular_velocity(ind);
+    handles.rotation_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+    handles.rotation_xaxis.YData = [0 0];
+    handles.rotation_yaxis.XData = [state.master_time state.master_time];
+    handles.rotation_yaxis.YData = [-360 360];
+    xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
+    xlim(handles.panel_neurotar_rotation,xl);
+    if ~jumped
+        nt_show_markers_fast(measures.markers,handles.panel_neurotar_rotation,params,xl,[-360 360]);
+    else
+        nt_show_markers(measures.markers,handles.panel_neurotar_rotation,params,xl,[-360 360]);
+    end
+end
 
 if params.nt_show_distance_trace
     handles.distance_trace.XData = nt_data.Time(ind);
@@ -372,7 +387,11 @@ if params.nt_show_distance_trace
     handles.distance_yaxis.YData = [0 300];
     xl = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
     xlim(handles.panel_neurotar_distance,xl);
-    nt_show_markers(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
+    if ~jumped
+        nt_show_markers_fast(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
+    else
+        nt_show_markers(measures.markers,handles.panel_neurotar_distance,params,xl,[0 300]);
+    end
 end
 
 set(handles.text_fps,'String',num2str(round(state.fps)));
@@ -399,6 +418,10 @@ function handles = update_object_positions(measures,state,handles,params)
 %     cellfun(@delete,handles.overhead_object(ind));
 %     handles.overhead_object(ind) = {[]};
 % end
+
+if isempty(measures.object_positions)
+    return
+end
 
 stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
 for i=1:length(stim_ids)
@@ -518,8 +541,8 @@ end
 % Labels
 y = 5;
 uicontrol('Style','text','String','State:','Position',[20 y 50 30],'HorizontalAlignment','right');
-handles.text_state = uicontrol('Style','text','String','','Position',[70 y 50 30]);
-uicontrol('Style','text','String','Time:','Position',[120 y 100 30],'HorizontalAlignment','right');
+handles.text_state = uicontrol('Style','text','String','','Position',[70 y 80 30]);
+uicontrol('Style','text','String','Time:','Position',[150 y 70 30],'HorizontalAlignment','right');
 handles.text_time = uicontrol('Style','text','String','','Position',[220 y 50 30]);
 uicontrol('Style','text','String','FPS:','Position',[270 y 40 30],'HorizontalAlignment','right');
 handles.text_fps = uicontrol('Style','text','String','','Position',[310 y 30 30]);
@@ -632,17 +655,17 @@ left = left + width + sep; %#ok<NASGU>
 
 
 % Panel with neurotar rotation
-handles.panel_neurotar_rotation = subplot('Position',[0.05 0.1 0.25 0.1]);
-hold on
-handles.rotation_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
-handles.rotation_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
-disableDefaultInteractivity(handle(handles.panel_neurotar_rotation))
-%handles.rotation_trace = plot(0,0,'-k');
-handles.rotation_trace = line(0,0,'Color',[0 0 0]);
-ylabel('\Delta\theta');
-ylim(handles.panel_neurotar_rotation,[-360 360]);
-
-set(handles.panel_neurotar_rotation,'ButtonDownFcn',@click_on_timeline);
+if params.nt_show_rotation_trace
+    handles.panel_neurotar_rotation = subplot('Position',[0.05 0.1 0.25 0.1]);
+    hold on
+    handles.rotation_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+    handles.rotation_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
+    disableDefaultInteractivity(handle(handles.panel_neurotar_rotation))
+    handles.rotation_trace = line(0,0,'Color',[0 0 0]);
+    ylabel('\Delta\theta');
+    ylim(handles.panel_neurotar_rotation,[-360 360]);
+    set(handles.panel_neurotar_rotation,'ButtonDownFcn',@click_on_timeline);
+end
 
 % Panel with neurotar object distance
 if params.nt_show_distance_trace
@@ -807,7 +830,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             waitforbuttonpress;
             key = get(gcf,'CurrentCharacter');
             fprintf([key '\n']);
-            [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true);
+            [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
             if strcmp(key,params.nt_stop_marker) 
                 measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id]; 
                 [~,ind] = sort(measures.object_positions(:,1));
