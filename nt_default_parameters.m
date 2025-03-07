@@ -34,6 +34,10 @@ params.nt_debug = false;
 % User interface
 params.fontsize = 8; % pt
 
+% Automated mouse tracking
+params.nt_play_gamma = 1; % default gamma to use for showing mouse movies
+params.make_track_video = false; % to store a video with the tracked mouse
+
 % For faster graphics
 params.nt_graphicssmoothing = 'off';
 params.nt_renderer = 'opengl'; % Matlab default is 'opengl'. On some computers 'painters' could be quicker
@@ -255,24 +259,16 @@ params.nt_show_leave_wall_boundary = true;
 if params.neurotar
     params.nt_show_distance_trace = true;
     params.nt_show_rotation_trace = true;
+    params.nt_show_bridge = true;
+    params.nt_show_horizon = true;
+    params.nt_show_arena_panel = true;
 else
     params.nt_show_distance_trace = false;
     params.nt_show_rotation_trace = false;
+    params.nt_show_bridge = false;
+    params.nt_show_horizon = false;
+    params.nt_show_arena_panel = false;
 end
-
-switch lower(record.setup)
-    case 'neurotar'
-        params.nt_show_bridge = true;
-        params.nt_show_horizon = true;
-        params.nt_show_arena_panel = true;
-    case 'behavior_arena'
-        params.nt_show_bridge = false;
-        params.nt_show_horizon = false;
-        params.nt_show_arena_panel = false;
-    otherwise
-        logmsg(['Unknown setup ' record.setup]);
-end
-
 
 % Load processparams_local. Keep at the end
 if exist('processparams_local.m','file')
