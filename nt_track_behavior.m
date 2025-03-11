@@ -58,12 +58,9 @@ if ~isfield(measures,'overhead_neurotar_center') || isempty(measures.overhead_ne
     measures.overhead_neurotar_center = params.overhead_neurotar_center;
 end
 
-
-
 set(groot, 'defaultAxesCreateFcn', @(ax,~) disableDefaultInteractivity(ax))
 
 state.master_time = 0;
-action = '';
 
 params = nt_default_parameters(record);
 
@@ -74,11 +71,10 @@ elseif size(measures.object_positions,2) ~= 5 % old format
     measures.object_positions = nt_update_object_position_format(measures.object_positions,params,record);
 end
 
-%% Load Neurotar data
+%% Load data
 nt_data = nt_load_neurotar_data(record);
 if isempty(nt_data)
     logmsg(['Could not load Neurotar data for ' recordfilter(record)]);
-
     nt_data = nt_load_mouse_tracks(record);
 end
 
@@ -96,7 +92,7 @@ measures.overhead_camera_width = params.overhead_camera_width;
 params.overhead_camera_height = handles.vidobj{params.nt_overhead_camera}.Height;
 measures.overhead_camera_height = params.overhead_camera_height;
 
-if isempty(nt_data) 
+if isempty(nt_data)
     % no previous tracking data, using overhead camera movie as main time
 
     if isempty(active_cameras)
@@ -245,7 +241,7 @@ while state.loop
     real_time_prev = real_time;
 
     state.fps = 0.9*state.fps + 0.1*round(1/d); % averaging framerate
-    
+
     if state.fps < state.video_framerate*state.playback_speed && state.extra_delay>-state.interframe_time
         state.extra_delay = state.extra_delay - 0.001;
     elseif state.fps > state.video_framerate*state.playback_speed && state.extra_delay<state.interframe_time
@@ -255,7 +251,7 @@ while state.loop
     % Perform action
     action = get(handles.fig_main,'Userdata').('action');
     [measures,state,handles,params] = take_action(action,measures,state,handles,record,params);
-    
+
 end % play loop
 
 set(handles.text_state,'String','Stopped')
@@ -391,7 +387,7 @@ function handles = update_object_positions(measures,state,handles,params)
 %     ind = find(cellfun(@(x) ~isempty(x),handles.arena_object));
 %     cellfun(@delete,handles.arena_object(ind));
 %     handles.arena_object(ind) = {[]};
-% 
+%
 %     ind = find(cellfun(@(x) ~isempty(x),handles.overhead_object));
 %     cellfun(@delete,handles.overhead_object(ind));
 %     handles.overhead_object(ind) = {[]};
@@ -426,8 +422,8 @@ for i=1:length(stim_ids)
         if handles.overhead_object{stim_id}.Position(end-1) ~= overhead_x || handles.overhead_object{stim_id}.Position(end) ~= overhead_y
             % handles.overhead_object{stim_id}.XData = overhead_x;
             % handles.overhead_object{stim_id}.YData = overhead_y;
-           %  handles.overhead_object{stim_id}.Position = [handles.panel_video(2),overhead_x,overhead_y];
-           handles.overhead_object{stim_id}.Position = [overhead_x,overhead_y,0];
+            %  handles.overhead_object{stim_id}.Position = [handles.panel_video(2),overhead_x,overhead_y];
+            handles.overhead_object{stim_id}.Position = [overhead_x,overhead_y,0];
         end
     else
         hold(handles.panel_video(2),'on');
@@ -523,7 +519,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                         measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'t',params);
                         measures.markers = nt_insert_marker(measures.markers,events(i).time,'1',params);
                         measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
-                    case 'o' % opto                        
+                    case 'o' % opto
                         measures.markers = nt_insert_marker(measures.markers,events(i).time,'1',params);
                         measures.markers = nt_insert_marker(measures.markers,events(i).time + events(i).duration,'0',params);
                 end
@@ -547,8 +543,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             key = get(gcf,'CurrentCharacter');
             fprintf([key '\n']);
             [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
-            if strcmp(key,params.nt_stop_marker) 
-                measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id]; 
+            if strcmp(key,params.nt_stop_marker)
+                measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id];
                 [~,ind] = sort(measures.object_positions(:,1));
                 measures.object_positions = measures.object_positions(ind,:);
             end
@@ -567,7 +563,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             switch answer
                 case 'Yes'
                     [measures.markers,removed_marker] = delete_next_marker(measures.markers,state.master_time);
-                    if strcmp(removed_marker.marker,params.nt_stop_marker)  
+                    if strcmp(removed_marker.marker,params.nt_stop_marker)
                         % remove object_position entries too
                         ind = find(measures.object_positions(:,1)==removed_marker.time);
                         if ~isempty(ind)
@@ -579,8 +575,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                     state.jumptime = -state.interframe_time;
             end
 
-                        record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
         case 'marker_delete_all'
             answer = questdlg('Do you want to delete all markers?','Delete all markers','Yes','No','No');
@@ -592,8 +588,8 @@ update_record(record,handles.h_dbfig,true);
                     state.jumptime = -state.interframe_time;
             end
 
-                        record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
         case 'position_delete'
             ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
@@ -606,8 +602,8 @@ update_record(record,handles.h_dbfig,true);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
 
-                        record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
         case 'quit'
             logmsg('Quit tracking. Exiting main loop and closing window.');
@@ -632,8 +628,8 @@ update_record(record,handles.h_dbfig,true);
             state.newframe = true;
             %jumptime = -1 * interframe_time;
 
-                                    record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'set_led_position'
@@ -646,8 +642,8 @@ update_record(record,handles.h_dbfig,true);
                 logmsg(['Putative trigger time from start of movie: ' num2str(putative_trigger_time) ' s.']);
                 logmsg(['Putative trigger time on current timeline: ' num2str(putative_trigger_time-measures.trigger_times{camera}(1)) ' s.']);
             end
-                                    record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
         case {'set_real_object_position','set_virtual_object_position'}
             stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
@@ -672,7 +668,7 @@ update_record(record,handles.h_dbfig,true);
                         disp(['Stim_id ' key ' is not currently present.']);
                     end
                 end
-            else 
+            else
                 stim_id = stim_ids;
             end
             [overhead_x,overhead_y] = get_location_on_camera(handles,params.nt_overhead_camera);
@@ -683,15 +679,15 @@ update_record(record,handles.h_dbfig,true);
                 measures.object_positions(end+1,:) = [state.master_time arena_x arena_y params.ARENA stim_id];
             else
                 measures.object_positions(end+1,:) = [state.master_time overhead_x overhead_y params.OVERHEAD stim_id];
-                
+
             end
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             %update_object_positions(measures,state,handles,params);
 
-                        record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
             drawnow
             state.newframe = true;
@@ -704,8 +700,8 @@ update_record(record,handles.h_dbfig,true);
             update_neurotar_center(handles.overhead_neurotar_center,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
-                        record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -716,7 +712,7 @@ update_record(record,handles.h_dbfig,true);
             params.overhead_neurotar_headring = measures.overhead_neurotar_headring;
             update_neurotar_headring(handles.overhead_neurotar_headring,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
-                        update_record(record,handles.h_dbfig,true);
+            update_record(record,handles.h_dbfig,true);
 
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -774,8 +770,8 @@ update_record(record,handles.h_dbfig,true);
                 update_neurotar_center(handles.overhead_neurotar_center,params);
             end
 
-                                    record.measures = measures;
-update_record(record,handles.h_dbfig,true);
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
 
             state.newframe = true;
     end
@@ -1087,8 +1083,8 @@ end
 
 n_points = 50;
 d = params.neurotar_halfwidth_mm;
-neurotar_x = [NaN];
-neurotar_y = [NaN];
+neurotar_x = NaN;
+neurotar_y = NaN;
 
 if params.nt_show_boundaries
     neurotar_x = [  ...

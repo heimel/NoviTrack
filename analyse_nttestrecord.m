@@ -3,28 +3,10 @@ function record = analyse_nttestrecord(record,verbose)
 %
 %  RECORD = analyse_nttestrecord( RECORD, [VERBOSE=true])
 %
-% 2023, Alexander Heimel, Zhiting Ren
+% 2023-2025, Alexander Heimel, Zhiting Ren
 
 if nargin<2 || isempty(verbose)
     verbose = true;
-end
-
-if nargin<1 || isempty(record)
-    record.lab = 'Heimellab';
-    record.project = 'Innate_approach';
-    record.dataset = '22.35.01';
-    record.subject = 'exampleVideo';
-    record.condition = 'none';
-    record.stimulus = 'none';
-    record.setup = 'Neurotar';
-    record.investigator = 'ZhitingRen';
-    record.date = '2023-05-12';
-    record.logfile = 'exampleVideo_20230512_002_log.m';
-    record.sessionid = 'exampleVideo_20230512_002';
-    record.sessnr = 2;
-    record.version = '1.0';
-    record.datatype = 'nt';
-    record.measures = [];
 end
 
 params = nt_default_parameters( record );
@@ -33,13 +15,23 @@ if ~isempty(params.nt_seed)
     rng(params.nt_seed);
 end
 
-[neurotar_data,neurotar_filename] = nt_load_neurotar_data(record);
-if isempty(neurotar_data)
-    logmsg(['Could not load neurotar data for ' recordfilter(record)])
-    return
+[nt_data,neurotar_filename] = nt_load_neurotar_data(record);
+if isempty(nt_data)
+    nt_data = nt_load_mouse_tracks(record);
+end
+
+if isempty(nt_data)
+    logmsg(['Could not any position data for ' recordfilter(record)]);
 end
 
 logmsg(['Analyzing ' recordfilter(record)]);
+
+if isempty(nt_data)
+     record = nt_track_mouse(record,[],[],verbose);
+end
+
+
+
 measures = record.measures;
 
 %% Check-out markers
@@ -49,33 +41,33 @@ end
 
 
 %% Object independent session measures
-n_samples = length(neurotar_data.Time);
+n_samples = length(nt_data.Time);
 
-measures.session_speed_mean = mean(neurotar_data.Speed,'omitnan');
-measures.session_speed_std = std(neurotar_data.Speed,'omitnan');
-measures.session_speed_max = max(neurotar_data.Speed);
-measures.session_forward_speed_mean = mean(neurotar_data.Forward_speed,'omitnan');
-measures.session_forward_speed_std = std(neurotar_data.Forward_speed,'omitnan');
-measures.session_forward_speed_max = max(neurotar_data.Forward_speed);
-measures.session_angular_velocity_mean = mean(neurotar_data.Angular_velocity,'omitnan');
-measures.session_angular_velocity_std = std(neurotar_data.Angular_velocity,'omitnan');
-measures.session_angular_velocity_max = max(neurotar_data.Angular_velocity);
+measures.session_speed_mean = mean(nt_data.Speed,'omitnan');
+measures.session_speed_std = std(nt_data.Speed,'omitnan');
+measures.session_speed_max = max(nt_data.Speed);
+measures.session_forward_speed_mean = mean(nt_data.Forward_speed,'omitnan');
+measures.session_forward_speed_std = std(nt_data.Forward_speed,'omitnan');
+measures.session_forward_speed_max = max(nt_data.Forward_speed);
+measures.session_angular_velocity_mean = mean(nt_data.Angular_velocity,'omitnan');
+measures.session_angular_velocity_std = std(nt_data.Angular_velocity,'omitnan');
+measures.session_angular_velocity_max = max(nt_data.Angular_velocity);
 
-measures.session_fraction_running_forward = sum( neurotar_data.Forward_speed> params.nt_min_approach_speed ) / n_samples;
-measures.session_count_start_running_forward = sum( diff(neurotar_data.Forward_speed > params.nt_min_approach_speed )>0);
-measures.session_start_running_forward_per_min = measures.session_count_start_running_forward / neurotar_data.Since_track_start(end) * 60;
+measures.session_fraction_running_forward = sum( nt_data.Forward_speed> params.nt_min_approach_speed ) / n_samples;
+measures.session_count_start_running_forward = sum( diff(nt_data.Forward_speed > params.nt_min_approach_speed )>0);
+measures.session_start_running_forward_per_min = measures.session_count_start_running_forward / nt_data.Since_track_start(end) * 60;
 
-measures.session_fraction_moving_backward = sum( neurotar_data.Forward_speed < params.nt_min_retreat_speed ) / n_samples;
-measures.session_count_start_moving_backward = sum( diff(neurotar_data.Forward_speed < params.nt_min_retreat_speed )>0);
-measures.session_start_moving_backward_per_min = measures.session_count_start_moving_backward / neurotar_data.Since_track_start(end) * 60;
+measures.session_fraction_moving_backward = sum( nt_data.Forward_speed < params.nt_min_retreat_speed ) / n_samples;
+measures.session_count_start_moving_backward = sum( diff(nt_data.Forward_speed < params.nt_min_retreat_speed )>0);
+measures.session_start_moving_backward_per_min = measures.session_count_start_moving_backward / nt_data.Since_track_start(end) * 60;
 
 record.measures = measures;
 
 %% Object analysis
-[record,neurotar_data] = nt_object_analysis(record,neurotar_data,verbose);
+[record,nt_data] = nt_object_analysis(record,nt_data,verbose);
 measures = record.measures;
 if ~isempty(neurotar_filename)
-    save([neurotar_filename  '.mat'],'neurotar_data');
+    save([neurotar_filename  '.mat'],'nt_data');
 end
 
 %% Compute shuffles for object analysis
@@ -99,8 +91,8 @@ if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
     % Shuffle object insertions
     for i = 1:params.nt_shuffle_number
         logmsg(['Shuffle ' num2str(i) ' of ' num2str(params.nt_shuffle_number)])
-        shuffle_record = shuffle_object_insertions( record,neurotar_data,params );
-        shuffle_record = nt_object_analysis(shuffle_record,neurotar_data,false);
+        shuffle_record = shuffle_object_insertions( record,nt_data,params );
+        shuffle_record = nt_object_analysis(shuffle_record,nt_data,false);
 
         for b = 1:length(params.nt_behaviors)
             behavior = params.nt_behaviors(b).behavior;
@@ -142,14 +134,24 @@ end
 function shuffle_record = shuffle_object_insertions( record, neurotar_data, params )
 % Shuffles object markers and positions into new record
 shuffle_record = record;
+
+if ~params.neurotar
+    logmsg('SHUFFLE STILL NEEDS TO BE UPDATED FOR FREELY WALKING. DISABLED')
+    return
+end
+
 neurotar_duration = neurotar_data.Time(end);
 measures = record.measures;
 
-ind = find([record.measures.markers.marker]~='o' & [record.measures.markers.marker]~='t' & [record.measures.markers.marker]~='v' & [record.measures.markers.marker]~='h' & [record.measures.markers.marker]~='f');
+ind = find([record.measures.markers.marker]~='o' & ...
+    [record.measures.markers.marker]~='t' & ...
+    [record.measures.markers.marker]~='v' & ...
+    [record.measures.markers.marker]~='h' & ...
+    [record.measures.markers.marker]~='f');
 measures.markers(ind) = [];
-if measures.markers(end).marker~='t' 
+if measures.markers(end).marker~=params.nt_stop_marker
     % Add stop marker at the end
-    measures.markers(end+1).marker = 't';
+    measures.markers(end+1).marker = params.nt_stop_marker;
     measures.markers(end).time = neurotar_data.Time(end);
 end
 shuffle_record.measures = measures;

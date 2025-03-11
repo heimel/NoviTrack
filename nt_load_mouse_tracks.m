@@ -63,4 +63,6 @@ logmsg('Loaded mouse tracks')
 nt_data.alpha = NaN(size(nt_data.X));
 nt_data.Forward_speed = NaN(size(nt_data.X));
 nt_data.Angular_velocity = NaN(size(nt_data.X)); 
+nt_data.Since_track_start = NaN(size(nt_data.X));
+nt_data.Distance_to_wall = NaN(size(nt_data.X));
 
