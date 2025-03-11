@@ -37,6 +37,26 @@ params.fontsize = 8; % pt
 % Automated mouse tracking
 params.nt_play_gamma = 1; % default gamma to use for showing mouse movies
 params.make_track_video = false; % to store a video with the tracked mouse
+params.wc_blackThreshold = 0.3;
+params.wc_maxAreaSize = 8000; % pxl, Max area that could be mouse
+params.wc_minAreaSize = 200; % pxl, Minimal area for region that is tracked as mouse
+params.wc_minMouseSize = 50^2; % pxl, Minimal area a mouse could be
+params.wc_minStimSize = 10; % pxl, Minimal area for region that might be stimulus
+params.wc_tailWidth = 12; % pxl
+params.wc_tailToMiddle = 70; % pxl
+params.wc_minComponentSize = 6; % pxl, Consider smaller components as noise
+params.wc_dilation = ones(5); % for image dilation
+params.wc_bg_normalization = 40;
+
+
+% Automated freezing detection parameters
+params.wc_difScope = 50; % The range around mouse that is included in pixelchange analysis 
+params.wc_difThreshold = 0.3; % threshold + minimum movement for difference between frames
+% to be considered as no difference, fraction of average movement 
+params.wc_deriv2thres = 0.08; % Threshold for 2nd derivative of vidDif for detecting freezing
+params.wc_freezeduration_threshold = 0.5; %s minimum duration to call lack of movement a freeze
+params.wc_freeze_smoother = [5,5]; % Number of frames that freeze analysis is averaging over before and after current frame
+
 
 % For faster graphics
 params.nt_graphicssmoothing = 'off';

@@ -100,7 +100,11 @@ if ~isfield(neurotar_data,"Object_distance")
     neurotar_data.Object_distance = NaN(n_samples,1);
 end
 
-
+% to match freely moving fields
+neurotar_data.CoM_X = NaN(n_samples,1);
+neurotar_data.CoM_Y = NaN(n_samples,1);
+neurotar_data.tailbase_X = NaN(n_samples,1);
+neurotar_data.tailbase_Y = NaN(n_samples,1);
 
 end
 

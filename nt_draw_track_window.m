@@ -78,9 +78,7 @@ set(gca,'ytick',[])
 xlim([0 max_time]);
 ylim([0 1]);
 hold on
-%handles.timeline_current_time = plot(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'k-','linewidth',3);
 handles.timeline_current_time = line(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'Color',[0 0 0],'linewidth',3);
-
 plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
 ylim([0 params.nt_track_timeline_max_speed]);
 nt_show_markers(measures.markers,handles.panel_timeline,params);
@@ -92,7 +90,6 @@ hold on
 handles.speed_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
 handles.speed_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
 disableDefaultInteractivity(handle(handles.panel_neurotar_speed))
-%handles.speed_trace = plot(0,0,'-k');
 handles.speed_trace = line(0,0,'Color',[0 0 0]);
 set(handles.panel_neurotar_speed.XAxis,'visible','off')
 ylabel('Fwd speed');
@@ -209,8 +206,20 @@ handles.theta = linspace(0,2*pi,30);
 x = 0 + params.arena_radius_mm * sin(handles.theta) ;
 y = 0 + params.arena_radius_mm * cos(handles.theta) ;
 [x,y] = nt_change_neurotar_to_overhead_coordinates(x,y,params);
-handles.overhead_arena = line(handle(handles.panel_video(2)),x,y,'Color',[1 0 0]);
-handles.overhead_neurotar_frame = line(handle(handles.panel_video(2)),0,0,'Color',[1 1 1]);
+handles.overhead_arena = line(handle(handles.panel_video(params.nt_overhead_camera)),x,y,'Color',[1 0 0]);
+
+if params.neurotar
+    handles.overhead_neurotar_frame = line(handle(handles.panel_video(params.nt_overhead_camera)),0,0,'Color',[1 1 1]);
+else
+    handles.overhead_neurotar_frame = [];
+end
+
+% handles.overhead_nose = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'x','Color',[0.5 1 0.5]);
+% handles.overhead_com = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'o','Color',[0.3 1 0.3]);
+% handles.overhead_tailbase = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'x','Color',[0 1 0]);
+
+handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0]);
+
 % update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
 handles.overhead_object = cell(9,1); % objects 1-9

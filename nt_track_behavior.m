@@ -1,4 +1,4 @@
-function record = nt_track_behavior(record,verbose)
+function record = nt_track_behavior(record,h_dbfig,verbose)
 %nt_track_behavior Tracks neurotar experiment from movie and neurotar
 %
 %  RECORD = nt_track_behavior( RECORD, [VERBOSE=true])
@@ -30,7 +30,11 @@ logmsg('Measures available in workspace as ''measures'', record as ''global_reco
 
 warning('on')
 
-if nargin<2 || isempty(verbose)
+if nargin<2 || isempty(h_dbfig)
+    h_dbfig = [];
+end
+
+if nargin<3 || isempty(verbose)
     verbose = true;
 end
 
@@ -74,8 +78,12 @@ end
 nt_data = nt_load_neurotar_data(record);
 if isempty(nt_data)
     logmsg(['Could not load Neurotar data for ' recordfilter(record)]);
-    logmsg('Creating empty tracking data');
+
+    nt_data = nt_load_mouse_tracks(record);
 end
+
+
+
 
 
 %% Open movies
@@ -101,6 +109,10 @@ if isempty(nt_data)
     nt_data.Speed = NaN(size(nt_data.Time));
     nt_data.X = NaN(size(nt_data.Time));
     nt_data.Y = NaN(size(nt_data.Time));
+    nt_data.CoM_X = NaN(size(nt_data.Time));
+    nt_data.CoM_Y = NaN(size(nt_data.Time));
+    nt_data.tailbase_X = NaN(size(nt_data.Time));
+    nt_data.tailbase_Y = NaN(size(nt_data.Time));
     nt_data.alpha = NaN(size(nt_data.Time));
     nt_data.Forward_speed = NaN(size(nt_data.Time));
     nt_data.Angular_velocity = NaN(size(nt_data.Time));
@@ -116,6 +128,8 @@ update_neurotar_frame(handles.overhead_neurotar_frame,params);
 set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
 set(handles.fig_main,'UserData',struct('action',''));
 set(handles.fig_main,'CloseRequestFcn',@closerequestfcn);
+
+handles.h_dbfig = h_dbfig;
 
 
 %% Main playback
@@ -194,7 +208,13 @@ while state.loop
         state.X = nt_data.X(state.ind_current);
         state.Y = nt_data.Y(state.ind_current);
         state.alpha = nt_data.alpha(state.ind_current);
-               
+        state.CoM_X = nt_data.CoM_X(state.ind_current);
+        state.CoM_Y = nt_data.CoM_Y(state.ind_current);
+        state.tailbase_X = nt_data.tailbase_X(state.ind_current);
+        state.tailbase_Y = nt_data.tailbase_Y(state.ind_current);
+
+
+
         handles = update_all_panels(nt_data,measures,state,handles,jumped,params);
         jumped = false;
     end % newframe
@@ -269,6 +289,18 @@ handles.timeline_current_time.XData = state.master_time * [1 1];
 neurotar_x = neurotar_x + params.arena_radius_mm * sin(handles.theta) ;
 neurotar_y = neurotar_y + params.arena_radius_mm * cos(handles.theta) ;
 [handles.overhead_arena.XData,handles.overhead_arena.YData] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
+% handles.overhead_nose.XData = state.X;
+% handles.overhead_nose.YData = state.Y;
+% handles.overhead_com.XData = state.CoM_X;
+% handles.overhead_com.YData = state.CoM_Y;
+% handles.overhead_tailbase.XData = state.tailbase_X;
+% handles.overhead_tailbase.YData = state.tailbase_Y;
+
+
+handles.overhead_mouse.XData = [state.X state.CoM_X state.tailbase_X];
+handles.overhead_mouse.YData = [state.Y state.CoM_Y state.tailbase_Y];
+
+
 
 % update mouse in arena drawing
 if params.nt_show_arena_panel
@@ -284,7 +316,7 @@ end
 
 handles = update_object_positions(measures,state,handles,params);
 
-% update speed and angular velocity plots
+% update speed  velocity plots
 ind = state.ind_past:state.ind_future;
 handles.speed_trace.XData = nt_data.Time(ind);
 handles.speed_trace.YData = nt_data.Forward_speed(ind);
@@ -300,6 +332,7 @@ else
     nt_show_markers(measures.markers,handles.panel_neurotar_speed,params,xl,[-250 250]);
 end
 
+% update angular velocity trace
 if params.nt_show_rotation_trace
     handles.rotation_trace.XData = nt_data.Time(ind);
     handles.rotation_trace.YData = nt_data.Angular_velocity(ind);
@@ -316,6 +349,7 @@ if params.nt_show_rotation_trace
     end
 end
 
+% update object distance trace
 if params.nt_show_distance_trace
     handles.distance_trace.XData = nt_data.Time(ind);
     if isreal(nt_data.Object_distance(ind))
@@ -369,68 +403,37 @@ end
 
 stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
 for i=1:length(stim_ids)
-    ind_object = find(measures.object_positions(:,1)<=state.master_time & ...
-        measures.object_positions(:,5)==stim_ids(i),1,'last');
-
-    if isempty(ind_object) % could be a stimulus without position (yet)
-        continue
-    end
-
-    switch measures.object_positions(ind_object,4)
-        case params.ARENA
-            arena_x = measures.object_positions(ind_object,2);
-            arena_y = measures.object_positions(ind_object,3);
-            [overhead_x,overhead_y] = ...
-                nt_change_arena_to_overhead_coordinates(...
-                measures.object_positions(ind_object,2),...
-                measures.object_positions(ind_object,3),...
-                state.X,state.Y,state.alpha,...
-                params);
-        case params.NEUROTAR
-            [arena_x,arena_y] = ...
-                nt_change_neurotar_to_arena_coordinates(...
-                measures.object_positions(ind_object,2),...
-                measures.object_positions(ind_object,3),...
-                state.X,state.Y,state.alpha,...
-                params);
-            [overhead_x,overhead_y] = ...
-                nt_change_neurotar_to_overhead_coordinates(...
-                measures.object_positions(ind_object,2),...
-                measures.object_positions(ind_object,3),...
-                params);
-        case params.OVERHEAD
-            [arena_x,arena_y] = ...
-                nt_change_overhead_to_arena_coordinates(...
-                measures.object_positions(ind_object,2),...
-                measures.object_positions(ind_object,3),...
-                state.X,state.Y,state.alpha,...
-                params);
-            overhead_x = measures.object_positions(ind_object,2);
-            overhead_y = measures.object_positions(ind_object,3);
-    end % switch
+    stim_id = stim_ids(i);
+    [overhead_x,overhead_y,arena_x,arena_y] = nt_get_stim_position_from_measures(measures,stim_id,state,params);
 
     if params.nt_show_arena_panel
         if ~isnan(arena_x) && ~isnan(arena_y)
-            if ishandle(handles.arena_object{stim_ids(i)})
-                if handles.arena_object{stim_ids(i)}.XData ~= arena_x || handles.arena_object{stim_ids(i)}.YData ~= arena_y
-                    handles.arena_object{stim_ids(i)}.XData = arena_x;
-                    handles.arena_object{stim_ids(i)}.YData = arena_y;
+            if ishandle(handles.arena_object{stim_id})
+                if handles.arena_object{stim_id}.XData ~= arena_x || handles.arena_object{stim_id}.YData ~= arena_y
+                    handles.arena_object{stim_id}.XData = arena_x;
+                    handles.arena_object{stim_id}.YData = arena_y;
                 end
             else
                 hold(handles.panel_arena,'on');
-                handles.arena_object{stim_ids(i)} = plot(handles.panel_arena,arena_x,arena_y,'x','Color',[0 1 0],'MarkerSize',8);
+                handles.arena_object{stim_id} = plot(handles.panel_arena,arena_x,arena_y,'x','Color',[0 1 0],'MarkerSize',8);
             end
         end
     end
 
-    if ishandle(handles.overhead_object{stim_ids(i)})
-        if handles.overhead_object{stim_ids(i)}.XData ~= overhead_x || handles.overhead_object{stim_ids(i)}.YData ~= overhead_y
-            handles.overhead_object{stim_ids(i)}.XData = overhead_x;
-            handles.overhead_object{stim_ids(i)}.YData = overhead_y;
+    % show object in overhead panel
+    if ishandle(handles.overhead_object{stim_id})
+        %    if handles.overhead_object{stim_id}.XData ~= overhead_x || handles.overhead_object{stim_id}.YData ~= overhead_y
+        if handles.overhead_object{stim_id}.Position(end-1) ~= overhead_x || handles.overhead_object{stim_id}.Position(end) ~= overhead_y
+            % handles.overhead_object{stim_id}.XData = overhead_x;
+            % handles.overhead_object{stim_id}.YData = overhead_y;
+           %  handles.overhead_object{stim_id}.Position = [handles.panel_video(2),overhead_x,overhead_y];
+           handles.overhead_object{stim_id}.Position = [overhead_x,overhead_y,0];
         end
     else
         hold(handles.panel_video(2),'on');
-        handles.overhead_object{stim_ids(i)} = plot(handles.panel_video(2),overhead_x,overhead_y,'s','Color',[0 1 0]);
+        % handles.overhead_object{stim_ids(i)} = plot(handles.panel_video(2),overhead_x,overhead_y,'s','Color',[0 1 0]);
+        handles.overhead_object{stim_id} = text(handle(handles.panel_video(2)),overhead_x,overhead_y,num2str(stim_id),'Color',[0 1 0]);
+        handles.overhead_object{stim_id}.Position = [overhead_x,overhead_y,0];
     end
 end % i
 
@@ -528,6 +531,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
+
+            record.measures = measures;
+            update_record(record,handles.h_dbfig,true);
+
             logmsg('Imported laser log')
         case 'marker_add'
             set(handles.fig_main,'WindowKeyPressFcn',[]);
@@ -549,6 +556,11 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             set(handles.text_state,'String',prev_state);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
+
+            record.measures = measures;
+
+            update_record(record,handles.h_dbfig,true);
+
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'marker_delete'
             answer = questdlg('Do you want to delete next marker?','Delete marker','Yes','No','No');
@@ -566,6 +578,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                     state.newframe = true;
                     state.jumptime = -state.interframe_time;
             end
+
+                        record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
         case 'marker_delete_all'
             answer = questdlg('Do you want to delete all markers?','Delete all markers','Yes','No','No');
             switch answer
@@ -575,6 +591,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                     state.newframe = true;
                     state.jumptime = -state.interframe_time;
             end
+
+                        record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
         case 'position_delete'
             ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
             if ~isempty(ind)
@@ -585,6 +605,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             end
             state.newframe = true;
             state.jumptime = -state.interframe_time;
+
+                        record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
         case 'quit'
             logmsg('Quit tracking. Exiting main loop and closing window.');
             state.loop = false;
@@ -607,6 +631,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             state.jumptime = -state.master_time;
             state.newframe = true;
             %jumptime = -1 * interframe_time;
+
+                                    record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'set_led_position'
             set(handles.fig_main,'WindowKeyPressFcn',[]);
@@ -618,6 +646,9 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 logmsg(['Putative trigger time from start of movie: ' num2str(putative_trigger_time) ' s.']);
                 logmsg(['Putative trigger time on current timeline: ' num2str(putative_trigger_time-measures.trigger_times{camera}(1)) ' s.']);
             end
+                                    record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
         case {'set_real_object_position','set_virtual_object_position'}
             stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
             if isempty(stim_ids)
@@ -659,6 +690,9 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             %update_object_positions(measures,state,handles,params);
 
+                        record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
             drawnow
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -669,6 +703,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             params.overhead_neurotar_center = measures.overhead_neurotar_center;
             update_neurotar_center(handles.overhead_neurotar_center,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
+
+                        record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
             state.newframe = true;
             state.jumptime = -state.interframe_time;
         case 'set_neurotar_headring'
@@ -678,6 +716,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             params.overhead_neurotar_headring = measures.overhead_neurotar_headring;
             update_neurotar_headring(handles.overhead_neurotar_headring,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
+                        update_record(record,handles.h_dbfig,true);
+
             state.newframe = true;
             state.jumptime = -state.interframe_time;
         case 'speed_original'
@@ -733,6 +773,10 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             if params.neurotar
                 update_neurotar_center(handles.overhead_neurotar_center,params);
             end
+
+                                    record.measures = measures;
+update_record(record,handles.h_dbfig,true);
+
             state.newframe = true;
     end
     userdata = get(handles.fig_main,'UserData');
@@ -1035,6 +1079,12 @@ overhead_neurotar_center.YData = params.overhead_neurotar_center(2);
 end
 
 function update_neurotar_frame(overhead_neurotar_frame,params)
+
+if ~params.neurotar
+    return
+end
+
+
 n_points = 50;
 d = params.neurotar_halfwidth_mm;
 neurotar_x = [NaN];

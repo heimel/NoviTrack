@@ -6,4 +6,4 @@ function newud = nt_track_behavior_callback( ud)
 % 2023, Alexander Heimel
 
 newud = ud;
-newud.db(ud.current_record) = nt_track_behavior(ud.db(ud.current_record));
+newud.db(ud.current_record) = nt_track_behavior(ud.db(ud.current_record),ud.h.fig);

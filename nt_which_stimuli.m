@@ -32,7 +32,7 @@ while m<=length(markers) && markers(m).time <= t
         if isempty(stim_ids)
             logmsg(['Marker indicating stimulus removed, but no stimuli present at time ' num2str(markers(m).time)]);
         else
-            if length(markers(m).marker)==1
+            if isscalar(markers(m).marker)
                 stim_id = stim_ids(end);
             else
                 stim_id = str2double(markers(m).marker(2:end));
