@@ -26,8 +26,9 @@ end
 
 logmsg(['Analyzing ' recordfilter(record)]);
 
-if isempty(nt_data)
-     record = nt_track_mouse(record,[],[],verbose);
+if isempty(nt_data) 
+    time_range = [];
+     record = nt_track_mouse(record,time_range,verbose);
 end
 
 

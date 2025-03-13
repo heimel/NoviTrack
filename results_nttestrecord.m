@@ -38,12 +38,17 @@ end
 
 %% Raw data
 if params.nt_result_shows_individual_object_insertions
-    neurotar_data = nt_load_neurotar_data(record);
-    neurotar_data = nt_add_objects_to_neurotar_data( record, neurotar_data );
+    nt_data = nt_load_neurotar_data(record);
+    if isempty(nt_data)
+        nt_data = nt_load_mouse_tracks(record);
+    end
+
+
+    nt_data = nt_add_objects_to_nt_data( record, nt_data );
     for i = 1:length(measures.markers)
         switch measures.markers(i).marker
             case {'o','v','h'}
-                nt_plot_interaction(record,i,neurotar_data,params);
+                nt_plot_interaction(record,i,nt_data,params);
         end
     end % object insertion i
 end

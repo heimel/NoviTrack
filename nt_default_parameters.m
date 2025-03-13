@@ -37,16 +37,19 @@ params.fontsize = 8; % pt
 % Automated mouse tracking
 params.nt_play_gamma = 1; % default gamma to use for showing mouse movies
 params.make_track_video = false; % to store a video with the tracked mouse
-params.wc_blackThreshold = 0.3;
-params.wc_maxAreaSize = 8000; % pxl, Max area that could be mouse
-params.wc_minAreaSize = 200; % pxl, Minimal area for region that is tracked as mouse
-params.wc_minMouseSize = 50^2; % pxl, Minimal area a mouse could be
-params.wc_minStimSize = 10; % pxl, Minimal area for region that might be stimulus
-params.wc_tailWidth = 12; % pxl
-params.wc_tailToMiddle = 70; % pxl
-params.wc_minComponentSize = 6; % pxl, Consider smaller components as noise
-params.wc_dilation = ones(5); % for image dilation
-params.wc_bg_normalization = 40;
+
+% Mouse detection 
+params.nt_min_mouse_length = 120;
+params.nt_max_mouse_area = 5000; % pxl, Max area that could be mouse
+params.nt_min_component_area = 200; % pxl, Minimal area for component to be relevant
+params.nt_min_mouse_area = 4000; % pxl, Minimal area a mouse could be
+params.nt_min_stim_size = 0; % pxl, Minimal area for region that might be stimulus
+params.nt_max_tail_width = 20; % pxl, Max tail width (to find tailbase)
+params.nt_min_tail_distance = 70; % pxl, Minimal distance of tailbase to mouse C.o.M.
+params.nt_dilation = ones(5); % for image dilation
+params.nt_bg_normalization = 20;
+params.nt_black_threshold = 0.25;
+params.nt_min_black_threshold = 0.1;
 
 
 % Automated freezing detection parameters
@@ -92,15 +95,18 @@ switch lower(record.setup)
         % distortion(2) = focal_distance_pxl
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.13;
+        params.neurotar_snout_distance_mm = 32;
+        params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
     case 'behavior_arena'
         params.overhead_camera_distortion_method = 'normal';
-        params.overhead_camera_distortion = [0.9 NaN];
+        params.overhead_camera_distortion = [1.4 NaN];
         % distortion(1) = scale
         params.overhead_camera_rotated = true;
-        params.overhead_camera_angle = -2.5;
+        params.overhead_camera_angle = -0.0436;
+        params.overhead_neurotar_center = [299 280];
+        params.overhead_neurotar_headring = [NaN NaN];
+
 end
-params.neurotar_snout_distance_mm = 32;
-params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
 
 if strcmpi(record.setup,'neurotar')
     if nargin<1 || isempty(record.date) ||datetime(record.date,'inputformat','yyyy-MM-dd') >  datetime('2023-11-03','inputformat','yyyy-MM-dd')
@@ -168,9 +174,15 @@ if ~isempty(record) && isfield(record,'measures') && ~isempty(record.measures)
     end
 end
 
-%params.neurotar_snout_distance_mm = 45; % distance from snout to center of neurotar
-params.arena_radius_mm = 162.5; %  
-params.neurotar_halfwidth_mm = 260;
+if params.neurotar
+    params.arena_radius_mm = 162.5; %
+    params.neurotar_halfwidth_mm = 260;
+    % params.neurotar_snout_distance_mm = 45; % distance from snout to center of neurotar
+else
+    params.arena_diameter_mm = 320;
+    params.arena_radius_mm = params.arena_diameter_mm / 2;
+end
+
 
 % markers: 'marker','description','color','behavior','linked' (linked to
 % stimulus or object)
@@ -272,7 +284,7 @@ params.nt_track_timeline_max_speed = 375;
 params.nt_show_help = false;
 params.nt_show_bridge = true;
 params.nt_show_horizon = true;
-params.nt_show_boundaries = true; % neurotar frame or arena boundaries
+params.nt_show_boundaries = true; % neurotar frame 
 params.nt_mouse_trace_window = 3; % s
 params.nt_show_leave_wall_boundary = true;
 

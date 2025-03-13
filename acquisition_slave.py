@@ -1,5 +1,9 @@
 # acquisition_slave
 #
+#  read_acqready reads session_path from acqready file in setup's communication folder
+#
+#  read_session_json reads json file from session_path
+#
 #  2023, Alexander Heimel
 
 import os

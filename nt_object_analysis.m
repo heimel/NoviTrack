@@ -37,7 +37,7 @@ end
 n_samples = length(neurotar_data.Time);
 sample_time = (neurotar_data.Time(end)-neurotar_data.Time(1))/(n_samples-1);
 
-neurotar_data = nt_add_objects_to_neurotar_data( record, neurotar_data );
+neurotar_data = nt_add_objects_to_nt_data( record, neurotar_data );
 
 
 

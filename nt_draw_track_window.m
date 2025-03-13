@@ -175,18 +175,19 @@ end
 handles.panel_arena = subplot('Position',[0.33 0.08 0.33 0.2]);
 hold(handles.panel_arena,'on');
 disableDefaultInteractivity(handle(handles.panel_arena))
-viscircles(handles.panel_arena,[0 0],params.arena_radius_mm,'Color',[0 0 0]);
-if params.nt_show_leave_wall_boundary
-    viscircles(handles.panel_arena,[0 0],params.arena_radius_mm-params.nt_max_distance_to_wall,'Color',[0 0 0 0.5]);
 
+% Draw arena walls
+if params.neurotar
+    viscircles(handles.panel_arena,[0 0],params.arena_radius_mm,'Color',[0 0 0]);
+    if params.nt_show_leave_wall_boundary
+        viscircles(handles.panel_arena,[0 0],params.arena_radius_mm-params.nt_max_distance_to_wall,'Color',[0 0 0 0.5]);
+    end
+else
+    logmsg('Square arena not implemented yet.')
 end
-%hold('on');
 handles.arena_trace = line(handles.panel_arena,0,0,'Color',[0 0 0]);
 handles.arena_mouse = line(handles.panel_arena,0,0,'Color',[1 0 0],'LineWidth',2);
 handles.arena_object = cell(9,1); % objects 1-9
-
-%handles.arena_object = plot(panel_arena,NaN,NaN,'x','Color',[0 1 0],'MarkerSize',8);
-%hold('off');
 xlim([-params.arena_radius_mm params.arena_radius_mm]);
 ylim([-params.arena_radius_mm params.arena_radius_mm]);
 axis square off;
@@ -194,19 +195,17 @@ set(gca,'xtick',[])
 set(gca,'ytick',[])
 box off
 
+
+handles.overhead_neurotar_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
+% update_neurotar_center(handles.overhead_neurotar_center,params);
+
 if params.neurotar
     handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);
     update_neurotar_headring(handles.overhead_neurotar_headring,params);
-    handles.overhead_neurotar_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
-    update_neurotar_center(handles.overhead_neurotar_center,params);
 end
 
 % draw arena on overhead image
-handles.theta = linspace(0,2*pi,30);
-x = 0 + params.arena_radius_mm * sin(handles.theta) ;
-y = 0 + params.arena_radius_mm * cos(handles.theta) ;
-[x,y] = nt_change_neurotar_to_overhead_coordinates(x,y,params);
-handles.overhead_arena = line(handle(handles.panel_video(params.nt_overhead_camera)),x,y,'Color',[1 0 0]);
+handles.overhead_arena = line(handle(handles.panel_video(params.nt_overhead_camera)),0,0,'Color',[1 0 0]);
 
 if params.neurotar
     handles.overhead_neurotar_frame = line(handle(handles.panel_video(params.nt_overhead_camera)),0,0,'Color',[1 1 1]);
@@ -249,4 +248,12 @@ fig = get(toolbar,'Parent');
 userdata = get(fig,'UserData');
 userdata.action = src.Tag;
 set(fig,'UserData',userdata)
+end
+
+function edit_camera_distortion_callback(src, ~, ~)
+panel = src.Parent;
+fig = panel.Parent;
+userdata = get(src,'UserData');
+userdata.action = 'update_camera_distortion';
+set(fig,'UserData',userdata);
 end

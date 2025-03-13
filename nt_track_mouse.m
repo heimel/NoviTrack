@@ -1,16 +1,15 @@
-function record = nt_track_mouse(record,time_range,arena_rect,verbose)
+function [record,stat] = nt_track_mouse(record,time_range,verbose)
 %NT_TRACK_MOUSE tracks mouse in movie from record or filename
 %
-%   record = nt_track_mouse(record,[time_range],[arena_rect],[verbose])
+%   [RECORD,STAT] = nt_track_mouse(record,[time_range],[verbose=true])
+%
+%      STAT contains some info on mouse detection
 %
 % 2025, Alexander Heimel, adaptated from wc_track_mouse
 
 
-if nargin<4 || isempty(verbose)
+if nargin<3 || isempty(verbose)
     verbose = true;
-end
-if nargin<3 || isempty(arena_rect)
-    arena_rect = [];
 end
 if nargin<2 || isempty(time_range)
     time_range = [];
@@ -22,6 +21,8 @@ measures = record.measures;
 
 % parameters
 params.make_track_video = false;
+
+mask = nt_arena_mask(record);
 
 % defaults
 logmsg(['Tracking mouse in ' recordfilter(record)]);
@@ -92,7 +93,8 @@ frametimes = NaN(n_frames,1);
 stim_position = struct('stim_id',[],'com',[]);
 stim_position = stim_position([]);
 
-position = struct('com',NaN(n_frames,2),'tailbase',NaN(n_frames,2),'nose',NaN(n_frames,2));
+position = struct('com',NaN(n_frames,2),'tailtip',NaN(n_frames,2),...
+    'tailbase',NaN(n_frames,2),'nose',NaN(n_frames,2));
 vidDif = NaN(n_frames,1); % for the difference per frame
 Frame = [];
 i = 1;
@@ -102,6 +104,13 @@ prev_mousepos = [];
 prev_stimpos = [];
 
 start = tic();
+
+
+mouse_area = [];
+black_threshold = [];
+mouse_length = [];
+matched_criteria = [];
+
 while vid.CurrentTime < time_range(2) && hasFrame(vid)
 
     frametimes(i) = vid.CurrentTime;
@@ -122,6 +131,12 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
         figure(figRaw);
         gFrame = uint8(double(Frame).^params.nt_play_gamma / (255^params.nt_play_gamma) * 255);
         hImage = image(gFrame); %#ok<NASGU>
+
+        if params.overhead_camera_rotated 
+            set(gca,'ydir','normal');
+            set(gca,'xdir','reverse');
+        end
+
         axis image off
         hold on
     end
@@ -144,14 +159,23 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
         end
     end
 
-    [mousepos,stimpos] = nt_get_mouse_position( Frame,bg,n_cur_stims,params,figRaw,arena_rect,prev_mousepos,prev_stimpos);
+    [mousepos,stimpos,~,stat] = nt_get_mouse_position( Frame,bg,n_cur_stims,params,figRaw,mask,prev_mousepos,prev_stimpos);
+
+    mouse_area(i) = stat.mouse_area;
+    black_threshold(i) = stat.black_threshold;
+    mouse_length(i) = stat.mouse_length;
+    matched_criteria(i) = stat.matched_criteria;
 
     position.com(i,:) = mousepos.com;
+    position.tailtip(i,:) = mousepos.tailtip;
     position.tailbase(i,:) = mousepos.tailbase;
     position.nose(i,:) = mousepos.nose;
 
     if all(~isnan(mousepos.com))
         prev_mousepos.com = mousepos.com;
+    end
+    if all(~isnan(mousepos.tailtip))
+        prev_mousepos.tailtip = mousepos.tailtip;
     end
     if all(~isnan(mousepos.tailbase))
         prev_mousepos.tailbase = mousepos.tailbase;
@@ -208,7 +232,7 @@ session_path = nt_session_path(record,params);
 filename = [ record.sessionid '_' record.condition '_' record.stimulus ...
     '_tracks_' char(datetime('now','format','yyyyMMddHHmmss')) '.mat'];
 filename = fullfile(session_path,filename);
-save(filename,'frametimes','position','stim_position')
+save(filename,'frametimes','position','stim_position','params','record')
 logmsg(['Saved tracking data in ' filename]);
 
 if params.make_track_video
@@ -218,4 +242,25 @@ end
 clear vidobj
 
 
+stat = [];
+stat.mouse_area = mouse_area;
+stat.black_threshold = black_threshold;
+stat.mouse_length = mouse_length;
+
+if verbose
+    mask = logical(matched_criteria);
+    logmsg(['Mouse area, median = ' num2str(median(mouse_area(mask)))])
+    logmsg(['Mouse area, min = ' num2str(min(mouse_area(mask)))])
+    logmsg(['Mouse area, max = ' num2str(max(mouse_area(mask)))])
+    logmsg(['Mouse length, median = ' num2str(median(mouse_length(mask)))])
+    logmsg(['Mouse length, min = ' num2str(min(mouse_length(mask)))])
+    logmsg(['Mouse length, max = ' num2str(max(mouse_length(mask)))])
+    logmsg(['Black threshold, median = ' num2str(median(black_threshold(mask)))])
+    logmsg(['Black threshold, min = ' num2str(min(black_threshold(mask)))])
+    logmsg(['Black threshold, max = ' num2str(max(black_threshold(mask)))])
+end
+
+
+
 logmsg('You might want to run nt_detect_freezing')
+logmsg('Finished mouse tracking.')

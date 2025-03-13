@@ -1,45 +1,50 @@
-function [mousepos,stimpos,mouseBoundary] = nt_get_mouse_position(frame,bg,n_stim,params,hfig,area_rect,prev_mousepos,prev_stimpos )
+function [mousepos,stimpos,mouse_boundary,stat] = nt_get_mouse_position(frame,bg,n_stim,params,hfig,mask,prev_mousepos,prev_stimpos,verbose)
 %NT_GET_MOUSE_POSITION gets mouse centroid, tail, nose, stim in pixels
 %
-%  [POS,TAILBASE,nose,STIMPOS] = nt_get_mouse_position( FRAME,BG,[PARAMS],[HFIG],[AREA_RECT],[N_STIM],[PREV_MOUSEPOS],[PREV_STIMPOS] )
+%  [MOUSEPOS,STIMPOS,BOUNDARY,STAT] = nt_get_mouse_position( FRAME,BG,[PARAMS],[HFIG],[MASK],[N_STIM],[PREV_MOUSEPOS],[PREV_STIMPOS] )
 %
 %      MOUSE_POSITION is mouse position struct
 %         .com = center of mass
 %         .tailbase 
 %         .nose
-%
+%      MASK is a logical image with the arena marked as true. 
 %      STIMPOS = Nx3, with x,y,stim_id center of mass info for N objects
 %      PREV_STIMPOS = Nx3, with x,y,stim_id center of mass info for N objects
-%
-%
+%      STAT is a struct with some info about the mouse area
 %
 % 2017, Laila Blomer
 % 2019-2025, Alexander Heimel
 
 persistent sedisk
 
+if nargin<9 || isempty(verbose)
+    verbose = false;
+end
 if nargin<8 || isempty(prev_stimpos)
     prev_stimpos = [];
 end
 if nargin<7 || isempty(prev_mousepos)
     prev_mousepos = [];
 end
-if nargin<6 || isempty(area_rect)
-    % taking full frame as screen rectangle
-    area_rect = [0 0 size(frame,2) size(frame,1)];
+if nargin<6 || isempty(mask)
+    mask = [];
 end
 if nargin<5
     hfig = [];
 end
 if nargin<4 || isempty(params)
-    params.wc_minAreaSize = 200; % pxl, Minimal area for region that is tracked as mouse
-    params.wc_minMouseSize = 50^2; % pxl, Minimal area a mouse could be
-    params.wc_minStimSize = 10; % pxl, Minimal area for region that might be stimulus
-    params.wc_tailWidth = 12; % pxl
-    params.wc_tailToMiddle = 70; % pxl
-    params.wc_minComponentSize = 10; % pxl, Consider smaller components as noise
-    params.wc_dilation = ones(5); % for image dilation
-    params.wc_blackThreshold = 0.3;
+    params.nt_black_threshold = 0.4;
+    params.nt_min_mouse_length = 120;
+    params.nt_max_mouse_area = 5000; % pxl, Max area that could be mouse
+    params.nt_min_component_area = 200; % pxl, Minimal area for component to be relevant
+    params.nt_min_mouse_area = 4000; % pxl, Minimal area a mouse could be
+    params.nt_min_stim_size = 0; % pxl, Minimal area for region that might be stimulus
+    params.nt_max_tail_width = 20; % pxl, Max tail width (to find tailbase)
+    params.nt_min_tail_distance = 70; % pxl, Minimal distance of tailbase to mouse C.o.M.
+    params.nt_dilation = ones(5); % for image dilation
+    params.nt_bg_normalization = 20;
+    params.nt_min_black_threshold = 0.01;
+
 end
 if nargin<3 || isempty(n_stim)
     if isempty(prev_stimpos)
@@ -63,7 +68,7 @@ stimpos = [];
 bg = double(bg);
 frame_bg_subtracted = bg - double(frame);
 frame_bg_subtracted = abs(frame_bg_subtracted);
-frame_bg_subtracted = frame_bg_subtracted ./ (bg + params.wc_bg_normalization);
+frame_bg_subtracted = frame_bg_subtracted ./ (bg + params.nt_bg_normalization);
 frame_bg_subtracted = max(frame_bg_subtracted,[],3); % make it grayscale
 
 if ~isempty(hfig)
@@ -73,62 +78,79 @@ if ~isempty(hfig)
 end
 
 pos = []; % will contain component areas
-blackThreshold = params.wc_blackThreshold;
+black_threshold = params.nt_black_threshold;
 
-while ( ...
-        length(pos)<(1+n_stim) || ...
-        sum([pos.Area])<(params.wc_minMouseSize + n_stim*params.wc_minStimSize) || ...
-        max([pos.Area])<params.wc_minMouseSize )...
-        && blackThreshold>0.01
-    imbw = (frame_bg_subtracted > blackThreshold);
-    imbw = imclose(imbw,params.wc_dilation);
+
+matched_criteria = false;
+while  ~matched_criteria && black_threshold>params.nt_min_black_threshold
+    black_threshold = 0.9*black_threshold; % lower threshold
+
+    imbw = (frame_bg_subtracted > black_threshold);
+    imbw = imbw.*mask;
+    %imbw = imclose(imbw,params.nt_dilation);
     cc = bwconncomp(imbw);
+
+    if length(cc.PixelIdxList)<(1+n_stim)
+        matched_criteria = false;
+        continue
+    end
     pos = regionprops(cc,'Area');
-    blackThreshold = 0.9*blackThreshold; % lower threshold
+    matched_criteria =  ...
+        sum([pos.Area])>(params.nt_min_mouse_area + n_stim*params.nt_min_stim_size) && ...
+        max([pos.Area])>params.nt_min_mouse_area  && ...
+        max([pos.Area])<params.nt_max_mouse_area;  
+    if ~matched_criteria
+        continue
+    end
 
+    [~,ind] = max([pos.Area]);
+    cc_one.Connectivity = cc.Connectivity;
+    cc_one.ImageSize = cc.ImageSize;
+    cc_one.NumObjects = 1;
+    cc_one.PixelIdxList = cc.PixelIdxList(ind);
+    mal = regionprops(cc_one,'MajorAxisLength');
 
-    % logmsg(['blackThreshold: ' num2str(blackThreshold) ...
-    %     ' #components: ' num2str(length(pos)) ...
-    %     ' total area: ' num2str(sum([pos.Area])) ...
-    %     ' max area: ' num2str(max([pos.Area])) ...
-    %     ])
+    matched_criteria = (mal.MajorAxisLength>params.nt_min_mouse_length);
 end
 
-imbw = frame_bg_subtracted> blackThreshold;
-imbw = imclose(imbw,params.wc_dilation);
+if black_threshold<params.nt_min_black_threshold
+    if verbose
+        logmsg([char(datetime('now')) ': Failed to meet criteria'])
+    end
+    black_threshold = 0.2362;
+    imbw = frame_bg_subtracted> black_threshold;
+    imbw = imbw.*mask;
+    %imbw = imclose(imbw,params.nt_dilation);
+    cc = bwconncomp(imbw);
+end
+
+
 
 mouse = imbw;
-cc = bwconncomp(imbw);
 pos = regionprops(cc,'Centroid','Area');
-if isempty(pos) || not(any([pos.Area]>params.wc_minAreaSize))
-    logmsg('Could not find any changed components');
+if isempty(pos) || not(any([pos.Area]>params.nt_min_component_area))
+    if verbose
+        logmsg('Could not find any changed components');
+    end
     return
 end
 
 
 [~,ind] = sort([pos.Area],'descend'); % sort by size, largest first
-cc.PixelIdxList = cc.PixelIdxList{ind};
+cc.PixelIdxList = cc.PixelIdxList(ind);
 pos = pos(ind);
 
-
 % get mouse center
-% indmouse = find([pos.Area]>params.wc_minAreaSize);
-% posCentroids = [pos(indmouse).Centroid];
-% mousepos = [ posCentroids(1:2:end)*[pos(indmouse).Area]'/sum([pos(indmouse).Area]), ...
-%     posCentroids(2:2:end)*[pos(indmouse).Area]'/sum([pos(indmouse).Area])];
-%
 % assume mouse is largest component
 indmouse = 1;
 mousepos.com = pos(indmouse).Centroid;
 
-% if ~isempty(hfig)
-%     plot(mousepos.com(1),mousepos.com(2),'og'); % TEMPORARY
-% end
+    
 
 
 % get stim centers (n_stim large enough objects, larger than minStimSize and not mouse)
 if n_stim>0
-    indstim = find([pos.Area]>params.wc_minStimSize,n_stim+1);
+    indstim = find([pos.Area]>params.nt_min_stim_size,n_stim+1);
     indstim = indstim(2:end); % remove mouse component
 
     for i=1:length(indstim)
@@ -138,7 +160,8 @@ if n_stim>0
 
     if ~isempty(prev_stimpos)
         % change stim_id to closest previous stim_id
-        
+        stimpos(:,3) = NaN;
+
         n_prev_stim = size(prev_stimpos,1);
         n_stim_found = size(stimpos,1);
         d = NaN(n_prev_stim,n_stim_found);
@@ -156,9 +179,11 @@ if n_stim>0
             d(:,j) = NaN;
         end
 
-        if length(find(stimpos(:,3)==1))>1
-            keyboard
-        end
+        % add other stim_ids to unidentified objects
+        ids = 1:9;
+        ids([prev_stimpos(:,3)]) = [];
+        ind = find(isnan(stimpos(:,3)));
+        stimpos(ind,3) = ids(ind);
     end
 
     if ~isempty(hfig)
@@ -186,8 +211,8 @@ end
 % mouseBoundary = boundary(indmouse);
 
 mouseBinary = false(size(mouse));
-mouseBinary(cc(indmouse).PixelIdxList) = true;
-mouseBoundary = bwboundaries(mouseBinary);
+mouseBinary(cc(indmouse).PixelIdxList{1}) = true;
+mouse_boundary = bwboundaries(mouseBinary);
 
 % if ~isempty(hfig)
 %     for i = 1:length(mouseBoundary)
@@ -206,14 +231,21 @@ mouseBoundary = bwboundaries(mouseBinary);
 %     mouseBoundary = bwboundaries(mouseBinary);
 % end
 
-A = cellfun('size', mouseBoundary, 1);
+A = cellfun('size', mouse_boundary, 1);
 [~, ind] = max(A);
-mouseBoundary = mouseBoundary{ind};
-row = size(mouseBoundary,1);
+mouse_boundary = mouse_boundary{ind};
+row = size(mouse_boundary,1);
 
 if ~isempty(hfig)
-    plot(mouseBoundary(:,2),mouseBoundary(:,1),'c')
+    plot(mouse_boundary(:,2),mouse_boundary(:,1),'c')
 end
+
+stat.mouse_area = pos(indmouse).Area;
+stat.black_threshold = black_threshold;
+cc.NumObjects = 1;
+cc.PixelIdxList = cc.PixelIdxList(1); % Notice change of cc
+stat.mouse_length = getfield(regionprops(cc,'MajorAxisLength'),'MajorAxisLength');
+stat.matched_criteria = matched_criteria;
 
 % Find tail
 % find farthest geodesic point from mouse c.o.m. and check if it is far
@@ -223,21 +255,32 @@ posTails = D(:);
 
 [num,indD] = max(posTails);
 if isnan(num) || (num == 0)
-    tailNotFound = true;
+    tail_not_found = true;
 else
     [ytailtip,xtailtip] = ind2sub(size(D),indD);
-    if pdist([mousepos.com; [xtailtip, ytailtip]]) < params.wc_tailToMiddle
+    if pdist([mousepos.com; [xtailtip, ytailtip]]) < params.nt_min_tail_distance
         % tailtip too close to centroid
-        tailNotFound = true;
+        tail_not_found = true;
     else
-        tailNotFound = false;
+        tail_not_found = false;
     end
 end
 
-if tailNotFound
-    %logmsg('Did not find tail');
-    return
+if tail_not_found
+    if verbose
+        logmsg('Did not find tail');
+    end
+    if ~isempty(prev_mousepos) && isfield(prev_mousepos,'tailtip') && all(~isnan(prev_mousepos.tailtip))
+        xtailtip = prev_mousepos.tailtip(1);
+        ytailtip = prev_mousepos.tailtip(2);
+        if verbose
+            logmsg('Taking previous tailtip');
+        end
+    else
+        return
+    end
 end
+mousepos.tailtip = [xtailtip ytailtip];
 
 if ~isempty(hfig)
     plot(xtailtip,ytailtip,'r*');
@@ -255,12 +298,12 @@ end
 
 % Compute distance between found tail and every point of mouseBoundary
 % to get the coordinate with the minimum distance, which should be the tip
-np = length(mouseBoundary(:,1));
+np = length(mouse_boundary(:,1));
 Pp = [ytailtip xtailtip];
 
 % matrix of distances between all points and all vertices
-dpv(:,:) = hypot((repmat(mouseBoundary(:,1)', [np 1])-repmat(Pp(:,1), [1 1])),...
-    (repmat(mouseBoundary(:,2)', [np 1])-repmat(Pp(:,2), [1 1])));
+dpv(:,:) = hypot((repmat(mouse_boundary(:,1)', [np 1])-repmat(Pp(:,1), [1 1])),...
+    (repmat(mouse_boundary(:,2)', [np 1])-repmat(Pp(:,2), [1 1])));
 
 % Find the vector of minimum distances to vertices.
 [~, index] = min(abs(dpv),[],2);
@@ -274,19 +317,20 @@ halfway = round(mod(ind + (row / 2), row));
 % Look for beginning of tail by following the mouse boundary untill
 % distance between the two sides become larger than tailWidth.
 beginFound = false;
-while ~beginFound && ~tailNotFound
+while ~beginFound && ~tail_not_found
     left = mod((left + row - 2), row) + 1;
     right = mod(right, row) + 1;
-    dist = pdist([mouseBoundary(left,:); mouseBoundary(right,:)]);
-    if dist > params.wc_tailWidth
+    dist = pdist([mouse_boundary(left,:); mouse_boundary(right,:)]);
+    if dist > params.nt_max_tail_width
         beginFound = true;
         ind = right;
     elseif (left == halfway) || (right == halfway)
-        tailNotFound = true;
+        tail_not_found = true;
     end
 end
 
-if tailNotFound % did not find tail base
+
+if tail_not_found % did not find tail base
     return
 end
 
@@ -317,11 +361,11 @@ end
 
 % separate tail and body
 if passEnd
-    fulltail = vertcat(mouseBoundary(tailB:end, :),mouseBoundary(1:tailE, :));
-    rest = mouseBoundary(tailE:tailB, :);
+    fulltail = vertcat(mouse_boundary(tailB:end, :),mouse_boundary(1:tailE, :));
+    rest = mouse_boundary(tailE:tailB, :);
 else
-    fulltail = mouseBoundary(tailB:tailE, :);
-    rest = vertcat(mouseBoundary(tailE:end, :), mouseBoundary(1:tailB, :));
+    fulltail = mouse_boundary(tailB:tailE, :);
+    rest = vertcat(mouse_boundary(tailE:end, :), mouse_boundary(1:tailB, :));
 end
 
 % Find new tail and mouse positions
@@ -360,3 +404,6 @@ if ~isempty(hfig)
     plot(mousepos.com(1),mousepos.com(2),'c+');
     hold off
 end
+
+    
+

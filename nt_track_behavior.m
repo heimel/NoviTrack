@@ -13,7 +13,7 @@ function record = nt_track_behavior(record,h_dbfig,verbose)
 
 % Coordinates frames:
 %    Arena coordinates: x,y position in circular arena in mm
-%    Neurotar coordinates: x,y position on neurotar frame in mm
+%    Neurotar (mouse) coordinates: x,y position on neurotar frame in mm 
 %    Overhead coordinates: x,y position in overhead camera image in pixels
 % To move between coordinate frames:
 %    [overhead_x, overhead_y] = change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,measures,params)
@@ -280,11 +280,8 @@ set(handles.text_time,'String',num2str(state.master_time,'%0.2f'))
 handles.timeline_current_time.XData = state.master_time * [1 1];
 
 % update arena on overhead camera image
-[neurotar_x,neurotar_y] = nt_change_arena_to_neurotar_coordinates(...
-    0,0,state.X,state.Y,state.alpha,params);
-neurotar_x = neurotar_x + params.arena_radius_mm * sin(handles.theta) ;
-neurotar_y = neurotar_y + params.arena_radius_mm * cos(handles.theta) ;
-[handles.overhead_arena.XData,handles.overhead_arena.YData] = nt_change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,params);
+nt_update_arena_walls(handles.overhead_arena,state,params);
+
 % handles.overhead_nose.XData = state.X;
 % handles.overhead_nose.YData = state.Y;
 % handles.overhead_com.XData = state.CoM_X;
@@ -1055,13 +1052,6 @@ set(src,'UserData',userdata);
 end
 
 %% Other callback functions
-function edit_camera_distortion_callback(src, ~, ~)
-panel = src.Parent;
-fig = panel.Parent;
-userdata = get(src,'UserData');
-userdata.action = 'update_camera_distortion';
-set(fig,'UserData',userdata);
-end
 
 
 function update_neurotar_headring(overhead_neurotar_headring,params)
