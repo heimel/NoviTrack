@@ -16,7 +16,7 @@ if isempty(ret)
     return
 end
 
-if ~canConnectFYD % failure
+if ~canConnectFYD() % failure
     logmsg('Cannot access FYD server. Trying to load last fyd record');
     load(fullfile(fileparts(which('getFYD')),'fydsaved.mat'),'fydsaved');
     sJson = fydsaved; 
