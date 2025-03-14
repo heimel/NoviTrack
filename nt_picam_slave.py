@@ -1,8 +1,11 @@
-# cli_picam_slave.py
+# nt_picam_slave.py
 #  
 #    reads acqReady to start video recording
 #    while listening to GPIO pin 17
 #    saving log to session_path from acqReady
+#
+#    First command line argument is taken as setup for 
+#    determining the communication folder.
 #
 # 2023-2025, Alexander Heimel
 
