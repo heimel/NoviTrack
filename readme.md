@@ -10,7 +10,7 @@ NoviTrack is developed and maintained by Alexander Heimel, with help of Zhiting 
 ### Experiment control or analysis PC ###
 
 Install MATLAB.
-Install repositories heimel/InVivoTools, heimel/NoviTrack
+Install repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), heimel/NoviTrack
 For visual stimulation also install repository heimel/NewStim3
 Check readme information on github for install information.
 
