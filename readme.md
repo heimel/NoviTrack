@@ -16,7 +16,10 @@ Install repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools)
 
 After installing InVivoTools and adding the InVivoTools folder to the Matlab path, run 'load_invivotools' 
 in matlab. This creates a file processparams_local.m, in which you can place local parameters overrides. 
-In this file, add a line like "params.networkpathbase = 'YOUR_DATA_FOLDER';" 
+In this file, add a line like 
+```
+params.networkpathbase = 'YOUR_DATA_FOLDER';
+```
 where you replace YOUR_DATA_FOLDER with the root folder of your data. 
 
 
