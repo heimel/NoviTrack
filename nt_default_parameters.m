@@ -23,7 +23,8 @@ params.CAMERA = 3;
 params.OVERHEAD = 4; 
 
 % Data storage
-params.networkpathbase = '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Ren'; 
+% Below is a placeholder line. Replace to right folder in processparams_local.m
+params.networkpathbase = '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Temp'; 
 
 % Communication between Pi's 
 params.root_communication_path = '\\VS03\VS03-CSF-1\Communication';
