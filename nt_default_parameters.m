@@ -228,8 +228,8 @@ params.nt_stop_marker = 't';
 mask = (~[params.markers(:).behavior]) & [params.markers(:).linked];
 params.nt_stim_markers = setdiff({params.markers(mask).marker},params.nt_stop_marker);
 
-params.nt_show_markers = true; % mostly for speed debugging
-
+params.nt_show_markers = true; % false increases speed at the cost of information loss
+params.nt_show_position_changes = true; % false reduces visual clutter at the cost of information loss
 
 
 % Analysis

@@ -522,6 +522,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 end
             end
             nt_show_markers(measures.markers,handles.panel_timeline,params);
+            nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
+
             state.newframe = true;
             state.jumptime = -state.interframe_time;
 
@@ -600,6 +602,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             state.jumptime = -state.interframe_time;
 
             record.measures = measures;
+            nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
+
             update_record(record,handles.h_dbfig,true);
 
         case 'quit'
@@ -681,6 +685,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
             nt_show_markers(measures.markers,handles.panel_timeline,params);
+            nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
             %update_object_positions(measures,state,handles,params);
 
             record.measures = measures;

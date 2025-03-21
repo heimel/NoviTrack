@@ -82,6 +82,7 @@ handles.timeline_current_time = line(state.master_time*[1 1],[0 params.nt_track_
 plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
 ylim([0 params.nt_track_timeline_max_speed]);
 nt_show_markers(measures.markers,handles.panel_timeline,params);
+nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
 set(handles.panel_timeline,'ButtonDownFcn',@click_on_timeline);
 
 % Panel with neurotar speed
