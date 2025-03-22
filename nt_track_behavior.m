@@ -839,9 +839,14 @@ left = margin;
 bottom = margin;
 width = (pos(3)-3*margin)/2;
 height = pos(4)-2*margin;
-uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],actions,'UniformOutput',false),'Position',[left bottom width height]);
+uitextarea(help_fig,'Value',arrayfun(@(x) [x.key_description ' - ' x.tooltip],...
+    actions,'UniformOutput',false),'Position',[left bottom width height],...
+    'editable','off');
 
-uitextarea(help_fig,'Value',arrayfun(@(x) [x.marker ' - ' x.description],params.markers,'UniformOutput',false),'Position',[left+width+margin bottom width height]);
+uitextarea(help_fig,'Value',arrayfun(@(x) [x.marker ' - ' x.description],...
+    params.markers,'UniformOutput',false),...
+    'Position',[left+width+margin bottom width height], ...
+    'editable','off');
 
 
 end
