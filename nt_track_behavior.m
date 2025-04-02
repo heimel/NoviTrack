@@ -313,10 +313,10 @@ nt_update_arena_walls(handles.overhead_arena,state,params);
 % handles.overhead_tailbase.XData = state.tailbase_X;
 % handles.overhead_tailbase.YData = state.tailbase_Y;
 
-
-handles.overhead_mouse.XData = [state.X state.CoM_X state.tailbase_X];
-handles.overhead_mouse.YData = [state.Y state.CoM_Y state.tailbase_Y];
-
+if params.nt_show_overhead_mouse
+    handles.overhead_mouse.XData = [state.X state.CoM_X state.tailbase_X];
+    handles.overhead_mouse.YData = [state.Y state.CoM_Y state.tailbase_Y];
+end
 
 
 % update mouse in arena drawing
@@ -763,6 +763,12 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             nt_show_markers(measures.markers,handles.panel_timeline,params);
         case 'toggle_drawnow_limitrate'
             params.nt_drawnow_limitrate = ~params.nt_drawnow_limitrate;
+        case 'toggle_overhead_mouse'
+            params.nt_show_overhead_mouse = ~params.nt_show_overhead_mouse;
+            if ~params.nt_show_overhead_mouse
+                handles.overhead_mouse.XData = NaN;
+                handles.overhead_mouse.YData = NaN;
+            end
         case 'toggle_play'
             state.play = not(state.play);
             if state.play
@@ -1035,6 +1041,7 @@ actions = {...
     {'toggle_behavior_markers',    {'b'},'b','Toggle showing behavior markers',0},...
     {'toggle_drawnow_limitrate',   {'f'},'f','Toggle fast video updating',0},...
     {'toggle_play',                {'space'},'Space','Toggle play',100},...
+    {'toggle_overhead_mouse',      {'m','shift'},'M','Toggle showing mouse in overhead video',0},...
     };
 
 actions = cellfun( @(x) cell2struct(x,{'action','keys','key_description','tooltip','toolbutton_position'},2),actions);
