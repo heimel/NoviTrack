@@ -4,7 +4,7 @@ Compiled by Alexander Heimel.
 
 The data is a tdmsDatastore. It contains the following channels.
 
-- Dmaps_index - xompression information?
+- Dmaps_index - compression information?
 - Histogram_running_bouts - ?
 - Histogram_speed - counts of presence in speed bins
 - Histogram_zones - counts of presence in predefined zones

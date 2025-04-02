@@ -43,14 +43,15 @@ if params.nt_result_shows_individual_object_insertions
         nt_data = nt_load_mouse_tracks(record);
     end
 
-
-    nt_data = nt_add_objects_to_nt_data( record, nt_data );
-    for i = 1:length(measures.markers)
-        switch measures.markers(i).marker
-            case {'o','v','h'}
-                nt_plot_interaction(record,i,nt_data,params);
-        end
-    end % object insertion i
+    if params.neurotar
+        nt_data = nt_add_objects_to_nt_data( record, nt_data );
+        for i = 1:length(measures.markers)
+            switch measures.markers(i).marker
+                case {'o','v','h'}
+                    nt_plot_interaction(record,i,nt_data,params);
+            end
+        end % object insertion i
+    end
 end
 
 %% Session summary
@@ -61,7 +62,7 @@ if isfield(measures,'session_fraction_running_forward')
     text(0,0.5,subst_ctlchars([recordfilter(record) ',comment=' record.comment ]))
     axis off
 
-    subplot(1,4,1)
+    subplot(2,4,1)
     bar(measures.session_fraction_running_forward *100);
     ylabel('Running forward (% of time)')
     box off
@@ -69,7 +70,7 @@ if isfield(measures,'session_fraction_running_forward')
     h = gca;
     h.XAxis.Visible = 'off';
 
-    subplot(1,4,2)
+    subplot(2,4,2)
     bar(measures.session_start_running_forward_per_min);
     ylabel('Running forward (#/min)')
     box off
@@ -77,7 +78,7 @@ if isfield(measures,'session_fraction_running_forward')
     h = gca;
     h.XAxis.Visible = 'off';
 
-    subplot(1,4,3)
+    subplot(2,4,3)
     bar(measures.session_fraction_moving_backward *100);
     ylabel('Moving backward (% of time)')
     box off
@@ -85,7 +86,7 @@ if isfield(measures,'session_fraction_running_forward')
     h = gca;
     h.XAxis.Visible = 'off';
 
-    subplot(1,4,4 )
+    subplot(2,4,4 )
     bar(measures.session_start_moving_backward_per_min);
     ylabel('Moving backward (#/min)')
     box off

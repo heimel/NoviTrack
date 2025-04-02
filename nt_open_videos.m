@@ -58,8 +58,8 @@ for i = 1:num_cameras
     if length(trigger_times)<i || isempty(trigger_times{i})
         trigger_filename = [filename '_triggers.csv'];
         if ~exist(trigger_filename,'file')
-            logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger at start.']);
-            trigger_times{i} = 1 / vidobj{i}.FrameRate; % set trigger on first frame
+            logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger after first frame.']);
+            trigger_times{i} = 1 / vidobj{i}.FrameRate; % set trigger on second frame (was a mistake, would have been better to put on first)
         else
             data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1);
             if size(data,2)==1 % old data from before 2023-05-25
@@ -74,6 +74,6 @@ end % camera i
 if ~isempty(time)
     % align videos
     for c = available_cameras
-        vidobj{c}.CurrentTime = trigger_times{c}(1) + time * params.picamera_time_multiplier;
+        vidobj{c}.CurrentTime = nt_change_neurotar_to_video_times( time, trigger_times{c}, params);
     end
 end

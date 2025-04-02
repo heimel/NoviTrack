@@ -3,24 +3,22 @@ function record = nt_track_behavior(record,h_dbfig,verbose)
 %
 %  RECORD = nt_track_behavior( RECORD, [VERBOSE=true])
 %
-% 2023, Alexander Heimel, Zhiting Ren
+% 2023-2025, Alexander Heimel, Zhiting Ren
 %
 % Times are aligned to clock of neurotar, with start of first trigger
 % set to time = 0.
 % align times from this common trigger and then multiply master time with specific
-% multiplier to obtain time in [picamera] values. See also
-% nt_default_parameters.
-
+% multiplier to obtain time in [picamera] values. 
+% 
+% See also nt_default_parameters.
+%
 % Coordinates frames:
 %    Arena coordinates: x,y position in circular arena in mm
 %    Neurotar (mouse) coordinates: x,y position on neurotar frame in mm 
 %    Overhead coordinates: x,y position in overhead camera image in pixels
-% To move between coordinate frames:
-%    [overhead_x, overhead_y] = change_neurotar_to_overhead_coordinates(neurotar_x,neurotar_y,measures,params)
-%    [neurotar_x, neurotar_y] = change_overhead_to_neurotar_coordinates(overhead_x,overhead_y,measures,params);
-%    [arena_x, arena_y] = change_neurotar_to_arena_coordinates(neurotar_x,neurotar_y)
-%    [neurotar_x, neurotar_y] = change_arenar_to_neurotar_coordinates(arena_x,arena_y)
-
+%
+% More info on time and coordinate frames in novitrack_coordinates.md
+%
 
 global measures global_record %#ok<GVMIS>
 global_record = record;
@@ -51,11 +49,17 @@ end
 if ~isfield(measures,'trigger_times')
     measures.trigger_times = {};
 end
-if ~isfield(measures,'overhead_neurotar_headring') || isempty(measures.overhead_neurotar_headring)
-    measures.overhead_neurotar_headring = params.overhead_neurotar_headring;
-end
-if ~isfield(measures,'overhead_neurotar_center') || isempty(measures.overhead_neurotar_center)
-    measures.overhead_neurotar_center = params.overhead_neurotar_center;
+if params.neurotar
+    if ~isfield(measures,'overhead_neurotar_headring') || isempty(measures.overhead_neurotar_headring)
+        measures.overhead_neurotar_headring = params.overhead_neurotar_headring;
+    end
+    if ~isfield(measures,'overhead_neurotar_center') || isempty(measures.overhead_neurotar_center)
+        measures.overhead_neurotar_center = params.overhead_neurotar_center;
+    end
+else
+    if ~isfield(measures,'overhead_arena_center') || isempty(measures.overhead_arena_center)
+        measures.overhead_arena_center = params.overhead_arena_center;
+    end
 end
 
 set(groot, 'defaultAxesCreateFcn', @(ax,~) disableDefaultInteractivity(ax))
@@ -79,12 +83,36 @@ if isempty(nt_data)
 end
 
 
-
-
-
 %% Open movies
 [handles.vidobj,measures.trigger_times,active_cameras] = nt_open_videos(record,state.master_time);
 num_cameras = length(params.nt_camera_names);
+
+%% Adjust min and max time
+if ~isempty(nt_data)
+    min_time = nt_data.Time(1);
+    if isnan(min_time)
+        min_time = min(nt_data.Time);
+    end
+    max_time = nt_data.Time(end);
+    if isnan(max_time)
+        max_time = max(nt_data.Time);
+    end
+else
+    min_time = inf;
+    max_time = -inf;
+end
+for c = active_cameras
+    t =  nt_change_video_to_neurotar_times(handles.vidobj{c}.Duration,measures.trigger_times{c},params);
+    if t>max_time
+        max_time = t;
+    end
+    t =  nt_change_video_to_neurotar_times(0,measures.trigger_times{c},params);
+    if t<min_time
+        min_time = t;
+    end
+end % c
+measures.min_time = min_time;
+measures.max_time = max_time;
 
 % get size of overhead camera
 params.overhead_camera_width = handles.vidobj{params.nt_overhead_camera}.Width;
@@ -115,7 +143,6 @@ if isempty(nt_data)
     nt_data.Object_distance = NaN(size(nt_data.Time));
 end
 
-%max_time = nt_data.Time(end);
 
 
 %% Set up figure
@@ -186,7 +213,7 @@ while state.loop
             camera_times_in_master_time = zeros(1,num_cameras);
             for c = active_cameras
                 handles.camera_image(c).CData = readFrame(handles.vidobj{c});
-                camera_times_in_master_time(c) = (handles.vidobj{c}.CurrentTime - measures.trigger_times{c}(1)) / params.picamera_time_multiplier;
+                camera_times_in_master_time(c) = nt_change_video_to_neurotar_times( handles.vidobj{c}.CurrentTime, measures.trigger_times{c}, params);
             end
             state.master_time = mean(camera_times_in_master_time(active_cameras));
             state.newframe = false;
@@ -196,8 +223,7 @@ while state.loop
         state.ind_current = state.ind_past + find( nt_data.Time(state.ind_past:end) > state.master_time,1 ) - 2 ;
 
         if isempty(state.ind_current) || state.ind_current == 0
-            state.ind_current = 1;
-            logmsg('No time before current time.')
+            state.ind_current = [];
         end
         state.ind_future = state.ind_current + find( nt_data.Time(state.ind_current:end) > state.master_time + params.nt_mouse_trace_window,1) - 2;
 
@@ -208,8 +234,6 @@ while state.loop
         state.CoM_Y = nt_data.CoM_Y(state.ind_current);
         state.tailbase_X = nt_data.tailbase_X(state.ind_current);
         state.tailbase_Y = nt_data.tailbase_Y(state.ind_current);
-
-
 
         handles = update_all_panels(nt_data,measures,state,handles,jumped,params);
         jumped = false;
@@ -694,12 +718,19 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             drawnow
             state.newframe = true;
             state.jumptime = -state.interframe_time;
-        case 'set_neurotar_center'
+        case 'set_overhead_center'
             camera = params.nt_overhead_camera;
             [x,y] = get_location_on_camera(handles,camera);
-            measures.overhead_neurotar_center = [x; y];
-            params.overhead_neurotar_center = measures.overhead_neurotar_center;
-            update_neurotar_center(handles.overhead_neurotar_center,params);
+
+            if params.neurotar
+                measures.overhead_neurotar_center = [x; y];
+                params.overhead_neurotar_center = measures.overhead_neurotar_center;
+            else
+                measures.overhead_arena_center = [x; y];
+                params.overhead_arena_center = measures.overhead_arena_center;
+            end
+
+            update_overhead_center(handles.overhead_center,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
             record.measures = measures;
@@ -746,10 +777,15 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 params.overhead_camera_distortion = input;
                 measures.overhead_camera_distortion = input;
             end
-            input = str2num(get(handles.edit_camera_neurotar_center,'String')); %#ok<ST2NM>
+            input = str2num(get(handles.edit_overhead_center,'String')); %#ok<ST2NM>
             if ~isnan(input)
-                params.overhead_neurotar_center = input;
-                measures.overhead_neurotar_center = input;
+                if params.neurotar
+                    params.overhead_neurotar_center = input;
+                    measures.overhead_neurotar_center = input;
+                else
+                    params.overhead_arena_center = input;
+                    measures.overhead_arena_center = input;
+                end
             end
             input = str2num(get(handles.edit_camera_angle,'String')); %#ok<ST2NM>
             if ~isnan(input)
@@ -763,15 +799,18 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             end
 
             set(handles.edit_camera_distortion,'String',mat2str(params.overhead_camera_distortion));
-            set(handles.edit_camera_neurotar_center,'String',mat2str(params.overhead_neurotar_center));
+            if params.neurotar
+                set(handles.edit_overhead_center,'String',mat2str(params.overhead_neurotar_center));
+            else
+                set(handles.edit_overhead_center,'String',mat2str(params.overhead_arena_center));
+            end
             set(handles.edit_camera_angle,'String',mat2str(params.overhead_camera_angle/pi*180));
             set(handles.edit_time_multiplier,'String',mat2str(params.picamera_time_multiplier));
 
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
-            if params.neurotar
-                update_neurotar_center(handles.overhead_neurotar_center,params);
-            end
 
+            update_overhead_center(handles.overhead_center,params);
+            
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
 
@@ -983,7 +1022,7 @@ actions = {...
     {'position_delete',            {'d'},'d','Delete previous object position',0},...
     {'show_help',                  {'h'},'h','Show help',1000},...
     {'set_led_position',           {'l','shift'},'L','Set LED position',0},...
-    {'set_neurotar_center',        {'c','shift'},'C','Set Neurotar center',0},...
+    {'set_overhead_center',        {'c','shift'},'C','Set overhead center',0},...
     {'set_neurotar_headring',      {'h','shift'},'H','Set Neurotar headring',0},...
     {'set_real_object_position',   {'o'},'o','Set real object position',0},...
     {'set_virtual_object_position',{'v'},'v','Set virtual object position',0},...
@@ -1069,9 +1108,14 @@ overhead_neurotar_headring.XData = params.overhead_neurotar_headring(1);
 overhead_neurotar_headring.YData = params.overhead_neurotar_headring(2);
 end
 
-function update_neurotar_center(overhead_neurotar_center,params)
-overhead_neurotar_center.XData = params.overhead_neurotar_center(1);
-overhead_neurotar_center.YData = params.overhead_neurotar_center(2);
+function update_overhead_center(overhead_center,params)
+if params.neurotar
+    overhead_center.XData = params.overhead_neurotar_center(1);
+    overhead_center.YData = params.overhead_neurotar_center(2);
+else
+    overhead_center.XData = params.overhead_arena_center(1);
+    overhead_center.YData = params.overhead_arena_center(2);
+end
 end
 
 function update_neurotar_frame(overhead_neurotar_frame,params)

@@ -30,6 +30,11 @@ logmsg(['Tracking mouse in ' recordfilter(record)]);
 vidobj = nt_open_videos(record);
 vid = vidobj{params.nt_overhead_camera};
 
+if  ~isa(vid,'VideoReader')
+    logmsg(['Could not load the overhead video, and therefore cannot track ' recordfilter(record)])
+    stat = [];
+    return
+end
 
 framerate = vid.FrameRate;
 
@@ -45,25 +50,64 @@ elseif vid.Duration<time_range(2)
     return
 end
 
+
+% Make a background by averageing frames in bgframes
+% The background is complemented so black shapes become white and can be
+% substracted from each other.
+[~,root] = fileparts(vid.Name);
+bg_filename = fullfile(vid.Path,[root '_bg.mat']);
+if exist(bg_filename,'file') && ~params.nt_recompute_background
+    load(bg_filename,'bg');
+else
+    bg = compute_movie_background(vid,[]); % removed time_range
+    if ~isempty(bg)
+        save(bg_filename,'bg');
+        logmsg(['Wrote background to ' bg_filename])
+    end    
+end
+bg = double(bg);
+
+if isempty(bg)
+    logmsg(['Could not compute background in ' recordfilter(record)]);
+    return
+end
+
+%% Setup video image for display
 if verbose
-    figRaw = figure('Name','Raw');
+    figure('Name','Raw');
+    handles.video = axes();
+    handles.image = image(handles.video,uint8(bg)); 
+
+    if params.overhead_camera_rotated
+        set(handles.video,'ydir','normal');
+        set(handles.video,'xdir','reverse');
+    end
+    axis image off
+    hold on
+
+    % set placeholder markers
+    handles.clock = text(handles.video,5,5,[num2str(vid.CurrentTime,'%0.2f') ' s'],...
+        'Color','white','horizontalalignment','right','verticalalignment','bottom');
+    for i = 1:10
+        handles.stim(i) = text(NaN,NaN,num2str(i),...
+            'HorizontalAlignment','Center','Color',[1 1 1]);
+    end
+    handles.mouse_boundary = plot(NaN,NaN,'-c');
+    handles.tailtip = plot(NaN,NaN,'r*');
+    handles.nose = plot(NaN,NaN,'gx');
+    handles.tailbase = plot(NaN,NaN,'rx');
+    handles.com = plot(NaN,NaN,'c+');
+
     if params.make_track_video
         writerObj = VideoWriter('mousetracking1.avi');
         writerObj.FrameRate = framerate;
         open(writerObj);
     end
 else
-    figRaw = [];
+    handles = [];
 end
 
-% Make a background by averageing frames in bgframes
-% The background is complemented so black shapes become white and can be
-% substracted from each other.
-bg = double(compute_movie_background(vid,time_range));
-if isempty(bg)
-    logmsg(['Could not compute background in ' recordfilter(record)]);
-    return
-end
+%%
 
 % The actual videoanalysis part
 % Runs a for loop trough all frames that need to be analysed specified by
@@ -73,6 +117,10 @@ end
 % Around this position the mean pixelvalue change is calculated that is
 % used later for freeze detection.
 
+
+n_frames = ceil((time_range(2)-time_range(1)) * framerate);
+frametimes = NaN(n_frames,1);
+
 logmsg(['Detecting mouse starting from ' num2str(time_range(1)) ' s.']);
 try
     vid.CurrentTime = time_range(1);
@@ -80,15 +128,6 @@ catch me
     logmsg([me.message ' in ' recordfilter(record)]);
     return
 end
-
-
-n_frames = ceil((time_range(2)-time_range(1)) * framerate);
-frametimes = NaN(n_frames,1);
-
-% all_stim_ids = [1 2];
-% for i=1:length(all_stim_ids)
-%     stim_position = struct('stim_id',all_stim_ids(i),'com',NaN(n_frames,2));
-% end
 
 stim_position = struct('stim_id',[],'com',[]);
 stim_position = stim_position([]);
@@ -111,6 +150,7 @@ black_threshold = [];
 mouse_length = [];
 matched_criteria = [];
 
+
 while vid.CurrentTime < time_range(2) && hasFrame(vid)
 
     frametimes(i) = vid.CurrentTime;
@@ -128,17 +168,9 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
     end
 
     if verbose
-        figure(figRaw);
         gFrame = uint8(double(Frame).^params.nt_play_gamma / (255^params.nt_play_gamma) * 255);
-        hImage = image(gFrame); %#ok<NASGU>
-
-        if params.overhead_camera_rotated 
-            set(gca,'ydir','normal');
-            set(gca,'xdir','reverse');
-        end
-
-        axis image off
-        hold on
+        %handles.image = image(handles.video,gFrame); %#ok<NASGU>
+        handles.image.CData = gFrame;
     end
 
     cur_stim_ids = nt_which_stimuli(measures.markers,frametimes(i),params);
@@ -159,7 +191,7 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
         end
     end
 
-    [mousepos,stimpos,~,stat] = nt_get_mouse_position( Frame,bg,n_cur_stims,params,figRaw,mask,prev_mousepos,prev_stimpos);
+    [mousepos,stimpos,~,stat] = nt_get_mouse_position( Frame,bg,n_cur_stims,params,handles,mask,prev_mousepos,prev_stimpos,verbose);
 
     mouse_area(i) = stat.mouse_area;
     black_threshold(i) = stat.black_threshold;
@@ -212,7 +244,7 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
     % Show the frame and already set the difscope square and dot for
     % position of mouse
     if verbose
-        text(s(2)-70,s(1)-20,[num2str(vid.CurrentTime,'%0.2f') ' s'],'Color','white','horizontalalignment','right');
+        handles.clock.String = [num2str(vid.CurrentTime,'%0.2f') ' s'];
         drawnow
         if params.make_track_video
             frame = getframe;

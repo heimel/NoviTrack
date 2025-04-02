@@ -1,9 +1,12 @@
-%% Draw figure
-
 function handles = nt_draw_track_window(handles,record,actions,nt_data,state,measures,params)
-%nt_draw_track_window. Draws tracking figure
+% nt_draw_track_window. Draws tracking figure
+%
+%    handles = nt_draw_track_window(handles,record,actions,nt_data,state,measures,params)
+%
+% 2025, Alexander Heimel
 
-max_time = nt_data.Time(end);
+max_time = measures.max_time;
+min_time = measures.min_time;
 
 handles.fig_main = figure('units','pixels','MenuBar','none','ToolBar','none',...
     'Name',['Tracking - ' subst_ctlchars(record.sessionid)],'NumberTitle','off','WindowStyle','normal');
@@ -75,7 +78,7 @@ set(handles.panel_video(3),'Position',[0.73 0.4 0.25 0.4]);
 % Panel timeline
 handles.panel_timeline = subplot('Position',[0.1 0.9 0.8 0.05]);
 set(gca,'ytick',[])
-xlim([0 max_time]);
+xlim([min_time max_time]);
 ylim([0 1]);
 hold on
 handles.timeline_current_time = line(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'Color',[0 0 0],'linewidth',3);
@@ -88,7 +91,7 @@ set(handles.panel_timeline,'ButtonDownFcn',@click_on_timeline);
 % Panel with neurotar speed
 handles.panel_neurotar_speed = subplot('Position',[0.05 0.25 0.25 0.1]);
 hold on
-handles.speed_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+handles.speed_xaxis = line([min_time max_time],[0 0],'Color' ,0.7*[1 1 1]);
 handles.speed_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
 disableDefaultInteractivity(handle(handles.panel_neurotar_speed))
 handles.speed_trace = line(0,0,'Color',[0 0 0]);
@@ -114,10 +117,17 @@ uicontrol(panel_camera_distortion,'Style','text','String','Distort',...
 left = left + width + sep;
 
 width = fontsize*1.33*6;
-handles.edit_camera_neurotar_center = uicontrol(panel_camera_distortion,'Style','edit',...
+handles.edit_overhead_center = uicontrol(panel_camera_distortion,'Style','edit',...
     'units','pixels','FontSize',fontsize,'Position',[left sep width height]);
-handles.edit_camera_neurotar_center.String = mat2str(round(params.overhead_neurotar_center));
-handles.edit_camera_neurotar_center.Callback = @edit_camera_distortion_callback;
+
+if params.neurotar
+    center = params.overhead_neurotar_center;
+else
+    center = params.overhead_arena_center;
+end
+handles.edit_overhead_center.String = mat2str(round(center));
+handles.edit_overhead_center.Callback = @edit_camera_distortion_callback;
+
 uicontrol(panel_camera_distortion,'Style','text','String','Bridge',...
     'units','pixels','FontSize',fontsize,'Position',[left 2*sep+height width height]);
 left = left + width + sep;
@@ -149,7 +159,7 @@ left = left + width + sep; %#ok<NASGU>
 if params.nt_show_rotation_trace
     handles.panel_neurotar_rotation = subplot('Position',[0.05 0.1 0.25 0.1]);
     hold on
-    handles.rotation_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+    handles.rotation_xaxis = line([min_time max_time],[0 0],'Color' ,0.7*[1 1 1]);
     handles.rotation_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
     disableDefaultInteractivity(handle(handles.panel_neurotar_rotation))
     handles.rotation_trace = line(0,0,'Color',[0 0 0]);
@@ -162,7 +172,7 @@ end
 if params.nt_show_distance_trace
     handles.panel_neurotar_distance = subplot('Position',[0.70 0.25 0.25 0.1]);
     hold on
-    handles.distance_xaxis = line([0 max_time],[0 0],'Color' ,0.7*[1 1 1]);
+    handles.distance_xaxis = line([min_time max_time],[0 0],'Color' ,0.7*[1 1 1]);
     handles.distance_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
     disableDefaultInteractivity(handle(handles.panel_neurotar_distance))
     %handles.distance_trace = plot(0,0,'-k');
@@ -197,8 +207,7 @@ set(gca,'ytick',[])
 box off
 
 
-handles.overhead_neurotar_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
-% update_neurotar_center(handles.overhead_neurotar_center,params);
+handles.overhead_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
 
 if params.neurotar
     handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);

@@ -1,10 +1,11 @@
 function [record,neurotar_data] = nt_object_analysis(record,neurotar_data,verbose)
-%nt_postanalysis Computes forward speed and relations to objects
+%nt_object_analysis Computes forward speed and relations to objects
 %
-%  RECORD = nt_postanalysis( RECORD, [NEUROTAR_DATA], [VERBOSE = true] )
+%  RECORD = nt_object_analysis( RECORD, [NEUROTAR_DATA], [VERBOSE = true] )
 %
 %  2023, Alexander Heimel
 
+logmsg('DEPRECATED. ONLY WORKS FOR ONE OBJECT')
 
 if nargin<2 || isempty(neurotar_data)
     neurotar_data = nt_load_neurotar_data(record);

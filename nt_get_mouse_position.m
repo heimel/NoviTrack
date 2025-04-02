@@ -1,4 +1,4 @@
-function [mousepos,stimpos,mouse_boundary,stat] = nt_get_mouse_position(frame,bg,n_stim,params,hfig,mask,prev_mousepos,prev_stimpos,verbose)
+function [mousepos,stimpos,mouse_boundary,stat] = nt_get_mouse_position(frame,bg,n_stim,params,handles,mask,prev_mousepos,prev_stimpos,verbose)
 %NT_GET_MOUSE_POSITION gets mouse centroid, tail, nose, stim in pixels
 %
 %  [MOUSEPOS,STIMPOS,BOUNDARY,STAT] = nt_get_mouse_position( FRAME,BG,[PARAMS],[HFIG],[MASK],[N_STIM],[PREV_MOUSEPOS],[PREV_STIMPOS] )
@@ -30,7 +30,7 @@ if nargin<6 || isempty(mask)
     mask = [];
 end
 if nargin<5
-    hfig = [];
+    handles = [];
 end
 if nargin<4 || isempty(params)
     params.nt_black_threshold = 0.4;
@@ -61,7 +61,7 @@ if isempty(sedisk)
     end
 end
 
-mousepos = struct('com',[NaN NaN],'tailbase',[NaN NaN],'nose',[NaN NaN]);
+mousepos = struct('com',[NaN NaN],'tailbase',[NaN NaN],'nose',[NaN NaN],'tailtip',[NaN NaN]);
 stimpos = [];
 
 
@@ -71,10 +71,11 @@ frame_bg_subtracted = abs(frame_bg_subtracted);
 frame_bg_subtracted = frame_bg_subtracted ./ (bg + params.nt_bg_normalization);
 frame_bg_subtracted = max(frame_bg_subtracted,[],3); % make it grayscale
 
-if ~isempty(hfig)
-    imagesc(frame_bg_subtracted);
-    hold on
-    colormap gray
+if ~isempty(handles)
+    % handles.image.CData = frame_bg_subtracted;
+    %imagesc(frame_bg_subtracted);
+    %hold on
+    %colormap gray
 end
 
 pos = []; % will contain component areas
@@ -124,14 +125,18 @@ if black_threshold<params.nt_min_black_threshold
     cc = bwconncomp(imbw);
 end
 
-
+stat.black_threshold = black_threshold;
+stat.mouse_area = NaN;
+stat.mouse_length = NaN;
+stat.matched_criteria = NaN;
 
 mouse = imbw;
 pos = regionprops(cc,'Centroid','Area');
 if isempty(pos) || not(any([pos.Area]>params.nt_min_component_area))
-    if verbose
+    if verbose        
         logmsg('Could not find any changed components');
     end
+    mouse_boundary = [];
     return
 end
 
@@ -186,11 +191,12 @@ if n_stim>0
         stimpos(ind,3) = ids(ind);
     end
 
-    if ~isempty(hfig)
-        for i = 1:length(indstim)
+    if ~isempty(handles)
+        for i = 1:size(stimpos,1)                
             % plot(stimpos(i,1),stimpos(i,2),'ro');
-            text(stimpos(i,1),stimpos(i,2),num2str(stimpos(i,3)),...
-                'HorizontalAlignment','Center','Color',[1 1 1]);
+            handles.stim(stimpos(i,3)).Position([1 2]) = stimpos(i,[1 2]); 
+            % text(stimpos(i,1),stimpos(i,2),num2str(stimpos(i,3)),...
+            %     'HorizontalAlignment','Center','Color',[1 1 1]);
         end
     end
 
@@ -236,12 +242,15 @@ A = cellfun('size', mouse_boundary, 1);
 mouse_boundary = mouse_boundary{ind};
 row = size(mouse_boundary,1);
 
-if ~isempty(hfig)
-    plot(mouse_boundary(:,2),mouse_boundary(:,1),'c')
+if ~isempty(handles)
+    %plot(mouse_boundary(:,2),mouse_boundary(:,1),'c')
+
+    handles.mouse_boundary.XData = mouse_boundary(:,2);
+    handles.mouse_boundary.YData = mouse_boundary(:,1);
+    
 end
 
 stat.mouse_area = pos(indmouse).Area;
-stat.black_threshold = black_threshold;
 cc.NumObjects = 1;
 cc.PixelIdxList = cc.PixelIdxList(1); % Notice change of cc
 stat.mouse_length = getfield(regionprops(cc,'MajorAxisLength'),'MajorAxisLength');
@@ -282,8 +291,11 @@ if tail_not_found
 end
 mousepos.tailtip = [xtailtip ytailtip];
 
-if ~isempty(hfig)
-    plot(xtailtip,ytailtip,'r*');
+if ~isempty(handles)
+    handles.tailtip.XData = xtailtip;
+    handles.tailtip.YData = ytailtip;
+    
+    %plot(xtailtip,ytailtip,'r*');
 end
 
 % take nose at the point furthers away from the tail tip
@@ -292,8 +304,10 @@ posnose = D(:);
 [~,indD] = max(posnose);
 [mousepos.nose(2),mousepos.nose(1)] = ind2sub(size(D),indD);
 
-if ~isempty(hfig)
-    plot(mousepos.nose(1),mousepos.nose(2),'gx');
+if ~isempty(handles)
+    handles.nose.XData = mousepos.nose(1);
+    handles.nose.YData = mousepos.nose(2);
+    % plot(mousepos.nose(1),mousepos.nose(2),'gx');
 end
 
 % Compute distance between found tail and every point of mouseBoundary
@@ -374,8 +388,11 @@ end
 mousepos.tailbase(1) = mean([fulltail(1,2)  fulltail(end,2)]);
 mousepos.tailbase(2) = mean([fulltail(1,1)  fulltail(end,1)]);
 
-if ~isempty(hfig)
-    plot(mousepos.tailbase(1),mousepos.tailbase(2),'rx');
+if ~isempty(handles)
+    handles.tailbase.XData = mousepos.tailbase(1);
+    handles.tailbase.YData = mousepos.tailbase(2);
+
+    %plot(mousepos.tailbase(1),mousepos.tailbase(2),'rx');
 end
 
 % new mouse binary mask
@@ -400,9 +417,12 @@ if (sum(tailBinary(:)) < sum(mouseNew(:)))
     mousepos.com = posNew.Centroid;
 end
 
-if ~isempty(hfig)
-    plot(mousepos.com(1),mousepos.com(2),'c+');
-    hold off
+if ~isempty(handles)
+    handles.com.XData = mousepos.com(1);
+    handles.com.YData = mousepos.com(2);
+
+    %plot(mousepos.com(1),mousepos.com(2),'c+');
+    %hold off
 end
 
     

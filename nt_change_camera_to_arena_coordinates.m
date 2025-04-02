@@ -4,13 +4,16 @@ if params.neurotar
     errormsg('NOT IMPLEMENTED YET');
 end
 
+% otherwise arena is fixed in relation to camera
+
+
 % invert overhead_center_position
-[camera_neurotar_center_x, camera_neurotar_center_y] = ...
-    nt_change_overhead_to_camera_coordinates(params.overhead_neurotar_center(1),params.overhead_neurotar_center(2),params);
+[camera_center_x, camera_center_y] = ...
+    nt_change_overhead_to_camera_coordinates(params.overhead_arena_center(1),params.overhead_arena_center(2),params);
 
 % move center of neurotar to center position in camera coordinates
-camera_x = camera_x - camera_neurotar_center_x;
-camera_y = camera_y - camera_neurotar_center_y;
+camera_x = camera_x - camera_center_x;
+camera_y = camera_y - camera_center_y;
 
 % rotate axis to correct for camera rotation relative to neurotar
 % ring = params.overhead_neurotar_headring - params.overhead_neurotar_center;

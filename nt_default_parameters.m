@@ -51,6 +51,7 @@ params.nt_dilation = ones(5); % for image dilation
 params.nt_bg_normalization = 20;
 params.nt_black_threshold = 0.25;
 params.nt_min_black_threshold = 0.1;
+params.nt_recompute_background = false; % force to recompute background
 
 
 % Automated freezing detection parameters
@@ -104,9 +105,7 @@ switch lower(record.setup)
         % distortion(1) = scale
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.0436;
-        params.overhead_neurotar_center = [299 280];
-        params.overhead_neurotar_headring = [NaN NaN];
-
+        params.overhead_arena_center = [299 280];
 end
 
 if strcmpi(record.setup,'neurotar')
@@ -154,6 +153,9 @@ if ~isempty(record) && isfield(record,'measures') && ~isempty(record.measures)
     end
     if isfield(record.measures,'overhead_neurotar_center')
         params.overhead_neurotar_center = record.measures.overhead_neurotar_center;
+    end
+    if isfield(record.measures,'overhead_arena_center')
+        params.overhead_arena_center = record.measures.overhead_arena_center;
     end
     if isfield(record.measures,'overhead_camera_distortion')
         params.overhead_camera_distortion = record.measures.overhead_camera_distortion;

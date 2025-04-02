@@ -3,7 +3,7 @@ function [neurotar_x,neurotar_y] = nt_change_arena_to_neurotar_coordinates(arena
 %
 %   [neurotar_x,neurotar_y] = nt_change_arena_to_neurotar_coordinates(arena_x,arena_y,X,Y,alpha_deg,params)
 %
-%  Information about coordinates in neurotar_data_explanation.md
+%  Information about coordinates in novitrack_coordinates.md
 %  Snout distance as applied by Neurotar software can be computed by nt_compute_applied_snout_distance
 % 
 % 2023-2024, Alexander Heimel

@@ -148,6 +148,10 @@ the marker 'i' for idle.
 Press Analyse to track the animal, and subsequently run an analysis on the position and behavior
 tracking.
 
+# More information #
+
+Information about the neurotar_data format can be found in 
+[neurotar_data_explanation.md](https://github.com/heimel/NoviTrack/neurotar_data_explanation.md).
 
 
 

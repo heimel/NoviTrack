@@ -42,6 +42,12 @@ end
 
 
 %% Object independent session measures
+
+if isempty(nt_data)
+    logmsg('No nt_data to analyze.')
+    return
+end
+
 n_samples = length(nt_data.Time);
 
 measures.session_speed_mean = mean(nt_data.Speed,'omitnan');
@@ -63,6 +69,14 @@ measures.session_count_start_moving_backward = sum( diff(nt_data.Forward_speed <
 measures.session_start_moving_backward_per_min = measures.session_count_start_moving_backward / nt_data.Since_track_start(end) * 60;
 
 record.measures = measures;
+
+record = nt_compute_locations(record,nt_data,verbose);
+
+
+if ~params.neurotar
+    return
+    % Below this only works for one object
+end
 
 %% Object analysis
 [record,nt_data] = nt_object_analysis(record,nt_data,verbose);

@@ -5,6 +5,8 @@ function nt_data = nt_add_objects_to_nt_data( record, nt_data )
 %
 % 2023-2024, Alexander Heimel
 
+logmsg('DEPRECATED. ONLY WORKS FOR ONE OBJECT')
+
 logmsg(['Adding objects to nt_data for ' recordfilter(record)])
 
 params = nt_default_parameters( record );
@@ -132,7 +134,6 @@ for i=1:n_samples
         nt_data.X(i),nt_data.Y(i),nt_data.alpha(i),params);
 end
 nt_data.Object_distance = sqrt( object_x_neurotar.^2 + (object_y_neurotar - params.neurotar_snout_distance_mm).^2 );
-
 nt_data.Object_distance = smoothen(nt_data.Object_distance,params.nt_temporal_filter_width);
 nt_data.Object_distance_derivative = -[NaN;diff(nt_data.Object_distance)./diff(nt_data.Time)]; %mm/s?
 
