@@ -69,10 +69,13 @@ def ttl_callback(channel):
     frame_ind = camera.frame.index
     current_time = datetime.now()
     elapsed_time = current_time - start_time
-    triggerframes.append([frame_ind,current_time.strftime("%H:%M:%S.%f"),elapsed_time.total_seconds()])
-    print("Received trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
-    print(frame_ind)
-
+    if GPIO.input(17)==1:
+        triggerframes.append([frame_ind,current_time.strftime("%H:%M:%S.%f"),elapsed_time.total_seconds()])
+        print("Received trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
+    else:
+        print("Ignoring trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
+        
+        
 GPIO.add_event_detect(butPin, GPIO.RISING, callback=ttl_callback)
 time.sleep(0.1)
 camera.start_preview(fullscreen=False, window = (200, 50, 640, 480))
@@ -87,11 +90,12 @@ triggerframes.append([frame_ind,start_time.strftime("%H:%M:%S.%f"),elapsed_time.
                
 main_loop = True
 try:
+    print('Started loop. Waiting for Ctrl-c to exit')
     while main_loop:
         time.sleep(1) # check every second if not stopped
 finally:
     print("Stopping recording.")
-  
+    time.sleep(0.1)
     camera.stop_preview()
     camera.stop_recording()
     
@@ -112,4 +116,4 @@ finally:
     print("To convert to mp4: MP4Box -add filename.h264:fps=30 -fps original -new filename.mp4" )
     print('To install on linux: sudo apt-get install gpace')
         
-    
+print('NT_PICAM_SLAVE: end of recording' )
