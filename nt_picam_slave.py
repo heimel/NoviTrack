@@ -57,8 +57,8 @@ camera.exposure_mode = 'auto' # 'auto', 'night'
 # Initialize GPIO pin
 butPin = 17 # Broadcom pin 17 (P1 pin 11)
 GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
-GPIO.setup(butPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) # Button pin set as input w/ pull-up
-boolPinState = False
+GPIO.setup(butPin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button pin set as input w/ pull-up
+boolPinState = GPIO.input(butPin)
 
 #pre-allocate
 triggercount = 0
@@ -66,15 +66,17 @@ triggerframes = []
 start_time = 0
 
 def ttl_callback(channel):
+    # Rising edge and only change from low to high is marked as a trigger
+    global boolPinState
     frame_ind = camera.frame.index
     current_time = datetime.now()
     elapsed_time = current_time - start_time
-    if GPIO.input(17)==1:
+    if GPIO.input(butPin)==True and boolPinState==False :
         triggerframes.append([frame_ind,current_time.strftime("%H:%M:%S.%f"),elapsed_time.total_seconds()])
         print("Received trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
     else:
-        print("Ignoring trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
-        
+        print("Ignoring level change at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
+    boolPinState = GPIO.input(butPin)        
         
 GPIO.add_event_detect(butPin, GPIO.RISING, callback=ttl_callback)
 time.sleep(0.1)
