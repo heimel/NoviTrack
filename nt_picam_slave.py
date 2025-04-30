@@ -78,7 +78,7 @@ def ttl_callback(channel):
         print("Ignoring level change at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
     boolPinState = GPIO.input(butPin)        
         
-GPIO.add_event_detect(butPin, GPIO.RISING, callback=ttl_callback)
+GPIO.add_event_detect(butPin, GPIO.BOTH, callback=ttl_callback)
 time.sleep(0.1)
 camera.start_preview(fullscreen=False, window = (200, 50, 640, 480))
 camera.start_recording(video_filename)
