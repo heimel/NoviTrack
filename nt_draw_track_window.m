@@ -211,7 +211,8 @@ handles.overhead_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
 
 if params.neurotar
     handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);
-    update_neurotar_headring(handles.overhead_neurotar_headring,params);
+    handles.overhead_neurotar_headring.XData = params.overhead_neurotar_headring(1);
+    handles.overhead_neurotar_headring.YData = params.overhead_neurotar_headring(2);
 end
 
 % draw arena on overhead image
