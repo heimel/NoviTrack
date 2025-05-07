@@ -7,8 +7,10 @@ function [camera_x, camera_y] = nt_change_overhead_to_camera_coordinates(overhea
 
 distort = params.overhead_camera_distortion;
 
-overhead_x = overhead_x - params.overhead_camera_width/2 - 4;
-overhead_y = overhead_y - params.overhead_camera_height/2 + 4;
+overhead_x = overhead_x - params.overhead_camera_width/2 + params.overhead_camera_image_offset(1);
+overhead_y = overhead_y - params.overhead_camera_height/2 + params.overhead_camera_image_offset(2);
+
+
 
 switch params.overhead_camera_distortion_method
     case 'normal'

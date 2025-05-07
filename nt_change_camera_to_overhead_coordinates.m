@@ -3,7 +3,7 @@ function [overhead_x, overhead_y] = nt_change_camera_to_overhead_coordinates(cam
 %
 %  [overhead_x, overhead_y] = nt_change_camera_to_overhead_coordinates(camera_x, camera_y, params)
 %
-% 2024, Alexander Heimel
+% 2024-2025, Alexander Heimel
 
 distort = params.overhead_camera_distortion;
 
@@ -54,7 +54,7 @@ switch params.overhead_camera_distortion_method
         [overhead_x, overhead_y] = pol2cart(theta,overhead_r);
 
 end
-overhead_x = overhead_x + params.overhead_camera_width/2 + 4;
-overhead_y = overhead_y + params.overhead_camera_height/2 - 4;
 
+overhead_x = overhead_x + params.overhead_camera_width/2 - params.overhead_camera_image_offset(1);
+overhead_y = overhead_y + params.overhead_camera_height/2 - params.overhead_camera_image_offset(2);
 end

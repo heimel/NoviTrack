@@ -6,7 +6,7 @@ function params = nt_default_parameters(record)
 %  Edit processparams_local for local and temporary edits to these default
 %  parameters.
 %
-% 2023-2024, Alexander Heimel 
+% 2023-2025, Alexander Heimel 
 
 if nargin<1 
     record = [];
@@ -74,49 +74,48 @@ else
     params.neurotar = false;
 end
 
-switch lower(record.setup)
-    case 'neurotar'
-        params.nt_camera_names = {'pilefteye','pioverhead','pirighteye'};
-        params.nt_overhead_camera = 2;
-    case 'behavior_arena'
-        params.nt_camera_names = {'side1','overhead','side2'};
-        params.nt_overhead_camera = 2;
-    otherwise
-        params.nt_camera_names = {'pilefteye','pioverhead','pirighteye'};
-        params.nt_overhead_camera = 2;
-end
+% Camera's configuration
 
-% placeholder values that are overwritten by actual values
+% placeholder values that may be overwritten by actual values
 params.overhead_camera_width = 752;
 params.overhead_camera_height = 550;
 switch lower(record.setup)
     case 'neurotar'
+        params.nt_camera_names = {'pilefteye','pioverhead','pirighteye'};
+        params.nt_overhead_camera = 2;
         params.overhead_camera_distortion_method = 'fisheye_orthographic';
         params.overhead_camera_distortion = [339 339];
-        % distortion(1) = distance_neurotar_center_to_camera_mm
-        % distortion(2) = focal_distance_pxl
+        params.overhead_camera_image_offset = [-4 4];
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.13;
         params.neurotar_snout_distance_mm = 32;
         params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
     case 'behavior_arena'
+        params.nt_camera_names = {'side1','overhead','side2'};
+        params.nt_overhead_camera = 2;
         params.overhead_camera_distortion_method = 'normal';
         params.overhead_camera_distortion = [1.4 NaN];
-        % distortion(1) = scale
+        params.overhead_camera_image_offset = [-4 4];
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.0436;
         params.overhead_arena_center = [299 280];
+    case 'circular_arena'
+        params.nt_camera_names = {'side1','overhead','side2'};
+        params.nt_overhead_camera = 2;
+        params.overhead_camera_distortion_method = 'fisheye_orthographic';
+        params.overhead_camera_distortion = [339 339];
+        params.overhead_camera_image_offset = [-4 4];
+        params.overhead_camera_rotated = true;
+        params.overhead_camera_angle = -0.13;
+    otherwise
+        params.nt_camera_names = {'pilefteye','pioverhead','pirighteye'};
+        params.nt_overhead_camera = 2;
 end
 
 if strcmpi(record.setup,'neurotar')
     if nargin<1 || isempty(record.date) ||datetime(record.date,'inputformat','yyyy-MM-dd') >  datetime('2023-11-03','inputformat','yyyy-MM-dd')
         % since about 2023-11-03
         params.overhead_camera_rotated = true;
-        % params.overhead_camera_pixels_per_mm  = 2.0;
-        % params.overhead_camera_distortion_method = 'fisheye_log';
-        % params.overhead_camera_distortion = 0.011; % Use 0 to remove distortion
-        % params.overhead_camera_shear = [0.90;0.90];
-        % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
         params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
         params.neurotar_snout_distance_mm = 32; % distance from snout to center of neurotar
     end
@@ -124,11 +123,6 @@ if strcmpi(record.setup,'neurotar')
     if nargin<1 || isempty(record.date) || datetime(record.date,'inputformat','yyyy-MM-dd') <  datetime('2023-06-21','inputformat','yyyy-MM-dd')
         % before 2023-06-21
         params.overhead_camera_rotated = true;
-        % params.overhead_camera_pixels_per_mm  = 2.0;
-        % params.overhead_camera_distortion_method = 'fisheye_log';
-        % params.overhead_camera_distortion = 0.003; % Use 0 to remove distortion
-        % params.overhead_camera_shear = [1.15;1.15];
-        % params.overhead_neurotar_headring = [275; 322]; % position of center of headring in overhead image
         params.overhead_neurotar_center = [256; 238];  % position of center of bar in overhead image
         params.neurotar_snout_distance_mm = 0; % distance from snout to center of neurotar
     end
@@ -177,65 +171,85 @@ if ~isempty(record) && isfield(record,'measures') && ~isempty(record.measures)
     end
 end
 
-if params.neurotar
-    params.arena_radius_mm = 162.5; %
-    params.neurotar_halfwidth_mm = 260;
-    % params.neurotar_snout_distance_mm = 45; % distance from snout to center of neurotar
-else
-    params.arena_diameter_mm = 320;
-    params.arena_radius_mm = params.arena_diameter_mm / 2;
+%% Arena
+switch lower(record.setup)
+    case 'neurotar'
+        params.arena_shape = 'circular';
+        params.arena_radius_mm = 162.5; %
+        params.neurotar_halfwidth_mm = 260;
+        % params.neurotar_snout_distance_mm = 45; % distance from snout to center of neurotar
+    case 'behavior_arena'
+        params.arena_shape = 'square';
+        params.arena_diameter_mm = 320;
+        params.arena_radius_mm = params.arena_diameter_mm / 2;
+    case 'circular_arena'
+        params.arena_shape = 'circular';
+        params.arena_radius_mm = 162.5; % NOT CHECKED YET
 end
 
 
+%% Behaviors
 % markers: 'marker','description','color','behavior','linked' (linked to
 % stimulus or object)
 %
 % Note: behavior markers should be mutually exclusive, if you want two
 % behaviors simultaneously, create a new behavior
-switch lower(record.setup)
-    case 'neurotar'
-        markers = { ...
-            {'t','stop stimulus',                  [1 0 0],    false,true}, ...
-            {'o','start physical stimulus',        [0 0 1],    false,true}, ... % e.g. object
-            {'v','start virtual stimulus',         [0 1 0],    false,true}, ... % e.g. laser
-            {'i','start IR virtual stimulus',      [1 0.5 0],  false,true}, ... % e.g. control laser
-            {'h','start hanging physical stimulus',[0.4 0.2 1],false,true}, ... % e.g. finger or hanging object
-            {'e','end session',                    [0 0 0],    false,false},... % e.g. mouse removed
-            {'1','optolaser on',                   [0 0 1],    false,false},... % 
-            {'0','optolaser off',                  [0 0 0],    false,false},... % 
-            {'a','begin approach object',          [0 0.7 0],  true ,true}, ...
-            {'r','begin retreat from object',      [0.7 0 0],  true ,true}, ...
-            } ;
-    case 'behavior_arena'
-        markers = { ...
-            {'t','Takeout object',[1 0 0]         ,false,true}, ...  
-            {'o','place Object',  [0 0 1]         ,false,true}, ... 
-            {'i','Idle',          [0 0 0],         true, false},...
-            {'a','Approach',      [0.03 0.46 0.73],true, true}, ...
-            {'s','Sniff',         [0.83 0.34 0.12],true, true}, ...
-            {'b','Bite',          [0.94 0.68 0.11],true, true}, ...
-            {'g','Grab',          [0.51 0.17 0.57],true, true}, ...
-            {'c','Carry',         [0.45 0.69 0.28],true, true}, ...
-            {'p','Push',          [0.65 0.39 0.28],true, true}, ...
-            {'v','aVoid',         [0.29 0.76 0.92],true, true}, ...
-            {'r','gRoom',         [0.1 0.5 0.8],   true, false},...
-            {'l','cLimb',         [0.8 0.2 0.9],   true, false},...
-            };
+
+switch record.stimulus
+    % preferred way is to link the marker_set to the stimulus
+    case 'firstAndNovelObject'
+        marker_set = 'object_investigation';
+    case 'none'
+        if params.neurotar
+            marker_set = 'prey_capture';
+        else
+            marker_set = 'object_investigation';
+        end
     otherwise
-        markers = {};
+        if params.neurotar
+            marker_set = 'prey_capture';
+        else
+            marker_set = 'object_investigation';
+        end
+end
+
+markers = {};
+% marker fields are 'marker','description','color','behavior','linked'
+switch marker_set
+    case 'prey_capture'
+        markers{end+1} = {'t','stop stimulus',                  [1 0 0],    false,true};
+        markers{end+1} = {'o','start physical stimulus',        [0 0 1],    false,true}; % e.g. object
+        markers{end+1} = {'v','start virtual stimulus',         [0 1 0],    false,true}; % e.g. laser
+        markers{end+1} = {'i','start IR virtual stimulus',      [1 0.5 0],  false,true}; % e.g. control laser
+        markers{end+1} = {'h','start hanging physical stimulus',[0.4 0.2 1],false,true}; % e.g. finger or hanging object
+        markers{end+1} = {'e','end session',                    [0 0 0],    false,false}; % e.g. mouse removed
+        markers{end+1} = {'1','optolaser on',                   [0 0 1],    false,false}; % 
+        markers{end+1} = {'0','optolaser off',                  [0 0 0],    false,false}; % 
+        markers{end+1} = {'a','begin approach object',          [0 0.7 0],  true ,true};
+        markers{end+1} = {'r','begin retreat from object',      [0.7 0 0],  true ,true};
+    case 'object_investigation'
+        markers{end+1} = {'t','Takeout object',[1 0 0]         ,false,true};
+        markers{end+1} = {'o','place Object',  [0 0 1]         ,false,true};
+        markers{end+1} = {'i','Idle',          [0 0 0],         true, false};
+        markers{end+1} = {'a','Approach',      [0.03 0.46 0.73],true, true};
+        markers{end+1} = {'s','Sniff',         [0.83 0.34 0.12],true, true};
+        markers{end+1} = {'b','Bite',          [0.94 0.68 0.11],true, true};
+        markers{end+1} = {'g','Grab',          [0.51 0.17 0.57],true, true};
+        markers{end+1} = {'c','Carry',         [0.45 0.69 0.28],true, true};
+        markers{end+1} = {'p','Push',          [0.65 0.39 0.28],true, true};
+        markers{end+1} = {'v','aVoid',         [0.29 0.76 0.92],true, true};
+        markers{end+1} = {'r','gRoom',         [0.1 0.5 0.8],   true, false};
+        markers{end+1} = {'l','cLimb',         [0.8 0.2 0.9],   true, false};
 end
 params.markers = cellfun( @(x) cell2struct(x,{'marker','description','color','behavior','linked'},2),markers);
 params.nt_stop_marker = 't';
-
 mask = (~[params.markers(:).behavior]) & [params.markers(:).linked];
 params.nt_stim_markers = setdiff({params.markers(mask).marker},params.nt_stop_marker);
-
 params.nt_show_markers = true; % false increases speed at the cost of information loss
 params.nt_show_position_changes = true; % false reduces visual clutter at the cost of information loss
-
 params.nt_show_overhead_mouse = true;
 
-% Analysis
+%% Analysis
 behaviors = {...
     {'run','running forward',[0 .7 0]},...
     {'turn_towards','turn towards object',[0 .7 0]},...
@@ -279,10 +293,10 @@ params.nt_shuffle_number = 10;
 params.nt_shuffle_insert_object_only_when_stationary = true;
 params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to be stationary to insert object
 
-% Results
+%% Results
 params.nt_result_shows_individual_object_insertions = true;
 
-% Tracking
+%% Tracking
 params.nt_show_behavior_markers = true;
 params.nt_track_timeline_max_speed = 375; 
 params.nt_show_help = false;
@@ -306,7 +320,7 @@ else
     params.nt_show_arena_panel = false;
 end
 
-% Load processparams_local. Keep at the end
+%% Load processparams_local. Keep at the end
 if exist('processparams_local.m','file')
     params = processparams_local( params );
 end
