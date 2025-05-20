@@ -67,6 +67,12 @@ Remote_Comm_remoteprefix = ‘’; % prefix on stimulus PC
 
 Multiple connection schemes are possible. 
 
+### Syncing pulses by recording device ###
+
+The recording device (e.g. fiber photometer or neurotar setup) can give two or more synchronization pulses via a TTL pulse. For the fiber photometer connect Out 1 to the receiving setup components, like the Raspberry Pi with cameras. The Raspberry Pi's should save at which frame and time they have received the TTL pulses.
+
+Ideally three TTL pulses are sent. One at the beginning of the session. One at the start of the experimental paradigm. One before the end of the session. Three pulses make it possible to align the start, synchronize the clock, and check for missing data.
+
 ### Syncing pulse from Visual Stimulus PC ###
 
 One option is that the Visual Stimulus PC gives a synchronization TTL pulse at the start of the stimulus script. In this case, add a USB2UART (USB2RS232) port to the Visual Stimulus PC. Connect the DTR and GND pins of the serial port to the center pin (usually red wire) and shield pin (usually black wire) of a female pins to BNC cable.
