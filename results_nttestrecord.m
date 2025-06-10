@@ -25,6 +25,8 @@ if isfield(measures,'markers' )
     nt_list_markers(measures);
 end
 
+nt_get_ethogram(record,true); % Show ethogram
+
 if ~isfield(measures,'behaviors')
     logmsg('No behaviors. Run analysis first');
     return
