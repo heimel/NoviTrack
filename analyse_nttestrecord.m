@@ -26,7 +26,8 @@ end
 
 logmsg(['Analyzing ' recordfilter(record)]);
 
-if isempty(nt_data) 
+
+if isempty(nt_data) && params.automatically_track_mouse 
     time_range = [];
      record = nt_track_mouse(record,time_range,verbose);
 end
@@ -39,6 +40,9 @@ measures = record.measures;
 if nt_check_markers( record, params, verbose ) == false
     return
 end
+
+%% Fiber photometry analyse
+record = nt_analyse_fiberphotometry(record,verbose);
 
 
 %% Object independent session measures

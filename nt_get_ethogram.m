@@ -36,8 +36,8 @@ else
     max_time = ceil(max([record.measures.markers.time])/60)*60;
 end
 
- min_time = 120;
- max_time = 300;
+% min_time = 120;
+% max_time = 300;
 
    
     n_samples = ceil((max_time-min_time)/dt);

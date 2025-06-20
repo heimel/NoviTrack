@@ -46,8 +46,12 @@ end
 if ~isfield(measures,'markers')
     measures(1).markers = struct([]);
 end
-if ~isfield(measures,'trigger_times')
-    measures.trigger_times = {};
+if ~isfield(measures,'video_trigger_times') % overrides from manually detected triggers in video
+    if isfield(measures,'trigger_times') && iscell(measures.trigger_times) % old name, changed on 2025-06-20
+        measures.video_trigger_times = measures.trigger_times;
+    else    
+        measures.video_trigger_times = {};
+    end
 end
 if params.neurotar
     if ~isfield(measures,'overhead_neurotar_headring') || isempty(measures.overhead_neurotar_headring)
@@ -81,10 +85,15 @@ if isempty(nt_data)
     logmsg(['Could not load Neurotar data for ' recordfilter(record)]);
     nt_data = nt_load_mouse_tracks(record);
 end
-
+if ~isempty(nt_data)
+    logmsg('Not yet reading in all triggers. Assuming one trigger at time 0.');
+    measures.trigger_times = 0;
+else
+    measures.trigger_times = [];
+end
 
 %% Open movies
-[handles.vidobj,measures.trigger_times,active_cameras] = nt_open_videos(record,state.master_time);
+[handles.vidobj,measures.video_trigger_times,active_cameras] = nt_open_videos(record,state.master_time);
 num_cameras = length(params.nt_camera_names);
 
 %% Adjust min and max time
@@ -102,11 +111,11 @@ else
     max_time = -inf;
 end
 for c = active_cameras
-    t =  nt_change_video_to_neurotar_times(handles.vidobj{c}.Duration,measures.trigger_times{c},params);
+    t =  nt_change_video_to_neurotar_times(handles.vidobj{c}.Duration,measures.video_trigger_times{c},params);
     if t>max_time
         max_time = t;
     end
-    t =  nt_change_video_to_neurotar_times(0,measures.trigger_times{c},params);
+    t =  nt_change_video_to_neurotar_times(0,measures.video_trigger_times{c},params);
     if t<min_time
         min_time = t;
     end
@@ -141,6 +150,8 @@ if isempty(nt_data)
     nt_data.Forward_speed = NaN(size(nt_data.Time));
     nt_data.Angular_velocity = NaN(size(nt_data.Time));
     nt_data.Object_distance = NaN(size(nt_data.Time));
+    
+    measures.trigger_times = measures.video_trigger_times{params.nt_overhead_camera};
 end
 
 
@@ -213,7 +224,7 @@ while state.loop
             camera_times_in_master_time = zeros(1,num_cameras);
             for c = active_cameras
                 handles.camera_image(c).CData = readFrame(handles.vidobj{c});
-                camera_times_in_master_time(c) = nt_change_video_to_neurotar_times( handles.vidobj{c}.CurrentTime, measures.trigger_times{c}, params);
+                camera_times_in_master_time(c) = nt_change_video_to_neurotar_times( handles.vidobj{c}.CurrentTime, measures.video_trigger_times{c}, params);
             end
             state.master_time = mean(camera_times_in_master_time(active_cameras));
             state.newframe = false;
@@ -647,8 +658,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
         case 'set_trigger'
             set(handles.fig_main,'WindowKeyPressFcn',[]);
             camera = ask_for_camera('Set trigger');
-            measures.trigger_times{camera}(1) = handles.vidobj{camera}.CurrentTime;
-            handles.vidobj{camera}.CurrentTime = measures.trigger_times{camera}(1) + state.master_time * params.picamera_time_multiplier ;
+            measures.video_trigger_times{camera}(1) = handles.vidobj{camera}.CurrentTime;
+            handles.vidobj{camera}.CurrentTime = measures.video_trigger_times{camera}(1) + state.master_time * params.picamera_time_multiplier ;
             state.jumptime = -state.master_time;
             state.newframe = true;
             %jumptime = -1 * interframe_time;
@@ -665,7 +676,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             putative_trigger_time = find_led_on(handles.vidobj{camera},x,y);
             if ~isempty(putative_trigger_time)
                 logmsg(['Putative trigger time from start of movie: ' num2str(putative_trigger_time) ' s.']);
-                logmsg(['Putative trigger time on current timeline: ' num2str(putative_trigger_time-measures.trigger_times{camera}(1)) ' s.']);
+                logmsg(['Putative trigger time on current timeline: ' num2str(putative_trigger_time-measures.video_trigger_times{camera}(1)) ' s.']);
             end
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);

@@ -251,6 +251,8 @@ params.nt_show_position_changes = true; % false reduces visual clutter at the co
 params.nt_show_overhead_mouse = true;
 
 %% Analysis
+params.automatically_track_mouse = false;
+
 behaviors = {...
     {'run','running forward',[0 .7 0]},...
     {'turn_towards','turn towards object',[0 .7 0]},...
@@ -293,6 +295,11 @@ params.nt_seed = 1;
 params.nt_shuffle_number = 10; 
 params.nt_shuffle_insert_object_only_when_stationary = true;
 params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to be stationary to insert object
+
+% Fiber photometry
+params.nt_photometry_pretime = 3; % s
+params.nt_photometry_posttime = 7; % s
+
 
 %% Results
 params.nt_result_shows_individual_object_insertions = true;
