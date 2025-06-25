@@ -25,12 +25,22 @@ for i = 1:length(flds)
         channel = channels{c};
         subplot(n_channels,1,c);
         hold on
-        plot(fp.t,fp.(field).(channel).dfof,'g')
-        plot(fp.t,fp.(field).(channel).dfof_isos,'b')
+        % plot(fp.t,fp.(field).(channel).dfof,'g')
+        % plot(fp.t,fp.(field).(channel).dfof_isos,'b')
+        % ylabel('\DeltaF/F');
+
+        % plot(fp.t,fp.(field).(channel).zscore,'g')
+        % plot(fp.t,fp.(field).(channel).zscore_isos,'b')
+% ylabel('z-score');
+
+         plot(fp.t,...
+             (fp.(field).(channel).zscore)-(fp.(field).(channel).zscore_isos),'-','Color',[0 0.8 0]);
+
+ ylabel('z-score (corr.)');
+
         if c==n_channels
             xlabel('Time (s)');
         end
-        ylabel('\DeltaF/F');
         if c==1
             title([field ', n = ' num2str(fp.(field).n_trials)])
         end

@@ -299,6 +299,7 @@ params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to
 % Fiber photometry
 params.nt_photometry_pretime = 3; % s
 params.nt_photometry_posttime = 7; % s
+params.nt_photometry_window_width = 0.1; % s
 
 
 %% Results

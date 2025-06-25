@@ -104,10 +104,10 @@ for i = 1:length(unique_changes)
             z = (f{light,c}-m)/s;
 
             [dfof{light,c},dfof_t{light,c}] = slidingwindowfunc(t{light},f{light,c},...
-                -params.nt_photometry_pretime,0.01,params.nt_photometry_posttime,0.03,[],NaN);
+                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
 
             zscore{light,c} = slidingwindowfunc(t{light},z,...
-                -params.nt_photometry_pretime,0.01,params.nt_photometry_posttime,0.03,[],NaN);
+                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
         end % channel
     end % light 
 
