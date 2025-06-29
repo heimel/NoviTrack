@@ -35,20 +35,21 @@ channels = unique(setdiff(fluorescence.Properties.VariableNames,{'TimeStamp','Li
 n_channels = length(channels);
 fluorescence.TimeStamp = fluorescence.TimeStamp/1000; % change to s
 
-events = readtable(fullfile(folder, "Events.csv"));
-events.Name = categorical(events.Name);
-events.TimeStamp = events.TimeStamp/1000; % change to s
+% events = readtable(fullfile(folder, "Events.csv"));
+% events.Name = categorical(events.Name);
+% events.TimeStamp = events.TimeStamp/1000; % change to s
+% 
+% triggers_fp = events.TimeStamp(events.Name == "Input1" & events.State==0);
+% 
+% if isempty(triggers_fp)
+%     logmsg('No triggers found on Input1')
+%     if ~isempty(events)
+%         logmsg('But there are triggers on other inputs')
+%     end
+%     return
+% end
 
-triggers_fp = events.TimeStamp(events.Name == "Input1" & events.State==0);
-
-if isempty(triggers_fp)
-    logmsg('No triggers found on Input1')
-    if ~isempty(events)
-        logmsg('But there are triggers on other inputs')
-    end
-    return
-end
-
+[triggers_fp,events] = nt_load_rwd_triggers(record);
 
 % align fp time to marker time
 fluorescence.time = nt_change_times(fluorescence.TimeStamp,triggers_fp,measures.trigger_times); 

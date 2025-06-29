@@ -56,18 +56,20 @@ for i = 1:num_cameras
     end
 
     if length(trigger_times)<i || isempty(trigger_times{i})
-        trigger_filename = [filename '_triggers.csv'];
-        if ~exist(trigger_filename,'file')
-            logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger after first frame.']);
-            trigger_times{i} = 1 / vidobj{i}.FrameRate; % set trigger on second frame (was a mistake, would have been better to put on first)
-        else
-            data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1);
-            if size(data,2)==1 % old data from before 2023-05-25
-                trigger_times{i} = data / vidobj{i}.FrameRate;
-            else % data from after 2023-05-25
-                trigger_times{i} = data(2:end,3);
-            end
-        end
+        trigger_times{i} = nt_load_video_triggers(record,params.nt_camera_names{i},vidobj{i}.FrameRate);
+
+        % trigger_filename = [filename '_triggers.csv'];
+        % if ~exist(trigger_filename,'file')
+        %     logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger after first frame.']);
+        %     trigger_times{i} = 1 / vidobj{i}.FrameRate; % set trigger on second frame (was a mistake, would have been better to put on first)
+        % else
+        %     data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1);
+        %     if size(data,2)==1 % old data from before 2023-05-25
+        %         trigger_times{i} = data / vidobj{i}.FrameRate;
+        %     else % data from after 2023-05-25
+        %         trigger_times{i} = data(2:end,3);
+        %     end
+        % end
     end
 end % camera i
 

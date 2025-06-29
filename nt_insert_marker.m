@@ -14,7 +14,7 @@ if nargin<5 || isempty(verbose)
     verbose = false;
 end
     
-ind = find_record(params.markers,['marker=' marker]);
+ind = find_record(params.markers,['marker=' marker(1)]);
 if isempty(ind)
     logmsg(['Unknown marker ' marker '. Not inserted the marker.']);
     stim_id = [];
@@ -26,7 +26,9 @@ if verbose
 end
 
 if params.markers(ind).linked
-    if params.neurotar 
+    if length(marker)==2
+        stim_id = str2double(marker(2));
+    elseif params.neurotar 
         stim_id = 1; % don't ask
     else
         if ~isempty(handles)
@@ -45,7 +47,7 @@ if params.markers(ind).linked
             end
         end
     end
-    marker = [marker num2str(stim_id)];
+    marker = [marker(1) num2str(stim_id)];
 else 
     stim_id = [];
 end

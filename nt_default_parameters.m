@@ -196,22 +196,24 @@ end
 % Note: behavior markers should be mutually exclusive, if you want two
 % behaviors simultaneously, create a new behavior
 
-switch record.stimulus
+marker_set = '';
+switch lower(record.stimulus)
     % preferred way is to link the marker_set to the stimulus
-    case 'firstAndNovelObject'
+    case 'firstandnovelobject'
         marker_set = 'object_investigation';
-    case 'none'
-        if params.neurotar
-            marker_set = 'prey_capture';
-        else
-            marker_set = 'object_investigation';
-        end
-    otherwise
-        if params.neurotar
-            marker_set = 'prey_capture';
-        else
-            marker_set = 'object_investigation';
-        end
+end
+if isempty(marker_set)
+    switch lower(record.condition)
+        case 'looming_stimulus'
+            marker_set = 'looming'; 
+    end
+end
+if isempty(marker_set)
+    if params.neurotar
+        marker_set = 'prey_capture';
+    else
+        marker_set = 'object_investigation';
+    end
 end
 
 markers = {};
@@ -241,6 +243,21 @@ switch marker_set
         markers{end+1} = {'v','aVoid',         [0.29 0.76 0.92],true, true};
         markers{end+1} = {'r','gRoom',         [0.1 0.5 0.8],   true, false};
         markers{end+1} = {'l','cLimb',         [0.8 0.2 0.9],   true, false};
+    case 'looming'
+        markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
+        markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 
+        markers{end+1} = {'i','Idle',                   [0 0 0],    true, false};
+       % markers{end+1} = {'a','Approach',      [0.03 0.46 0.73],true, true};
+       % markers{end+1} = {'s','Sniff',         [0.83 0.34 0.12],true, true};
+       % markers{end+1} = {'b','Bite',          [0.94 0.68 0.11],true, true};
+       % markers{end+1} = {'g','Grab',          [0.51 0.17 0.57],true, true};
+       % markers{end+1} = {'c','Carry',         [0.45 0.69 0.28],true, true};
+       % markers{end+1} = {'p','Push',          [0.65 0.39 0.28],true, true};
+       % markers{end+1} = {'v','aVoid',         [0.29 0.76 0.92],true, true};
+        markers{end+1} = {'r','gRoom',                  [0.1 0.5 0.8],   true, false};
+        markers{end+1} = {'l','cLimb',                  [0.8 0.2 0.9],   true, false};
+        markers{end+1} = {'e','Escape',                 [0.8 0.2 0.9],   true, false};
+        markers{end+1} = {'f','Freeze',                 [0.8 0.2 0.9],   true, false};
 end
 params.markers = cellfun( @(x) cell2struct(x,{'marker','description','color','behavior','linked'},2),markers);
 params.nt_stop_marker = 't';
@@ -249,6 +266,7 @@ params.nt_stim_markers = setdiff({params.markers(mask).marker},params.nt_stop_ma
 params.nt_show_markers = true; % false increases speed at the cost of information loss
 params.nt_show_position_changes = true; % false reduces visual clutter at the cost of information loss
 params.nt_show_overhead_mouse = true;
+
 
 %% Analysis
 params.automatically_track_mouse = false;
@@ -296,7 +314,13 @@ params.nt_shuffle_number = 10;
 params.nt_shuffle_insert_object_only_when_stationary = true;
 params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to be stationary to insert object
 
-% Fiber photometry
+%% Fiber photometry
+
+params.rwd_slack_time = 0.02; % time window for two events to be simultaneous
+params.rwd_n_inputs = 5; % number of input channels
+params.rwd_initial_input_state = NaN(1,params.rwd_n_inputs);
+params.rwd_initial_input_state([1 2]) = [1 1];
+
 params.nt_photometry_pretime = 3; % s
 params.nt_photometry_posttime = 7; % s
 params.nt_photometry_window_width = 0.1; % s

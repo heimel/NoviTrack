@@ -1,18 +1,21 @@
-function [events,triggers_received] = nt_load_laser_triggers(record,neurotar_data,params)
+function [triggers_received,events] = nt_load_laser_triggers(record,neurotar_data,params)
 %nt_load_laser_triggers. Loads laser trigger log for record
 %
-% [events,triggers_received] = nt_load_laser_triggers(record,[neurotar_data],[params])
+% [TRIGGERS_RECEIVED,EVENTS] = nt_load_laser_triggers(RECORD,[neurotar_data],[params])
 %
 %   neurotar_data is only used to suggest the best matching trigger in case multiple
 %   triggers were received.
 %
-%   events is array of structs
+%   EVENTS is array of structs
 %     .code = code as occuring in laser log file 
 %     .time = time relative to chosen received trigger and correct by
 %             division by params.laser_time_multiplier
 %     .duration = duration of event
 %
-% 2024, Alexander Heimel
+%  SHOULD STILL BE ADAPTED TO RETURN TIME IN OWN CLOCK. Now relative to
+%  trigger (clock not multiplied)
+%
+% 2024-2025, Alexander Heimel
 
 if nargin<2 
     neurotar_data = [];
@@ -125,7 +128,7 @@ for i = 1:length(event_lines)
     t = datetime(timestamp,'format','yyyy-MM-dd HH:mm:ss,SSS','TimeZone','Europe/Amsterdam');
 
     events(count).code = strtrim(line(ind(3)+1:ind(4)-1)); %#ok<AGROW>
-    events(count).time = seconds(time(between(start_time,t,'Time'))) / params.laser_time_multiplier; %#ok<AGROW>
+    events(count).time = seconds(time(between(start_time,t,'Time'))) ; %#ok<AGROW>
     events(count).duration =  str2double(strtrim(line(ind(4)+1:end))); %#ok<AGROW>
     count = count + 1;
 end
