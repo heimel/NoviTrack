@@ -321,8 +321,8 @@ params.rwd_n_inputs = 5; % number of input channels
 params.rwd_initial_input_state = NaN(1,params.rwd_n_inputs);
 params.rwd_initial_input_state([1 2]) = [1 1];
 
-params.nt_photometry_pretime = 3; % s
-params.nt_photometry_posttime = 7; % s
+params.nt_photometry_pretime = 10; % s
+params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
 
 

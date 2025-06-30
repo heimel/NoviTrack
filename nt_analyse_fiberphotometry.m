@@ -54,8 +54,43 @@ fluorescence.TimeStamp = fluorescence.TimeStamp/1000; % change to s
 % align fp time to marker time
 fluorescence.time = nt_change_times(fluorescence.TimeStamp,triggers_fp,measures.trigger_times); 
 
-%% Produce snippets
+%% isosbestic control
+fit_isos = cell(n_channels,1);
+for ch=1:n_channels
+    channel = channels{ch};
+    time = fluorescence.time(fluorescence.Lights==470);
+    f_signal = fluorescence.(channel)(fluorescence.Lights==470);
+    f_iso = fluorescence.(channel)(fluorescence.Lights==410);
 
+    % remove first and last 5% of data
+    mask = true(size(f_signal));
+    mask(1:round(length(mask)*0.05)) = false;
+    mask(end-round(length(mask)*0.05):end) = false;
+    f_signal = f_signal(mask);
+    f_iso = f_iso(mask);
+    time = time(mask);
+
+    % Linear regression: F_signal ≈ a * F_iso + b
+    X = [f_iso ones(size(f_iso))];
+    fit_isos{ch} = X \ f_signal;  % Least-squares solution
+
+    f_artifact = X * fit_isos{ch};
+    figure('Name',['Isosbestic control' channel])
+    subplot(2,1,1)
+    hold on
+    plot(time,f_signal,'g')
+    plot(time,f_artifact,'b')
+    ylabel('F')
+    xlabel('Time (s)')
+
+    subplot(2,1,2)
+    hold on
+    plot(time,f_signal-f_artifact,'k')
+    ylabel('Çorrected F')
+    xlabel('Time (s)')
+end
+
+%% Produce snippets
 
 % the name changes is a leftover from an earlier function. here it
 % indicates the marker
@@ -78,34 +113,35 @@ for i = 1:length(unique_changes)
     for light = 1:n_lights
         for j = 1:length(ind) % events 
             event_time = changes.time(ind(j));
-            ind_pre = ...
-                fluorescence.TimeStamp>(event_time - params.nt_photometry_pretime) & ...
-                fluorescence.TimeStamp<event_time & ...
+            mask_pre = ...
+                fluorescence.time>(event_time - params.nt_photometry_pretime) & ...
+                fluorescence.time<event_time & ...
                 fluorescence.Lights==lights(light);
 
-            ind_post = ...
-                fluorescence.TimeStamp>=event_time  & ...
-                fluorescence.TimeStamp<(event_time + params.nt_photometry_posttime) & ...
+            mask_post = ...
+                fluorescence.time>=event_time  & ...
+                fluorescence.time<(event_time + params.nt_photometry_posttime) & ...
                 fluorescence.Lights==lights(light);
 
-            t{light} = [t{light}; fluorescence.TimeStamp(ind_pre | ind_post)-event_time];
+            t{light} = [t{light}; fluorescence.time(mask_pre | mask_post)-event_time];
 
             for c = 1:length(channels)
-                f0 = median(fluorescence.(channels{c})(ind_pre));
+                f0 = median(fluorescence.(channels{c})(mask_pre));
 
-                f{light,c} = [f{light,c}; (fluorescence.(channels{c})(ind_pre | ind_post) - f0)/f0];
-                f_baseline{light,c} = [f_baseline{light,c}; (fluorescence.(channels{c})(ind_pre) - f0)/f0];
+                f{light,c} = [f{light,c}; (fluorescence.(channels{c})(mask_pre | mask_post) - f0)/f0];
+                f_baseline{light,c} = [f_baseline{light,c}; (fluorescence.(channels{c})(mask_pre) - f0)/f0]; % used for z-scoring
             end % c
         end
         [t{light},ind_t] = sort(t{light});
         for c = 1:n_channels
             f{light,c} = f{light,c}(ind_t);
-            m = mean(f_baseline{light,c});
-            s = std(f_baseline{light,c});
-            z = (f{light,c}-m)/s;
 
             [dfof{light,c},dfof_t{light,c}] = slidingwindowfunc(t{light},f{light,c},...
                 -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
+
+            m = mean(f_baseline{light,c});
+            s = std(f_baseline{light,c});
+            z = (f{light,c}-m)/s;
 
             zscore{light,c} = slidingwindowfunc(t{light},z,...
                 -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
@@ -114,8 +150,8 @@ for i = 1:length(unique_changes)
 
     measures.fp.t = dfof_t{1,1}; % perhaps we should keep t light dependent
 
-    ind_post = measures.fp.t > 0;
-    ind_pre = measures.fp.t < 0;
+    mask_post = measures.fp.t > 0;
+    mask_pre = measures.fp.t < 0;
 
     for c = 1:n_channels
         measures.fp.(change).(channels{c}).dfof = dfof{2,c};
