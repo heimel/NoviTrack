@@ -324,10 +324,18 @@ params.rwd_initial_input_state([1 2]) = [1 1];
 params.nt_photometry_pretime = 10; % s
 params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
+params.nt_photometry_bin_width = 0.250; % s
+
+params.nt_apply_isosbestic_correction = false;
+
+params.nt_color_gcamp = [0 0.8 0];
+params.nt_color_isos = [0.2 0.2 1];
+
 
 
 %% Results
 params.nt_result_shows_individual_object_insertions = true;
+
 
 %% Tracking
 params.nt_show_behavior_markers = true;

@@ -9,7 +9,6 @@ if nargin<6 || isempty(handles)
     handles = [];
 end
     
-
 if nargin<5 || isempty(verbose)
     verbose = false;
 end
@@ -58,8 +57,18 @@ if isempty(markers)
     return
 end
 
-% insert marker at proper time
 mt = [markers.time];
+
+% check if marker already exists
+ind = find(mt==t);
+if ~isempty(ind)
+    if strcmp(markers(ind).marker,marker)
+        logmsg(['Marker ' marker ' already present at t = ' num2str(t) '. Not inserting again'])
+        return
+    end
+end
+
+% insert marker at proper time
 ind = find(mt<t,1,'last'); 
 if isempty(ind)
     markers(2:end+1) = markers;
