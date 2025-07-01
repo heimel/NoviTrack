@@ -76,22 +76,29 @@ for ch=1:n_channels
     f_artifact = X * measures.fit_isos{ch};
 
 
-    figure('Name',['Isosbestic control' channel])
-    ax = subplot(2,1,1)
+    figure('Name',['Raw ' channel],'NumberTitle','off');
+    subplot('position',[0.1 0.01 0.8 0.05])
+    text(0,0,recordfilter(record));
+    axis off
+    
+    ax1 = subplot(2,1,1);
     hold on
     plot(time,f_signal,'g')
     plot(time,f_artifact,'b')
-    ylabel('F')
+    ylabel('Fluorescence (a.u.)')
     xlabel('Time (s)')
+    title(channel)
 
 %    nt_show_markers(markers,ax,params,bounds,yl)
-    nt_show_markers(measures.markers,ax,params,[],[])
+    nt_show_markers(measures.markers,ax1,params,[],[])
 
-    subplot(2,1,2)
+    ax2 = subplot(2,1,2);
     hold on
     plot(time,f_signal-f_artifact,'k')
-    ylabel('Corrected F')
+    ylabel('Corrected fluorescence (a.u.)')
     xlabel('Time (s)')
+    nt_show_markers(measures.markers,ax2,params,[],[])
+
 end
 if params.nt_apply_isosbestic_correction
     for ch=1:n_channels
