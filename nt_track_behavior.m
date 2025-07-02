@@ -567,18 +567,35 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             logmsg('Imported laser log')
         case 'import_rwd_log'
             %% Load triggers from RWD log
-            [rwd_triggers1,events] = nt_load_rwd_triggers(record);
+            [rwd_triggers1,rwd_events] = nt_load_rwd_triggers(record);
 
             % [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to,multiplier_from,multiplier_to)
             
-            [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,measures.trigger_times) ;
-            events.duration = events.duration * multiplier;
-            for i = 1:height(events)
-                time = events.time(i); % in RWD time
-                duration = events.duration(i); % can be ignored here
-                switch lower(events.code(i))
-                    case 'trigger2' 
-                        measures.markers = nt_insert_marker(measures.markers,time,'h1',params);
+            [rwd_events.time,~,multiplier] = nt_change_times(rwd_events.time,rwd_triggers1,measures.trigger_times) ;
+            rwd_events.duration = rwd_events.duration * multiplier;
+
+            % check if rwd trigger2 triggers match newstim triggers
+            [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
+            
+            rwd_diff = diff(rwd_events.time(rwd_events.code=="Trigger2"));
+            newstim_diff = diff(newstim_triggers(:));
+            if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020
+                % triggers are the same, using newstim stimuli
+                for i = 1:height(newstim_events)
+                    time = rwd_events.time(i);
+                    duration = newstim_events.duration(i);
+                    code = char(newstim_events.code(i));
+                    measures.markers = nt_insert_marker(measures.markers,time,code,params);
+                    measures.markers = nt_insert_marker(measures.markers,time+duration,['t' code(2)],params);
+                end
+            else
+                for i = 1:height(rwd_events)
+                    time = rwd_events.time(i); % in RWD time
+                    duration = rwd_events.duration(i); % can be ignored here
+                    switch lower(rwd_events.code(i))
+                        case 'trigger2'
+                            measures.markers = nt_insert_marker(measures.markers,time,'h1',params);
+                    end
                 end
             end
             nt_show_markers(measures.markers,handles.panel_timeline,params);
