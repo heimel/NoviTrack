@@ -258,6 +258,7 @@ switch marker_set
         markers{end+1} = {'l','cLimb',                  [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'e','Escape',                 [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'f','Freeze',                 [0.8 0.2 0.9],   true, false};
+        markers{end+1} = {'u','Rearing',                 [0.8 0.2 0.9],   true, false};
 end
 params.markers = cellfun( @(x) cell2struct(x,{'marker','description','color','behavior','linked'},2),markers);
 params.nt_stop_marker = 't';
