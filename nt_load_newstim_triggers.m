@@ -26,11 +26,10 @@ for i = 1:length(d)
     if ~exist(filename,'file')
         continue
     end
-    filename
     stims{count} = load(filename);
-    triggers(count) = stims{count}.start;
-    time(count,1) =  stims{count}.start;
-    dur(count,1) = duration(stims{count}.saveScript);
+    triggers(count) = stims{count}.start; %#ok<AGROW>
+    time(count,1) =  stims{count}.start; %#ok<AGROW>
+    dur(count,1) = duration(stims{count}.saveScript); %#ok<AGROW>
     new_stimulus = true;
     for j = 1:length(unique_scripts)
         if stims{count}.saveScript == unique_scripts{j}
@@ -40,10 +39,10 @@ for i = 1:length(d)
         end
     end
     if new_stimulus
-        unique_scripts{end+1} = stims{count}.saveScript;
+        unique_scripts{end+1} = stims{count}.saveScript; %#ok<AGROW>
         script_id = length(unique_scripts);
     end
-    code{count,1} = "h" + num2str(script_id);
+    code{count,1} = "h" + num2str(script_id); %#ok<AGROW>
     count = count + 1;
 end
 code = string(code);

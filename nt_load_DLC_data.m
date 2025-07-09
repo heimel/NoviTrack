@@ -62,11 +62,20 @@ nose_y = dlc_table.nose_y;
 
 nt_data.X = dlc_table.nose_x;
 nt_data.Y = dlc_table.nose_y;
-nt_data.CoM_X = dlc_table.center_x;
-nt_data.CoM_Y = dlc_table.center_y;
-nt_data.tailbase_X = dlc_table.tail_base_x;
-nt_data.tailbase_Y = dlc_table.tail_base_y;
-
+if ismember('center_x',dlc_table.Properties.VariableNames)
+    nt_data.CoM_X = dlc_table.center_x;
+    nt_data.CoM_Y = dlc_table.center_y;
+elseif ismember('center_point_x',dlc_table.Properties.VariableNames)
+    nt_data.CoM_X = dlc_table.center_point_x;
+    nt_data.CoM_Y = dlc_table.center_point_y;
+end
+if ismember('tail_base_x',dlc_table.Properties.VariableNames)
+    nt_data.tailbase_X = dlc_table.tail_base_x;
+    nt_data.tailbase_Y = dlc_table.tail_base_y;
+elseif ismember('tail_x',dlc_table.Properties.VariableNames)
+    nt_data.tailbase_X = dlc_table.tail_x;
+    nt_data.tailbase_Y = dlc_table.tail_y;
+end
 
 logmsg('Loaded DLC data.')
 

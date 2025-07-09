@@ -11,6 +11,9 @@ params = nt_default_parameters( record );
 
 folder = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);
 
+triggers = [];
+events = [];
+
 d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));
 if isempty(d)
     d = dir(fullfile(folder,'20*'));
@@ -61,8 +64,8 @@ function out_table = convert_event_rwd(event_rwd, prev_state)
         states = event_rwd.State(idx);
         
         % Append the starting state
-        full_state = [state; states];
-        full_time = [NaN; times];  % no timestamp for prev_state
+        %full_state = [state; states];
+        %full_time = [NaN; times];  % no timestamp for prev_state
         
         % Loop over transitions
         for j = 1:length(states)

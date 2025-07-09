@@ -17,10 +17,10 @@ end
 framerate = vid.FrameRate;
 n_frames = vid.NumFrames;
 duration = vid.Duration;
-frametimes = NaN(1,n_frames);
+frametimes = NaN(n_frames,1);
 if abs(n_frames/framerate-duration)<1E-4 || fast
     % assume fixed framerate
-    frametimes = (0:(n_frames-1))/framerate;
+    frametimes = (0:(n_frames-1))'/framerate;
 else
     logmsg('Possible variable framerate. Retrieving frametimes for individual frames. This will be slow.')
     curtime = vid.CurrentTime;
