@@ -1,18 +1,12 @@
-function [vidobj,trigger_times,available_cameras] = nt_open_videos(record,time)
+function [vidobj,trigger_times,available_cameras] = nt_open_videos(record)
 %nt_open_videos. Open video streams for NoviTrack and reads associated triggers
 %
-%    [VIDOBJ,TRIGGER_TIMES] = nt_open_videos(RECORD,[TIME])
+%    [VIDOBJ,TRIGGER_TIMES] = nt_open_videos(RECORD)
 %
 %    VIDOBJ is a cell list with video ojects
 %    TRIGGER_TIMES is a cell list of recorded triggers per camera
-%    if TIME is given, then current time for videos will be aligned to this
-%    time, using the triggers
 %
 % 2025, Alexander Heimel
-
-if nargin<2 || isempty(time)
-    time = [];
-end
 
 params = nt_default_parameters(record);
 
@@ -72,10 +66,3 @@ for i = 1:num_cameras
         % end
     end
 end % camera i
-
-if ~isempty(time)
-    % align videos
-    for c = available_cameras
-        vidobj{c}.CurrentTime = nt_change_neurotar_to_video_times( time, trigger_times{c}, params);
-    end
-end

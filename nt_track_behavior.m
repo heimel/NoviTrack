@@ -79,82 +79,130 @@ elseif size(measures.object_positions,2) ~= 5 % old format
     measures.object_positions = nt_update_object_position_format(measures.object_positions,params,record);
 end
 
-%% Load data
+%% Open movies
+[handles.vidobj,measures.video_trigger_times,active_cameras] = nt_open_videos(record);
+num_cameras = length(params.nt_camera_names);
+
+%% Load Neurotar data
+measures.trigger_times = [];
 nt_data = nt_load_neurotar_data(record);
+if ~isempty(nt_data)
+    logmsg('Not yet reading in all triggers. Assuming one trigger broadcast by Neurotar at time 0.');
+    measures.trigger_times = 0;
+end
+
+%% Load Tracking data (does not set nt_data.Time)
 if isempty(nt_data)
     logmsg(['Could not load Neurotar data for ' recordfilter(record)]);
     nt_data = nt_load_mouse_tracks(record);
 end
-if ~isempty(nt_data)
-    logmsg('Not yet reading in all triggers. Assuming one trigger at time 0.');
-    measures.trigger_times = 0;
-else
-    measures.trigger_times = [];
-end
-
-%% Open movies
-[handles.vidobj,measures.video_trigger_times,active_cameras] = nt_open_videos(record,state.master_time);
-num_cameras = length(params.nt_camera_names);
-
-%% Adjust min and max time
-if ~isempty(nt_data)
-    min_time = nt_data.Time(1);
-    if isnan(min_time)
-        min_time = min(nt_data.Time);
-    end
-    max_time = nt_data.Time(end);
-    if isnan(max_time)
-        max_time = max(nt_data.Time);
-    end
-else
-    min_time = inf;
-    max_time = -inf;
-end
-for c = active_cameras
-    t =  nt_change_video_to_neurotar_times(handles.vidobj{c}.Duration,measures.video_trigger_times{c},params);
-    if t>max_time
-        max_time = t;
-    end
-    t =  nt_change_video_to_neurotar_times(0,measures.video_trigger_times{c},params);
-    if t<min_time
-        min_time = t;
-    end
-end % c
-measures.min_time = min_time;
-measures.max_time = max_time;
-
-% get size of overhead camera
-params.overhead_camera_width = handles.vidobj{params.nt_overhead_camera}.Width;
-measures.overhead_camera_width = params.overhead_camera_width;
-params.overhead_camera_height = handles.vidobj{params.nt_overhead_camera}.Height;
-measures.overhead_camera_height = params.overhead_camera_height;
-
 if isempty(nt_data)
-    % no previous tracking data, using overhead camera movie as main time
+     nt_data = nt_load_DLC_data(record);
+end
 
+%% Set time and triggers if not yet set
+if isempty(nt_data) || ~isfield(nt_data,'Time')
+    % no previous tracking data, using overhead camera movie as main time
+    % from point of first trigger.
+    % If there is no trigger, then set trigger at start of overhead video.
+    %
+    % Assuming mouse_tracks or DLC data to be frame-by-frame from overhead
+    % video
+    %
+   
     if isempty(active_cameras)
         errormsg('No neurotar data and no video data. I don''t know what to do. I quit.');
         return
     end
 
-    nt_data.Time = NaN(handles.vidobj{params.nt_overhead_camera}.NumFrames,1);
-    nt_data.Time = 0:1/handles.vidobj{params.nt_overhead_camera}.FrameRate:handles.vidobj{params.nt_overhead_camera}.Duration;
-    nt_data.Speed = NaN(size(nt_data.Time));
-    nt_data.X = NaN(size(nt_data.Time));
-    nt_data.Y = NaN(size(nt_data.Time));
-    nt_data.CoM_X = NaN(size(nt_data.Time));
-    nt_data.CoM_Y = NaN(size(nt_data.Time));
-    nt_data.tailbase_X = NaN(size(nt_data.Time));
-    nt_data.tailbase_Y = NaN(size(nt_data.Time));
-    nt_data.alpha = NaN(size(nt_data.Time));
-    nt_data.Forward_speed = NaN(size(nt_data.Time));
-    nt_data.Angular_velocity = NaN(size(nt_data.Time));
-    nt_data.Object_distance = NaN(size(nt_data.Time));
+    video_trigger_times = measures.video_trigger_times{params.nt_overhead_camera};
+    if isempty(video_trigger_times)
+        video_trigger_times = 0;
+    end
     
-    measures.trigger_times = measures.video_trigger_times{params.nt_overhead_camera} - measures.video_trigger_times{params.nt_overhead_camera}(1);
+    nt_data.Time = extract_frametimes(handles.vidobj{params.nt_overhead_camera}) - video_trigger_times(1);
+    
+    measures.trigger_times = video_trigger_times - video_trigger_times(1);
+end
+
+%% Align videos to master_time
+for c = active_cameras
+    [video_time,camera(c).time_offset,camera(c).multiplier] = nt_change_times(state.master_time,measures.trigger_times,measures.video_trigger_times{c});
+    handles.vidobj{c}.CurrentTime = video_time;
+
+    % For fast conversion later
+    % TO = FROM * from_camera(c).multiplier + from_camera(c).time_offset
+    [~,from_camera(c).time_offset,from_camera(c).multiplier] = nt_change_times(0,measures.video_trigger_times{c},measures.trigger_times);    
 end
 
 
+%% Adjust min and max time
+min_time = nt_data.Time(1);
+if isnan(min_time)
+    min_time = min(nt_data.Time);
+end
+max_time = nt_data.Time(end);
+if isnan(max_time)
+    max_time = max(nt_data.Time);
+end
+
+% Check if videos extend beyond neurotar, and extend time range accordingly
+for c = active_cameras
+    t = nt_change_times(handles.vidobj{c}.Duration,measures.video_trigger_times{c},measures.trigger_times);
+    if t>max_time
+        max_time = t;
+    end
+    t = nt_change_times(0,measures.video_trigger_times{c},measures.trigger_times);
+    if t<min_time
+        min_time = t;
+    end
+end % c
+
+measures.min_time = min_time;
+measures.max_time = max_time;
+
+%% Get size of overhead camera
+params.overhead_camera_width = handles.vidobj{params.nt_overhead_camera}.Width;
+measures.overhead_camera_width = params.overhead_camera_width;
+params.overhead_camera_height = handles.vidobj{params.nt_overhead_camera}.Height;
+measures.overhead_camera_height = params.overhead_camera_height;
+
+
+%% Compute speed and add fields to nt_data as necessary
+if ~isfield(nt_data,'Speed')
+    if isfield(nt_data,'CoM_X') && isfield(nt_data,'Time')
+        dt = mean(diff(nt_data.Time));
+        overhead_mm_per_pixel = 0.5; % coarse estimate.
+        nt_data.Speed = NaN(size(nt_data.CoM_X));
+        nt_data.Speed(1:end-1) = sqrt(diff(nt_data.CoM_X).^2 + diff(nt_data.CoM_Y).^2) / dt * overhead_mm_per_pixel;
+    else
+        nt_data.Speed = NaN(size(nt_data.Time));
+    end
+end
+if ~isfield(nt_data,'X') % nose
+    nt_data.X = NaN(size(nt_data.Time));
+    nt_data.Y = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'CoM_X')
+    nt_data.CoM_X = NaN(size(nt_data.Time));
+    nt_data.CoM_Y = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'tailbase_X')
+    nt_data.tailbase_X = NaN(size(nt_data.Time));
+    nt_data.tailbase_Y = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'alpha')
+    nt_data.alpha = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'Forward_speed')
+    nt_data.Forward_speed = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'Angular_velocity')
+    nt_data.Angular_velocity = NaN(size(nt_data.Time));
+end
+if ~isfield(nt_data,'Object_distance')
+    nt_data.Object_distance = NaN(size(nt_data.Time));
+end
 
 %% Set up figure
 handles = nt_draw_track_window(handles,record,get_list_of_actions(),nt_data,state,measures,params);
@@ -224,7 +272,10 @@ while state.loop
             camera_times_in_master_time = zeros(1,num_cameras);
             for c = active_cameras
                 handles.camera_image(c).CData = readFrame(handles.vidobj{c});
-                camera_times_in_master_time(c) = nt_change_video_to_neurotar_times( handles.vidobj{c}.CurrentTime, measures.video_trigger_times{c}, params);
+                % camera_times_in_master_time(c) = nt_change_video_to_neurotar_times( handles.vidobj{c}.CurrentTime, measures.video_trigger_times{c}, params);
+
+                    % TO = FROM * from_camera(c).multiplier + from_camera(c).time_offset
+                camera_times_in_master_time(c) = handles.vidobj{c}.CurrentTime * from_camera(c).multiplier + from_camera(c).time_offset;
             end
             state.master_time = mean(camera_times_in_master_time(active_cameras));
             state.newframe = false;

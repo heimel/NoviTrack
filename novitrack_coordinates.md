@@ -1,4 +1,4 @@
-# NoviTrack coordinates #
+# NoviTrack coordinates
 
 2025, Alexander Heimel
 
@@ -18,20 +18,20 @@ Two temporal coordinate systems are used in NoviTrack.
 
 The tracking defaults to using Neurotar time if it is available.
 
-## Spatial coordinate systems ##
+## Spatial coordinate systems 
 
-### Overhead ###
+### Overhead 
 
 [overhead_x, overhead_y] (pxl) are coordinates on the image of the overhead camera. 
 First coordinate is contained in (1:image_width), the second coordinate in (1:image_height).
 
-### Camera ###
+### Camera 
 
 [camera_x, camera_y] (mm) are real world coordinates centered at camera
 center. x is along image width, with the same increasing direction.
 Only used internally as intermediate transformation.
 
-### Arena ###
+### Arena 
 
 [arena_x, arena_y] (mm) are coordinates in the arena. 
 
@@ -43,22 +43,14 @@ The neurotar coordinates of the object will change if the arena is moved on the 
 For a fixed arena (not neurotar), params.overhead_arena_center is 2D vector with the location of 
 this center of the arena in overhead image coordinates.
 
-### Neurotar ###
+### Neurotar 
 
 [neurotar_x, neurotar_y] (mm) are real world coordinates centered at
 middle of neurotar setup, x is along bridge, y is orthogonal to
 bridge, positive y is in front of the mouse. Neurotar coordinates should 
 only be used on the Neurotar Mobile Homecage setup.
 
-
-## Temporal coordinate systems ##
-
-### Video ###
-
-video_t (s). For fixed framerate videos, the first frame will be at time 0 s, and the last at (video.NumFrames-1) * 1 / video.FrameRate
-
-
-## Changing between coordinate frames ##
+### Changing between coordinate frames 
 
 To convert spatial coordinate frames:
 
@@ -71,8 +63,25 @@ To convert spatial coordinate frames:
 
 and more. 
 
+## Temporal coordinate systems
+
+Each acquisition system, e.g. video, fiber photometry or neurotar, has its own clock in which their signals are 
+stored. They are synchronized by shared triggers, of which the times are recorded in the clock of receiver.
+
+### Some common configurations
+
+- On the Neurotar setup, the video recordings starts first. The neurotar sends a trigger at the start of the recording. It does not record its own trigger, but it takes place at its time 0.
+
+- For fiber photometry experiments, multiple triggers are manually send to the video raspberry pi's and the fiber photometer. The master time is from the video.
+
+
+### Video 
+
+NoviTrack is assuming that videos have a fixed framerate. The first frame will be at time 0 s, and the last at (video.NumFrames-1) * 1 / video.FrameRate
+
+
 To convert temporal coordinate frames:
 ```
-neurotar_t = nt_change_video_to_neurotar_times( video_t, trigger_times, params)
+[to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to,multiplier_from,multiplier_to)
 ```
 

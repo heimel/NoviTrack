@@ -20,9 +20,10 @@ end
 if length(d)>1
     logmsg(['Taking latest of multiple files with tracking data for ' recordfilter(record) ]);
 end
-load(fullfile(session_path,d(end).name),'frametimes','position','stim_position');
+%load(fullfile(session_path,d(end).name),'frametimes','position','stim_position');
+load(fullfile(session_path,d(end).name),'position','stim_position');
 
-nt_data.Time = frametimes;
+%nt_data.Time = frametimes;
 
 nt_data.X = position.nose(:,1);
 nt_data.Y = position.nose(:,2);
@@ -51,18 +52,18 @@ nt_data.CoM_Y = medfilt1(nt_data.CoM_Y,5,'omitnan');
 nt_data.tailbase_X = medfilt1(nt_data.tailbase_X,5,'omitnan');
 nt_data.tailbase_Y = medfilt1(nt_data.tailbase_Y,5,'omitnan');
 
-dt = mean(diff(frametimes));
-overhead_mm_per_pixel = 0.5; % coarse estimate. 
+% dt = mean(diff(frametimes));
+% overhead_mm_per_pixel = 0.5; % coarse estimate. 
+% 
+% nt_data.Speed = NaN(size(nt_data.CoM_X));
+% nt_data.Speed(1:end-1) = sqrt(diff(nt_data.CoM_X).^2 + diff(nt_data.CoM_Y).^2) / dt * overhead_mm_per_pixel; 
 
-nt_data.Speed = NaN(size(nt_data.CoM_X));
-nt_data.Speed(1:end-1) = sqrt(diff(nt_data.CoM_X).^2 + diff(nt_data.CoM_Y).^2) / dt * overhead_mm_per_pixel; 
-
-logmsg('Loaded mouse tracks')
+logmsg('Loaded mouse tracks.')
 
 % Still to implement
-nt_data.alpha = NaN(size(nt_data.X));
-nt_data.Forward_speed = NaN(size(nt_data.X));
-nt_data.Angular_velocity = NaN(size(nt_data.X)); 
-nt_data.Since_track_start = NaN(size(nt_data.X));
-nt_data.Distance_to_wall = NaN(size(nt_data.X));
+% nt_data.alpha = NaN(size(nt_data.X));
+% nt_data.Forward_speed = NaN(size(nt_data.X));
+% nt_data.Angular_velocity = NaN(size(nt_data.X)); 
+% nt_data.Since_track_start = NaN(size(nt_data.X));
+% nt_data.Distance_to_wall = NaN(size(nt_data.X));
 
