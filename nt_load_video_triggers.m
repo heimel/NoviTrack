@@ -2,7 +2,7 @@ function [triggers,events] = nt_load_video_triggers(record,camera_name,framerate
 %nt_load_video_triggers. Loads triggers file from raspberry pi videos
 %
 %   [TRIGGERS,EVENTS] = nt_load_video_triggers(RECORD,CAMERA_NAME,FRAMERATE=30)
-%        TRIGGERS in sconds is on raspberry clock
+%        TRIGGERS in seconds is on raspberry clock
 %        EVENTS is table with fields: time, code, duration
 %
 % 2025, Alexander Heimel
