@@ -70,10 +70,16 @@ for i = 1:num_cameras
     end
     set(gca,'ClippingStyle','rectangle')
 end
-set(handles.panel_video(1),'Position',[0.02 0.4 0.25 0.4]);
-set(handles.panel_video(2),'Position',[0.30 0.3 0.4 0.5]); % overhead
-set(handles.panel_video(3),'Position',[0.73 0.4 0.25 0.4]);
-
+switch num_cameras
+    case 1 
+        set(handles.panel_video(1),'Position',[0.30 0.3 0.4 0.5]); % overhead
+    case 3
+        set(handles.panel_video(1),'Position',[0.02 0.4 0.25 0.4]);
+        set(handles.panel_video(2),'Position',[0.30 0.3 0.4 0.5]); % overhead
+        set(handles.panel_video(3),'Position',[0.73 0.4 0.25 0.4]);
+    otherwise
+        logmsg('This number of cameras is not implemented yet.')
+end
 
 % Panel timeline
 handles.panel_timeline = subplot('Position',[0.1 0.9 0.8 0.05]);
@@ -207,10 +213,10 @@ set(gca,'ytick',[])
 box off
 
 
-handles.overhead_center = plot(handles.panel_video(2),0,0,'o','color',[1 1 0]);
+handles.overhead_center = plot(handles.panel_video(params.nt_overhead_camera),0,0,'o','color',[1 1 0]);
 
 if params.neurotar
-    handles.overhead_neurotar_headring = plot(handles.panel_video(2),0,0,'o','color',[0 1 0]);
+    handles.overhead_neurotar_headring = plot(handles.panel_video(params.nt_overhead_camera),0,0,'o','color',[0 1 0]);
     handles.overhead_neurotar_headring.XData = params.overhead_neurotar_headring(1);
     handles.overhead_neurotar_headring.YData = params.overhead_neurotar_headring(2);
 end
@@ -233,8 +239,8 @@ handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_came
 % update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
 handles.overhead_object = cell(9,1); % objects 1-9
-xlim(handles.panel_video(2),[0 params.overhead_camera_width]);
-ylim(handles.panel_video(2),[0 params.overhead_camera_height]);
+xlim(handles.panel_video(params.nt_overhead_camera),[0 params.overhead_camera_width]);
+ylim(handles.panel_video(params.nt_overhead_camera),[0 params.overhead_camera_height]);
 
 
 if params.nt_show_help

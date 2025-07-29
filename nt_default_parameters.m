@@ -108,6 +108,15 @@ switch lower(record.setup)
         params.overhead_camera_image_offset = [-4 4];
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.13;
+    case 'elevated_plus_maze'
+        params.nt_camera_names = {'overhead'};
+        params.nt_overhead_camera = 1;
+        params.overhead_camera_distortion_method = 'normal';
+        params.overhead_camera_distortion = [1.4 NaN];
+        params.overhead_camera_image_offset = [-4 4];
+        params.overhead_camera_rotated = true;
+        params.overhead_camera_angle = -0.0436;
+        params.overhead_arena_center = [299 280];
     otherwise
         params.nt_camera_names = {'pilefteye','pioverhead','pirighteye'};
         params.nt_overhead_camera = 2;
@@ -186,6 +195,12 @@ switch lower(record.setup)
     case 'circular_arena'
         params.arena_shape = 'circular';
         params.arena_radius_mm = 162.5; % NOT CHECKED YET
+    case 'elevated_plus_maze'
+        params.arena_shape = 'plus';
+                logmsg('Still to implement plus maze')
+
+        params.arena_radius_mm = 162.5; % Incorrect number
+        params.arena_diameter_mm = 2 * params.arena_radius_mm; % NOT CHECKED YET
 end
 
 

@@ -13,4 +13,7 @@ switch params.arena_shape
     case 'square'
         arena_x = [-1  1 1 -1 -1]*params.arena_diameter_mm/2; % mm
         arena_y = [-1 -1 1  1 -1]*params.arena_diameter_mm/2; % mm
+    case 'plus'
+        arena_x = [-1  1 1 -1 -1]*params.arena_diameter_mm/2; % mm
+        arena_y = [-1 -1 1  1 -1]*params.arena_diameter_mm/2; % mm
 end
