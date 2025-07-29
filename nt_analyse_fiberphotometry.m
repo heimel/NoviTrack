@@ -48,6 +48,11 @@ fluorescence.TimeStamp = fluorescence.TimeStamp/1000; % change to s
 
 triggers_fp = nt_load_rwd_triggers(record);
 
+if isempty(triggers_fp)
+    logmsg('No recorded RWD triggers. Assuming 0.');
+    triggers_fp = 0;
+end
+
 % align fp time to marker time
 fluorescence.time = nt_change_times(fluorescence.TimeStamp,triggers_fp,measures.trigger_times);
 
@@ -61,7 +66,8 @@ for ch=1:n_channels
     f_signal = fluorescence.(channel)(fluorescence.Lights==470);
     f_iso = fluorescence.(channel)(fluorescence.Lights==410);
 
-    % remove first and last 5% of data
+
+    % for regression, remove first and last 5% of data
     mask = true(size(f_signal));
     mask(1:round(length(mask)*0.05)) = false;
     mask(end-round(length(mask)*0.05):end) = false;
@@ -72,6 +78,12 @@ for ch=1:n_channels
     % Linear regression: F_signal ≈ a * F_iso + b
     X = [f_iso ones(size(f_iso))];
     measures.fit_isos{ch} = X \ f_signal;  % Least-squares solution
+
+    % use all data again
+    time = fluorescence.time(fluorescence.Lights==470);
+    f_signal = fluorescence.(channel)(fluorescence.Lights==470);
+    f_iso = fluorescence.(channel)(fluorescence.Lights==410);
+    X = [f_iso ones(size(f_iso))];
 
     f_artifact = X * measures.fit_isos{ch};
 
@@ -178,15 +190,17 @@ for i = 1:length(unique_events)
             [t{light},ind_t] = sort(t{light});
             f{light} = f{light}(ind_t);
 
+            window = max(median(diff(t{light})),0.1);
+
             [dfof{light,c},dfof_t{light,c}] = slidingwindowfunc(t{light},f{light},...
-                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
+                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,window,[],NaN);
 
             m = mean(f_baseline{light});
             s = std(f_baseline{light});
             z = (f{light}-m)/s;
 
             zscore{light,c} = slidingwindowfunc(t{light},z,...
-                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,0.03,[],NaN);
+                -params.nt_photometry_pretime,params.nt_photometry_window_width,params.nt_photometry_posttime,window,[],NaN);
         end % light
 
         measures.fp.t = dfof_t{1,1}; % perhaps we should keep t light dependent

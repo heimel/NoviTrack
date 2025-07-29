@@ -197,10 +197,13 @@ switch lower(record.setup)
         params.arena_radius_mm = 162.5; % NOT CHECKED YET
     case 'elevated_plus_maze'
         params.arena_shape = 'plus';
-                logmsg('Still to implement plus maze')
+        params.arena_open_arm_length_mm = 297;
+        params.arena_open_arm_width_mm = 50;
+        params.arena_closed_arm_length_mm = 300;
+        params.arena_closed_arm_width_mm = 63;
 
-        params.arena_radius_mm = 162.5; % Incorrect number
-        params.arena_diameter_mm = 2 * params.arena_radius_mm; % NOT CHECKED YET
+        params.arena_radius_mm = params.arena_open_arm_length_mm + params.arena_closed_arm_width_mm/2;
+        params.arena_diameter_mm = 2 * params.arena_radius_mm; 
 end
 
 
@@ -223,6 +226,13 @@ if isempty(marker_set)
             marker_set = 'looming'; 
     end
 end
+if isempty(marker_set)
+    switch lower(record.setup)
+        case 'elevated_plus_maze'
+            marker_set = 'elevated_plus_maze';
+    end
+end
+
 if isempty(marker_set)
     if params.neurotar
         marker_set = 'prey_capture';
@@ -274,6 +284,10 @@ switch marker_set
         markers{end+1} = {'e','Escape',                 [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'f','Freeze',                 [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'u','Rearing',                 [0.8 0.2 0.9],   true, false};
+    case 'elevated_plus_maze'
+        markers{end+1} = {'o','enter open arm',          [0 0 1],    true,false};
+        markers{end+1} = {'c','enter closed arm',        [1 0 0],    true,false}; 
+        markers{end+1} = {'m','enter middle',            [0 0 0],    true,false};
 end
 params.markers = cellfun( @(x) cell2struct(x,{'marker','description','color','behavior','linked'},2),markers);
 params.nt_stop_marker = 't';
