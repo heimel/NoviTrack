@@ -18,7 +18,7 @@ framerate = vid.FrameRate;
 n_frames = vid.NumFrames;
 duration = vid.Duration;
 frametimes = NaN(n_frames,1);
-if abs(n_frames/framerate-duration)<1E-4 || fast
+if abs(n_frames/framerate-duration)<1E-3 
     % assume fixed framerate
     frametimes = (0:(n_frames-1))'/framerate;
 else
