@@ -3,7 +3,7 @@ function folder = nt_fiber_photometry_folder(record)
 %
 % 2025, Alexander Heimel
  
-params = fp_default_parameters( record );
+params = nt_default_parameters(record);
 
 folder = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);
 if ~exist(folder,'dir')
