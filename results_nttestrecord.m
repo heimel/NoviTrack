@@ -21,9 +21,9 @@ if isempty(measures)
     return
 end
 
-if isfield(measures,'markers' )
-    nt_list_markers(measures);
-end
+% if isfield(measures,'markers' )
+%     nt_list_markers(measures);
+% end
 
 nt_get_ethogram(record,true); % Show ethogram
 

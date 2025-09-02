@@ -6,6 +6,9 @@ function [neurotar_data,neurotar_filename] = nt_load_neurotar_data(record)
 %       supplemented by additional columns 'Time, 'Forward_speed',
 %       'Angular_velocity'.
 %
+%       Time = Since_track_start - First trigger in Since_track_start.
+%       So, when using Time, first trigger is a Time = 0.
+%  
 %  Check neurotar_data_explanation.md for more information.
 %
 % 2023, Alexander Heimel

@@ -15,10 +15,15 @@ if ~isempty(params.nt_seed)
     rng(params.nt_seed);
 end
 
-[nt_data,neurotar_filename] = nt_load_neurotar_data(record);
-if isempty(nt_data)
-    nt_data = nt_load_mouse_tracks(record);
-end
+nt_data = nt_load_tracking_data(record);
+
+% [nt_data,neurotar_filename] = nt_load_neurotar_data(record);
+% if isempty(nt_data)
+%     nt_data = nt_load_mouse_tracks(record);
+% end
+% if isempty(nt_data)
+%      nt_data = nt_load_DLC_data(record);
+% end
 
 if isempty(nt_data)
     logmsg(['Could not any position data for ' recordfilter(record)]);
@@ -32,45 +37,42 @@ if isempty(nt_data) && params.automatically_track_mouse
      record = nt_track_mouse(record,time_range,verbose);
 end
 
-
-
-measures = record.measures;
-
 %% Check-out markers
 if nt_check_markers( record, params, verbose ) == false
     return
 end
 
-%% Fiber photometry analyse
-record = nt_analyse_photometry(record,verbose);
-
+%% Photometry analyse
+[record,photometry,snippets] = nt_analyse_photometry(record,nt_data,verbose);
 
 %% Object independent session measures
+measures = record.measures;
 
 if isempty(nt_data)
     logmsg('No nt_data to analyze.')
     return
 end
 
-n_samples = length(nt_data.Time);
+mask = (nt_data.Time>0);
+n_samples = sum(mask);
 
-measures.session_speed_mean = mean(nt_data.Speed,'omitnan');
-measures.session_speed_std = std(nt_data.Speed,'omitnan');
-measures.session_speed_max = max(nt_data.Speed);
-measures.session_forward_speed_mean = mean(nt_data.Forward_speed,'omitnan');
-measures.session_forward_speed_std = std(nt_data.Forward_speed,'omitnan');
-measures.session_forward_speed_max = max(nt_data.Forward_speed);
-measures.session_angular_velocity_mean = mean(nt_data.Angular_velocity,'omitnan');
-measures.session_angular_velocity_std = std(nt_data.Angular_velocity,'omitnan');
-measures.session_angular_velocity_max = max(nt_data.Angular_velocity);
+measures.session_speed_mean = mean(nt_data.Speed(mask),'omitnan');
+measures.session_speed_std = std(nt_data.Speed(mask),'omitnan');
+measures.session_speed_max = max(nt_data.Speed(mask));
+measures.session_forward_speed_mean = mean(nt_data.Forward_speed(mask),'omitnan');
+measures.session_forward_speed_std = std(nt_data.Forward_speed(mask),'omitnan');
+measures.session_forward_speed_max = max(nt_data.Forward_speed(mask));
+measures.session_angular_velocity_mean = mean(nt_data.Angular_velocity(mask),'omitnan');
+measures.session_angular_velocity_std = std(nt_data.Angular_velocity(mask),'omitnan');
+measures.session_angular_velocity_max = max(nt_data.Angular_velocity(mask));
 
-measures.session_fraction_running_forward = sum( nt_data.Forward_speed> params.nt_min_approach_speed ) / n_samples;
-measures.session_count_start_running_forward = sum( diff(nt_data.Forward_speed > params.nt_min_approach_speed )>0);
-measures.session_start_running_forward_per_min = measures.session_count_start_running_forward / nt_data.Since_track_start(end) * 60;
+measures.session_fraction_running_forward = sum( nt_data.Forward_speed(mask)> params.nt_min_approach_speed ) / n_samples;
+measures.session_count_start_running_forward = sum( diff(nt_data.Forward_speed(mask) > params.nt_min_approach_speed )>0);
+measures.session_start_running_forward_per_min = measures.session_count_start_running_forward / nt_data.Time(end) * 60;
 
-measures.session_fraction_moving_backward = sum( nt_data.Forward_speed < params.nt_min_retreat_speed ) / n_samples;
-measures.session_count_start_moving_backward = sum( diff(nt_data.Forward_speed < params.nt_min_retreat_speed )>0);
-measures.session_start_moving_backward_per_min = measures.session_count_start_moving_backward / nt_data.Since_track_start(end) * 60;
+measures.session_fraction_moving_backward = sum( nt_data.Forward_speed(mask) < params.nt_min_retreat_speed ) / n_samples;
+measures.session_count_start_moving_backward = sum( diff(nt_data.Forward_speed(mask) < params.nt_min_retreat_speed )>0);
+measures.session_start_moving_backward_per_min = measures.session_count_start_moving_backward / nt_data.Time(end) * 60;
 
 record.measures = measures;
 
@@ -85,9 +87,9 @@ end
 %% Object analysis
 [record,nt_data] = nt_object_analysis(record,nt_data,verbose);
 measures = record.measures;
-if ~isempty(neurotar_filename)
-    save([neurotar_filename  '.mat'],'nt_data');
-end
+% if ~isempty(neurotar_filename)
+%     save([neurotar_filename  '.mat'],'nt_data');
+% end
 
 %% Compute shuffles for object analysis
 if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
