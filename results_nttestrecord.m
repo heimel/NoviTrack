@@ -27,8 +27,7 @@ end
 
 nt_get_ethogram(record,true); % Show ethogram
 
-nt_plot_fiber_photometry(record);
-
+nt_plot_photometry(record);
 
 if ~isfield(measures,'behaviors')
     logmsg('No behaviors. Run analysis first');

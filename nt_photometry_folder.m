@@ -1,5 +1,5 @@
-function folder = nt_fiber_photometry_folder(record)
-%nt_fiber_photometry_folder. Returns foldername containing fiber photometry data
+function folder = nt_photometry_folder(record)
+%nt_photometry_folder. Returns foldername containing photometry data
 %
 % 2025, Alexander Heimel
  
@@ -17,7 +17,7 @@ d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));
 if isempty(d)
     d = dir(fullfile(folder,'20*'));
     if isempty(d)
-        logmsg(['Cannot find fiber photometry data for ' recordfilter(record)]);
+        logmsg(['Cannot find photometry data for ' recordfilter(record)]);
         return
     end
     folder = fullfile(folder,d.name);

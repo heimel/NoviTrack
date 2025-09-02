@@ -63,7 +63,6 @@ params.wc_deriv2thres = 0.08; % Threshold for 2nd derivative of vidDif for detec
 params.wc_freezeduration_threshold = 0.5; %s minimum duration to call lack of movement a freeze
 params.wc_freeze_smoother = [5,5]; % Number of frames that freeze analysis is averaging over before and after current frame
 
-
 % For faster graphics
 params.nt_graphicssmoothing = 'off';
 params.nt_renderer = 'opengl'; % Matlab default is 'opengl'. On some computers 'painters' could be quicker
@@ -344,7 +343,7 @@ params.nt_shuffle_number = 10;
 params.nt_shuffle_insert_object_only_when_stationary = true;
 params.nt_shuffle_stationary_period = 2; % s, period for which the animal has to be stationary to insert object
 
-%% Fiber photometry
+%% Photometry
 
 params.rwd_slack_time = 0.02; % time window for two events to be simultaneous
 params.rwd_n_inputs = 5; % number of input channels
@@ -356,10 +355,16 @@ params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
 params.nt_photometry_bin_width = 0.250; % s
 
-params.nt_apply_isosbestic_correction = false;
+params.nt_photometry_isosbestic_correction = false;
+params.nt_photometry_median_filter_window = 0.05; % s, use 0 to turn off 
+params.nt_photometry_low_pass = 5; % Hz, use Inf to turn off
+params.nt_photometry_high_pass = 0.01; % Hz, use 0 to turn off
+params.nt_photometry_butterworth_order = 2;
 
 params.nt_color_gcamp = [0 0.8 0];
-params.nt_color_isos = [0.2 0.2 1];
+params.nt_color_gda3m = [0 0.8 0];
+params.nt_color_signal = [0 0.8 0];
+params.nt_color_isosbestic = [0.2 0.2 1];
 
 
 

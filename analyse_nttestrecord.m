@@ -42,7 +42,7 @@ if nt_check_markers( record, params, verbose ) == false
 end
 
 %% Fiber photometry analyse
-record = nt_analyse_fiberphotometry(record,verbose);
+record = nt_analyse_photometry(record,verbose);
 
 
 %% Object independent session measures
