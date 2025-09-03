@@ -13,44 +13,30 @@ if nargin<3 || isempty(verbose)
 end
 
 if isempty(record.measures)
-    logmsg('No trigger_times in measures. Run Track first.');
+    logmsg('No data in measures. Track first.');
     return
 end
 
-% Temporary. Can go when all data is updated.
-if isfield(record.measures,'trigger_times') && iscell(record.measures.trigger_times)
-    logmsg('Old format of trigger_times (before 2025-06-28). Re-open track first.')
-    return
-end
-
+snippets = [];
 params = nt_default_parameters( record );
 
 [photometry,measures] = nt_load_photometry(record,params);
 
+if isempty(photometry)
+    return
+end
+
 [photometry,measures] = nt_preprocess_photometry(photometry,measures,params);
 
-[snippets,measures] = nt_make_photometry_snippets(photometry,measures,params);
-
-measures = nt_compute_photometry_measures(snippets,measures,params);
+record.measures = measures;
 
 filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');
-save(filename,'photometry','snippets');
-logmsg(['Saved photometry analysis in ' filename]);
+save(filename,'photometry');
 
-record.measures = measures;
 
 if isempty(nt_data)
     return
 end
-
-
-
-%%
-% figure 
-% hold on
-% plot(photometry.Channel1.gda3m.time,zscore(photometry.Channel1.gda3m.signal),'Color',[0 0.6 0]);
-% plot(nt_data.Time,(nt_data.Speed-mean(nt_data.Speed,'omitnan'))/std(nt_data.Speed,'omitnan'),'Color',[0 0 0.6]);
-% xlim(measures.period_of_interest)
 
 %% Compute correlations
 nt_data_sample_rate = 1/median(diff(nt_data.Time));

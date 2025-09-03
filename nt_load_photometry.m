@@ -23,6 +23,7 @@ function [photometry,measures] = nt_load_photometry(record,params)
 % 2025, Alexander Heimel
 
 measures = record.measures;
+photometry = [];
 
 folder = nt_photometry_folder(record);
 d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));

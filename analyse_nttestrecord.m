@@ -42,8 +42,26 @@ if nt_check_markers( record, params, verbose ) == false
     return
 end
 
-%% Photometry analyse
-[record,photometry,snippets] = nt_analyse_photometry(record,nt_data,verbose);
+record.measures.snippets_tbins = (-params.nt_photometry_pretime + params.nt_photometry_bin_width/2):params.nt_photometry_bin_width:(params.nt_photometry_posttime-params.nt_photometry_bin_width/2);
+
+%% Photometry analysis
+[record,photometry] = nt_analyse_photometry(record,nt_data,verbose);
+
+snippets = [];
+if ~isempty(photometry) 
+    snippets = nt_make_photometry_snippets(photometry,record.measures,params);
+end
+
+%% Motion analysis
+snippets = nt_make_motion_snippets(nt_data,record.measures,snippets,params);
+
+filename = fullfile(nt_session_path(record),'nt_snippets.mat');
+save(filename,'snippets');
+
+
+%% Compute event measures
+record.measures = nt_compute_event_measures(snippets,record.measures,params);
+
 
 %% Object independent session measures
 measures = record.measures;

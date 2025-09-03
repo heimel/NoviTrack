@@ -14,10 +14,11 @@ end
 
 params = nt_default_parameters(record);
 
-folder = nt_photometry_folder(record);
+filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');
+load(filename,'photometry'); 
 
-filename = fullfile(folder,'nt_photometry.mat');
-load(filename,'photometry','snippets'); 
+filename = fullfile(nt_session_path(record),'nt_snippets.mat');
+load(filename,'snippets'); 
 
 
 %% Full time course + heatplot all snippets
@@ -63,8 +64,8 @@ for c = 1:length(measures.channels)
         subplot(2,n_plots,n_plots+count)
         hold on
         [~,ind] = sort(events.event);
-        imagesc('XData',measures.photometry_snippets_tbins',...
-            'CData',snippets.(channel.channel).(type)(ind,:))
+        imagesc('XData',measures.snippets_tbins',...
+            'CData',snippets.data.([channel.channel '_' type])(ind,:))
         ylim([0.5 height(events)+0.5])
 
         xlabel('Time (s)')
@@ -76,49 +77,49 @@ for c = 1:length(measures.channels)
 end %c
 
 
-%% Traces per event type
-for c = 1:length(measures.channels)
-    channel = measures.channels(c);
-    figure('Name',channel.channel,'NumberTitle','off');
-    subplot('position',[0.1 0.01 0.8 0.05])
-    text(0,0,recordfilter(record));
-    axis off
-
-    n_events = length(measures.unique_events);
-    n_rows = ceil(sqrt(n_events));
-    n_cols = ceil(n_events/n_rows);
-    count = 1;
-    for event = measures.unique_events(:)'
-        subplot(n_rows,n_cols,count);
-        plot([-params.nt_photometry_pretime params.nt_photometry_posttime],[0 0],'-k');
-        hold on
-        h = [];
-        labels = {};
-        for i = 1:length(channel.lights)        
-            type = channel.lights(i).type;
-            if measures.photometry_isosbestic_correction && strcmp(type,'isosbestic')
-                continue
-            end
-
-            clr = params.(['nt_color_' type]);
-
-            t = measures.photometry_snippets_tbins;
-            y = measures.photometry.(event).(channel.channel).(type).snippet_mean;
-            b = measures.photometry.(event).(channel.channel).(type).snippet_sem;
-            errorband(t,y,b,clr,0.3);
-            h(end+1) = plot(t,y,'Color',clr);
-            labels{end+1} = type;
-        end % i
-        xlabel('Time (s)')
-        ylabel('Signal (z-score)')
-        ylim([-4 4])
-        title(event)
-        legend(h,labels);
-        legend boxoff
-        count = count + 1;
-    end
-
-end
+% %% Traces per event type
+% for c = 1:length(measures.channels)
+%     channel = measures.channels(c);
+%     figure('Name',channel.channel,'NumberTitle','off');
+%     subplot('position',[0.1 0.01 0.8 0.05])
+%     text(0,0,recordfilter(record));
+%     axis off
+% 
+%     n_events = length(measures.unique_events);
+%     n_rows = ceil(sqrt(n_events));
+%     n_cols = ceil(n_events/n_rows);
+%     count = 1;
+%     for event = measures.unique_events(:)'
+%         subplot(n_rows,n_cols,count);
+%         plot([-params.nt_photometry_pretime params.nt_photometry_posttime],[0 0],'-k');
+%         hold on
+%         h = [];
+%         labels = {};
+%         for i = 1:length(channel.lights)        
+%             type = channel.lights(i).type;
+%             if measures.photometry_isosbestic_correction && strcmp(type,'isosbestic')
+%                 continue
+%             end
+% 
+%             clr = params.(['nt_color_' type]);
+% 
+%             t = measures.photometry_snippets_tbins;
+%             y = measures.photometry.(event).(channel.channel).(type).snippet_mean;
+%             b = measures.photometry.(event).(channel.channel).(type).snippet_sem;
+%             errorband(t,y,b,clr,0.3);
+%             h(end+1) = plot(t,y,'Color',clr);
+%             labels{end+1} = type;
+%         end % i
+%         xlabel('Time (s)')
+%         ylabel('Signal (z-score)')
+%         ylim([-6 6])
+%         title(event)
+%         legend(h,labels);
+%         legend boxoff
+%         count = count + 1;
+%     end
+% 
+% end
 
 
 % fp = measures.fp;

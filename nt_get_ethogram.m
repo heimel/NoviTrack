@@ -71,7 +71,7 @@ t = ((1:n_samples)-0.5)*dt + min_time;
 %     trans_motifs(seq(i-1),seq(i)) = trans_motifs(seq(i-1),seq(i)) + 1;
 % end
 
-if show
+if show && any(ethogram(:))
     figure('Name','Ethogram','NumberTitle','off')
     handle = axes();
     image('xdata', t,'ydata',1:n_motifs,'cdata',ethogram'+1);

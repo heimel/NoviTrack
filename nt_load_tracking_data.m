@@ -45,6 +45,11 @@ if ~isempty(nt_data)
     return
 end
 
+if ~isfield(record.measures,'video_info')
+    logmsg('Track behavior first');
+    return
+end
+
 if isempty(nt_data)
     nt_data = nt_load_mouse_tracks(record); % does not set Time and derived variables
 end

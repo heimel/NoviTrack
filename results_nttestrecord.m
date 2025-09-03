@@ -21,11 +21,9 @@ if isempty(measures)
     return
 end
 
-% if isfield(measures,'markers' )
-%     nt_list_markers(measures);
-% end
-
 nt_get_ethogram(record,true); % Show ethogram
+
+nt_plot_events(record);
 
 nt_plot_photometry(record);
 

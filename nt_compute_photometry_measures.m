@@ -6,7 +6,11 @@ function measures = nt_compute_photometry_measures(snippets,measures,params)
 %   Computes for measures.photometry.(event_type).(channel.channel).(type)
 %        snippet_mean, snippet_std, mean, max, min
 %
+%  DEPRECATED. SHOULD BE REMOVED
+%
 % 2025, Alexander
+
+
 
 unique_events = measures.unique_events;
 events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
