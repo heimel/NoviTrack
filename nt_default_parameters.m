@@ -271,7 +271,7 @@ switch marker_set
         markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
         markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 
         markers{end+1} = {'i','Idle',                   [0 0 0],    true, false};
-       % markers{end+1} = {'a','Approach',      [0.03 0.46 0.73],true, true};
+       % markers{end+1} = {'a','Approach',      [.46 0.73],true, true};
        % markers{end+1} = {'s','Sniff',         [0.83 0.34 0.12],true, true};
        % markers{end+1} = {'b','Bite',          [0.94 0.68 0.11],true, true};
        % markers{end+1} = {'g','Grab',          [0.51 0.17 0.57],true, true};
@@ -353,7 +353,7 @@ params.rwd_initial_input_state([1 2]) = [1 1];
 params.nt_photometry_pretime = 10; % s
 params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
-params.nt_photometry_bin_width = 0.250; % s
+params.nt_photometry_bin_width = 0.1; % s
 
 params.nt_photometry_isosbestic_correction = false;
 params.nt_photometry_median_filter_window = 0.05; % s, use 0 to turn off 

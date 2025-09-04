@@ -32,7 +32,7 @@ measures.frac_in_center = sum(in_center)/length(in_center);
 in_arena = inpolygon(arena_x,arena_y,arena_walls_x,arena_walls_y);
 measures.frac_out_off_arena = sum(~in_arena)/length(in_arena);
 
-if verbose
+if verbose && any(~isnan(arena_x))
     figure;
     subplot(2,2,1)
     title('C.o.M.');

@@ -23,8 +23,14 @@ for event_type = unique_events(:)'
     ind = find(events.event==event_type);
     for i = 1:length(flds)
         field = flds{i};
+        
+        
         snippet_mean = mean(snippets.data.(field)(ind,:),1);
+
+      %  snippet_mean = mean(snippets.data.(field)(ind(1:3),:),1);
+
         measures.event.(event_type).(field).snippet_mean = snippet_mean;
+        measures.event.(event_type).(field).snippet_first = snippets.data.(field)(ind(1),:);
         measures.event.(event_type).(field).snippet_std = std(snippets.data.(field)(ind,:),1);
         measures.event.(event_type).(field).snippet_sem = sem(snippets.data.(field)(ind,:),1);
         measures.event.(event_type).(field).mean = mean(snippet_mean(mask_post));
