@@ -6,16 +6,14 @@ function nt_plot_photometry(record)
 % 2025, Alexander
 
 measures = record.measures;
-
-if ~isfield(measures,'photometry') || isempty(measures.photometry)
-    % no photometry results
-    return
-end
-
 params = nt_default_parameters(record);
 
 filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');
-load(filename,'photometry'); 
+if exist(filename,'file')
+    load(filename,'photometry');
+else
+    return
+end
 
 filename = fullfile(nt_session_path(record),'nt_snippets.mat');
 load(filename,'snippets'); 
