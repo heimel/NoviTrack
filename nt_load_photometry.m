@@ -20,6 +20,8 @@ function [photometry,measures] = nt_load_photometry(record,params)
 %
 % measures.period_of_interest = [1x2] with start and stop time of period of interest in master time
 %
+%  See nt_data_structures.md for more information.
+%
 % 2025, Alexander Heimel
 
 measures = record.measures;

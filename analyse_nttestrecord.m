@@ -3,6 +3,8 @@ function record = analyse_nttestrecord(record,verbose)
 %
 %  RECORD = analyse_nttestrecord( RECORD, [VERBOSE=true])
 %
+%  See nt_data_structures.md for more information.
+%
 % 2023-2025, Alexander Heimel, Zhiting Ren
 
 if nargin<2 || isempty(verbose)

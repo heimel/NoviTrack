@@ -7,6 +7,8 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 %        snippet_mean, snippet_std, mean, max, min, event_mean
 %   from SNIPPETS.data
 %
+%  See nt_data_structures.md for more information.
+%
 % 2025, Alexander
 
 if isempty(snippets)

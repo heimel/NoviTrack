@@ -3,6 +3,8 @@ function [record,photometry,snippets] = nt_analyse_photometry(record,nt_data,ver
 %
 %   [RECORD,PHOTOMETRY,SNIPPETS] = nt_analyse_photometry(RECORD,[NT_DATA],[VERBOSE=true])
 %
+%     Check 
+%
 % 2025, Alexander Heimel
 
 if nargin<2 || isempty(nt_data)

@@ -8,6 +8,8 @@ function snippets = nt_make_motion_snippets(nt_data,measures,snippets,params)
 %
 %  uses measures.snippets_tbins = t_bins and measures.markers
 %
+%  See nt_data_structures.md for more information.
+%
 % 2025, Alexander Heimel
 
 if nargin<3 || isempty(snippets)
