@@ -20,6 +20,18 @@ function [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to
 n_triggers_from = length(triggers_from);
 n_triggers_to = length(triggers_to);
 
+if n_triggers_from==1 && n_triggers_to>1
+    logmsg('Detected too many triggers TO. Using only the first! May be wrong trigger. If so edit trigger log.')
+    triggers_to = triggers_to(1);
+    n_triggers_to = 1;
+end
+if n_triggers_to==1 && n_triggers_from>1
+    logmsg('Detected too many triggers FROM. Using only the first! May be wrong trigger. If so edit trigger log.')
+    triggers_from = triggers_from(1);
+    n_triggers_from = 1;
+end
+
+
 % deal with missing triggers at start or end
 if n_triggers_from > n_triggers_to
     % missing first triggers_from?
@@ -40,6 +52,7 @@ if n_triggers_from > n_triggers_to
         logmsg('Missed last FROM triggers in TO reference');
     end
 end
+
 
 if n_triggers_from < n_triggers_to
     % missing first triggers_to?
