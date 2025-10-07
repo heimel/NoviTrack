@@ -107,6 +107,8 @@ switch lower(record.setup)
         params.overhead_camera_image_offset = [-4 4];
         params.overhead_camera_rotated = true;
         params.overhead_camera_angle = -0.13;
+        params.overhead_arena_center = [299 280]; 
+
     case 'elevated_plus_maze'
         params.nt_camera_names = {'overhead'};
         params.nt_overhead_camera = 1;
