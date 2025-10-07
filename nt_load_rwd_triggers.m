@@ -9,19 +9,24 @@ function [triggers,events] = nt_load_rwd_triggers(record)
 
 params = nt_default_parameters( record );
 
-folder = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);
+% folder = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);
 
 triggers = [];
 events = [];
 
-d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));
-if isempty(d)
-    d = dir(fullfile(folder,'20*'));
-    if isempty(d)
-        logmsg(['Cannot find photometry data for ' recordfilter(record)]);
-        return
-    end
-    folder = fullfile(folder,d.name);
+% d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));
+% if isempty(d)
+%     d = dir(fullfile(folder,'20*'));
+%     if isempty(d)
+%         logmsg(['Cannot find photometry data for ' recordfilter(record)]);
+%         return
+%     end
+%     folder = fullfile(folder,d.name);
+% end
+ 
+[folder,found] = nt_photometry_folder(record);
+if ~found
+    return
 end
 
 events = readtable(fullfile(folder, "Events.csv"));

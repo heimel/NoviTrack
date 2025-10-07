@@ -12,6 +12,7 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 % 2025, Alexander
 
 if isempty(snippets)
+    measures.event = [];
     return
 end
 

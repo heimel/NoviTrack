@@ -25,6 +25,7 @@ params = nt_default_parameters( record );
 [photometry,measures] = nt_load_photometry(record,params);
 
 if isempty(photometry)
+    record.measures = measures;
     return
 end
 

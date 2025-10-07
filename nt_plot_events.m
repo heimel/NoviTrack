@@ -43,7 +43,7 @@ for event_type = event_types(:)'
         end
         errorband(t,y,b,clr,0.3);
         h(end+1) = plot(t,y,'Color',clr);
-        title(subst_ctlchars(observable))
+        title([char(subst_ctlchars(observable)) ', n = ' num2str(event.(observable).n)])
         xlabel('Time (s)')
         count = count + 1;
     end % observable 
