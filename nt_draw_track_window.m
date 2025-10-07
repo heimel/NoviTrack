@@ -88,7 +88,10 @@ xlim([min_time max_time]);
 ylim([0 1]);
 hold on
 handles.timeline_current_time = line(state.master_time*[1 1],[0 params.nt_track_timeline_max_speed],'Color',[0 0 0],'linewidth',3);
-plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
+
+if ~all(isnan(nt_data.Speed))
+    plot(nt_data.Time,rescale(nt_data.Speed,[0 params.nt_track_timeline_max_speed],[0 params.nt_track_timeline_max_speed]),'-','Color',0.7*[1 1 1]);
+end
 ylim([0 params.nt_track_timeline_max_speed]);
 nt_show_markers(measures.markers,handles.panel_timeline,params);
 nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
@@ -157,7 +160,6 @@ handles.edit_time_multiplier.Callback = @edit_camera_distortion_callback;
 uicontrol(panel_camera_distortion,'Style','text','String','Time mult.',...
     'units','pixels','FontSize',fontsize,'Position',[left 2*sep+height width height]);
 left = left + width + sep; %#ok<NASGU>
-
 
 
 
