@@ -24,16 +24,25 @@ function [nt_data,trigger_times] = nt_load_tracking_data(record,recompute)
 %
 % 2025, Alexander Heimel
 
+nt_data = [];
+
 if nargin<2 || isempty(recompute)
     recompute = false;
 end
 
-folder = nt_session_path(record);
+[folder,exists] = nt_session_path(record);
+if ~exists
+    logmsg(['Folder ' folder ' does not exist.'])
+    return
+end
+
 filename = fullfile(folder,'nt_tracking_data.mat');
+
 
 params = nt_default_parameters(record);
 
 if ~recompute && exist(filename,'file') 
+    logmsg(['Loading precomputed tracking data. To recompute delete ' filename] )
     load(filename,'nt_data');
     return
 end
@@ -61,6 +70,25 @@ end
 video_info = record.measures.video_info(params.nt_overhead_camera);
 nt_data.Time = extract_frametimes(video_info) - video_info.trigger_times(1);
 trigger_times = video_info.trigger_times - video_info.trigger_times(1);
+
+
+% Filter tracking data 
+filter_width = params.nt_pose_temporal_filter_width;
+
+if isfield(nt_data,'X')
+    nt_data.X = medfilt1(nt_data.X,filter_width,'omitnan');
+    nt_data.Y = medfilt1(nt_data.Y,filter_width,'omitnan');
+end
+if isfield(nt_data,'CoM_X')
+    nt_data.CoM_X = medfilt1(nt_data.CoM_X,filter_width,'omitnan');
+    nt_data.CoM_Y = medfilt1(nt_data.CoM_Y,filter_width,'omitnan');
+end
+if isfield(nt_data,'tailbase_X')
+    nt_data.tailbase_X = medfilt1(nt_data.tailbase_X,filter_width,'omitnan');
+    nt_data.tailbase_Y = medfilt1(nt_data.tailbase_Y,filter_width,'omitnan');
+end
+
+
 
 %% Compute speed and add fields to nt_data as necessary
 if ~isfield(nt_data,'Speed')

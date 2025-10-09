@@ -26,11 +26,15 @@ if ~exist(trigger_filename,'file')
     logmsg(['Cannot find trigger file ' trigger_filename '. Setting trigger after first frame.']);
     triggers = 1 / framerate; % set trigger on second frame (was a mistake, would have been better to put on first)
 else
-    data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1);
+    data = readmatrix(trigger_filename, 'OutputType', 'double', 'NumHeaderLines', 1,'Delimiter',',');
     if size(data,2)==1 % old data from before 2023-05-25
         triggers = data / framerate;
     else % data from after 2023-05-25
         triggers = data(2:end,3);
+    end
+
+    if isempty(triggers)
+        logmsg(['No triggers for ' recordfilter(record)]);
     end
 
     % Create events table

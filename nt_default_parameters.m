@@ -221,7 +221,7 @@ switch lower(record.stimulus)
     case 'firstandnovelobject'
         marker_set = 'object_investigation';
 end
-if isempty(marker_set)
+if isempty(marker_set) && isfield(record,'condition')
     switch lower(record.condition)
         case 'looming_stimulus'
             marker_set = 'looming'; 
@@ -248,6 +248,8 @@ end
 
 markers = {};
 % marker fields are 'marker','description','color','behavior','linked'
+% when creating new set, try to keep the same markers for the same
+% behaviors
 switch marker_set
     case 'prey_capture'
         markers{end+1} = {'t','stop stimulus',                  [1 0 0],    false,true};
@@ -358,6 +360,9 @@ params.nt_interaction_period = 10; % s, period to count interactions
 params.nt_temporal_filter_width = 5; % neurotar samples
 params.nt_object_sliding_window = 2.0; % s, window to use for peri-stimulus time averaging
 params.count_once_per_object = true; % how often behaviours can be counter per interaction period
+
+params.nt_pose_temporal_filter_width = 20; %  samples for median filtering of pose tracking data
+
 
 % Shuffle analysis
 params.nt_seed = 1;

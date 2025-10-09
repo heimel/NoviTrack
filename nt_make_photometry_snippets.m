@@ -46,6 +46,7 @@ for c = 1:length(measures.channels)
         snippets.baseline_std.(field) = median(std(snippets.data.(field)(:,mask_pre),[],2));
         % z-score
         snippets.data.(field) = snippets.data.(field)/snippets.baseline_std.(field); 
+        snippets.unit.(field) = 'zscore';
     end % lights i
 end % c 
 

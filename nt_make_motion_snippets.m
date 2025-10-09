@@ -40,5 +40,7 @@ for observable = observables(:)'
             time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
         snippet = interp1(time(mask),nt_data.(observable)(mask),event_time + t_bins,[],'extrap');
         snippets.data.(observable)(j,:) = snippet;
+        snippets.unit.(observable) = 'a.u.';
+
     end % events j
 end % variable v

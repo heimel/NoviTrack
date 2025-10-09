@@ -27,6 +27,11 @@ for i = 1:length(d)
         continue
     end
     stims{count} = load(filename);
+    if ~isa(stims{count}.saveScript,'stimscript')
+        logmsg('Not recognizing stimulus script. Make sure to add NewStim3 to the MATLAB path and run NewStimInit.');
+        break
+    end
+
     triggers(count) = stims{count}.start; %#ok<AGROW>
     time(count,1) =  stims{count}.start; %#ok<AGROW>
     dur(count,1) = duration(stims{count}.saveScript); %#ok<AGROW>

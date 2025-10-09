@@ -32,16 +32,10 @@ if isfield(measures,'channels')
     measures = rmfield(measures,'channels');
 end
 
-folder = nt_photometry_folder(record);
-% d = dir(fullfile(folder,'Fluorescence-unaligned.csv'));
-% if isempty(d)
-%     d = dir(fullfile(folder,'20*'));
-%     if isempty(d)
-%         logmsg(['Cannot find photometry data for ' recordfilter(record)]);
-%         return
-%     end
-%     folder = fullfile(folder,d.name);
-% end
+[folder,found] = nt_photometry_folder(record);
+if ~found
+    return
+end
 
 fluorescence = readtable(fullfile(folder, "Fluorescence-unaligned.csv"));
 

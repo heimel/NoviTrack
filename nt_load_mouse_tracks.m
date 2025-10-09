@@ -44,13 +44,13 @@ for i=1:length(stim_position)
     nt_data.([basefield 'Y']) = stim_position(i).com(:,2);
 end
 
-% filter
-nt_data.X = medfilt1(nt_data.X,5,'omitnan');
-nt_data.Y = medfilt1(nt_data.Y,5,'omitnan');
-nt_data.CoM_X = medfilt1(nt_data.CoM_X,5,'omitnan');
-nt_data.CoM_Y = medfilt1(nt_data.CoM_Y,5,'omitnan');
-nt_data.tailbase_X = medfilt1(nt_data.tailbase_X,5,'omitnan');
-nt_data.tailbase_Y = medfilt1(nt_data.tailbase_Y,5,'omitnan');
+% % filter
+% nt_data.X = medfilt1(nt_data.X,5,'omitnan');
+% nt_data.Y = medfilt1(nt_data.Y,5,'omitnan');
+% nt_data.CoM_X = medfilt1(nt_data.CoM_X,5,'omitnan');
+% nt_data.CoM_Y = medfilt1(nt_data.CoM_Y,5,'omitnan');
+% nt_data.tailbase_X = medfilt1(nt_data.tailbase_X,5,'omitnan');
+% nt_data.tailbase_Y = medfilt1(nt_data.tailbase_Y,5,'omitnan');
 
 % dt = mean(diff(frametimes));
 % overhead_mm_per_pixel = 0.5; % coarse estimate. 

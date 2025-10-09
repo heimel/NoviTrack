@@ -11,6 +11,12 @@ if nargin<2 || isempty(verbose)
     verbose = true;
 end
 
+[folder,exists] = nt_session_path(record);
+if ~exists
+    logmsg(['Folder ' folder ' not found.'])
+    return
+end
+
 params = nt_default_parameters( record );
 
 if ~isempty(params.nt_seed)
@@ -57,7 +63,7 @@ end
 %% Motion analysis
 snippets = nt_make_motion_snippets(nt_data,record.measures,snippets,params);
 
-filename = fullfile(nt_session_path(record),'nt_snippets.mat');
+filename = fullfile(folder,'nt_snippets.mat');
 save(filename,'snippets');
 
 
