@@ -89,7 +89,7 @@ for c = 1:length(measures.channels)
     channel = measures.channels(c);
 
     disp('NEED TO ADD FIBER INFO TO CHANNEL')
-     measures.fiber_info.(channel)
+  %   measures.fiber_info.(channel)
 
 
     for i = 1:length(channel.lights)

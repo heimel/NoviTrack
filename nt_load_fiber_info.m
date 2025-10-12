@@ -5,7 +5,7 @@ function record = nt_load_fiber_info(record)
 %
 % 2025, Alexander Heimel
 
-folder = fullfile(nt_session_path(record),'..','..','Surgery');
+folder = fullfile(nt_session_path(record),'..','..','Surgery_logs');
 filename = fullfile(folder,'Surgery_sites.xlsx');
 surgery_table = readtable(filename, 'Sheet', 'Sheet1','TextType','string');
 
