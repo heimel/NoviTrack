@@ -388,6 +388,7 @@ params.nt_photometry_low_pass = 5; % Hz, use Inf to turn off
 params.nt_photometry_high_pass = 0.01; % Hz, use 0 to turn off
 params.nt_photometry_butterworth_order = 2;
 
+params.nt_color_green = [0 0.8 0];
 params.nt_color_gcamp = [0 0.8 0];
 params.nt_color_gda3m = [0 0.8 0];
 params.nt_color_signal = [0 0.8 0];

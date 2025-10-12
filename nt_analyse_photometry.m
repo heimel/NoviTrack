@@ -19,6 +19,8 @@ if isempty(record.measures)
     return
 end
 
+record = nt_load_fiber_info(record);
+
 snippets = [];
 params = nt_default_parameters( record );
 
@@ -35,6 +37,7 @@ record.measures = measures;
 
 filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');
 save(filename,'photometry');
+
 
 
 if isempty(nt_data)

@@ -81,9 +81,17 @@ else
     measures.period_of_interest(2) = fluorescence.time(end) - duration * 0.05;
 end
 
+% get matching of channels to fibers
+result = parse_channels(record.comment);
+
 % Convert to photometry structure
 for c = 1:length(measures.channels)
     channel = measures.channels(c);
+
+    disp('NEED TO ADD FIBER INFO TO CHANNEL')
+     measures.fiber_info.(channel)
+
+
     for i = 1:length(channel.lights)
             type = channel.lights(i).type;
             photometry.(channel.channel).(type).time = fluorescence.time(fluorescence.Lights==channel.lights(i).wavelength);
@@ -92,3 +100,31 @@ for c = 1:length(measures.channels)
     dt = median(diff(photometry.(channel.channel).(type).time));
     measures.channels(c).sample_rate = 1/dt;
 end % c
+
+
+
+end
+
+
+
+
+
+function result = parse_channels(comment)
+%PARSE_CHANNELS Parse channel mappings from a comment string.
+
+pattern = 'channel(\d+)\s*=\s*([^,]+)';
+tokens = regexp(comment, pattern, 'tokens');
+
+result = struct();
+
+for i = 1:numel(tokens)
+    key = sprintf('channel%s', strtrim(tokens{i}{1}));
+    value = strtrim(tokens{i}{2});
+    if value(end)=='.'
+        value = value(1:end-1);
+    end
+
+    result.(key) = value;
+end
+end
+

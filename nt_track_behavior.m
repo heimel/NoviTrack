@@ -539,74 +539,85 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 state.newframe = true;
                 state.jumptime = goto_time - state.master_time;
             end
+        case 'import_markers'
+            record = nt_import_markers(record);
+            measures.markers = record.measures.markers;
 
-        case 'import_laser_log'
-            %% Load laser triggers
-            [~,events] = nt_load_laser_triggers(record,[],params);
-            for i = 1:length(events)
-                time = events(i).time / params.laser_time_multiplier;
-                duration = events(i).duration / params.laser_time_multiplier;
-                switch events(i).code
-                    case 'p' % prey
-                        measures.markers = nt_insert_marker(measures.markers,time,'v',params);
-                        measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
-                    case 'b' % both
-                        measures.markers = nt_insert_marker(measures.markers,time,'v',params);
-                        measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
-                        measures.markers = nt_insert_marker(measures.markers,time,'1',params);
-                        measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
-                    case 'o' % opto
-                        measures.markers = nt_insert_marker(measures.markers,time,'1',params);
-                        measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
-                end
-            end
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-            logmsg('Imported laser log')
-        case 'import_rwd_log'
-            %% Load triggers from RWD log
-            [rwd_triggers1,rwd_events] = nt_load_rwd_triggers(record);
+            logmsg('Imported markers')
 
-            % [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to,multiplier_from,multiplier_to)
-            if ~isempty(rwd_events)
-                [rwd_events.time,~,multiplier] = nt_change_times(rwd_events.time,rwd_triggers1,measures.trigger_times) ;
-                rwd_events.duration = rwd_events.duration * multiplier;
-
-                % check if rwd trigger2 triggers match newstim triggers
-                [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
-
-                rwd_stim_events = rwd_events(rwd_events.code=="Trigger2",:);
-
-                rwd_diff = diff(rwd_stim_events.time);
-                newstim_diff = diff(newstim_triggers(:));
-                if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020
-                    % triggers are the same, using newstim stimuli
-                    for i = 1:height(newstim_events)
-                        time = rwd_stim_events.time(i);
-                        duration = newstim_events.duration(i);
-                        code = char(newstim_events.code(i));
-                        measures.markers = nt_insert_marker(measures.markers,time,code,params);
-                        measures.markers = nt_insert_marker(measures.markers,time+duration,['t' code(2)],params);
-                    end
-                else
-                    for i = 1:height(rwd_stim_events)
-                        time = rwd_stim_events.time(i); % in RWD time
-                        % duration = rwd_stim_events.duration(i); % can be ignored here
-                        measures.markers = nt_insert_marker(measures.markers,time,'h1',params);
-                    end
-                end
-                nt_show_markers(measures.markers,handles.panel_timeline,params);
-                nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
-                state.newframe = true;
-                state.jumptime = -state.interframe_time;
-                record.measures = measures;
-                update_record(record,handles.h_dbfig,true);
-                logmsg('Imported RWD log')
-            end
+        % case 'import_laser_log'
+        %     %% Load laser triggers
+        %     [~,events] = nt_load_laser_triggers(record,[],params);
+        %     for i = 1:length(events)
+        %         time = events(i).time / params.laser_time_multiplier;
+        %         duration = events(i).duration / params.laser_time_multiplier;
+        %         switch events(i).code
+        %             case 'p' % prey
+        %                 measures.markers = nt_insert_marker(measures.markers,time,'v',params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
+        %             case 'b' % both
+        %                 measures.markers = nt_insert_marker(measures.markers,time,'v',params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time,'1',params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
+        %             case 'o' % opto
+        %                 measures.markers = nt_insert_marker(measures.markers,time,'1',params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
+        %         end
+        %     end
+        %     nt_show_markers(measures.markers,handles.panel_timeline,params);
+        %     nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
+        %     state.newframe = true;
+        %     state.jumptime = -state.interframe_time;
+        %     record.measures = measures;
+        %     update_record(record,handles.h_dbfig,true);
+        %     logmsg('Imported laser log')
+        % case 'import_rwd_log'
+        %     %% Load triggers from RWD log
+        %     [rwd_triggers1,rwd_events] = nt_load_rwd_triggers(record);
+        % 
+        %     % [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to,multiplier_from,multiplier_to)
+        %     if ~isempty(rwd_events)
+        %         [rwd_events.time,~,multiplier] = nt_change_times(rwd_events.time,rwd_triggers1,measures.trigger_times) ;
+        %         rwd_events.duration = rwd_events.duration * multiplier;
+        % 
+        %         % check if rwd trigger2 triggers match newstim triggers
+        %         [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
+        % 
+        %         rwd_stim_events = rwd_events(rwd_events.code=="Trigger2",:);
+        % 
+        %         rwd_diff = diff(rwd_stim_events.time);
+        %         newstim_diff = diff(newstim_triggers(:));
+        %         if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020
+        %             % triggers are the same, using newstim stimuli
+        %             for i = 1:height(newstim_events)
+        %                 time = rwd_stim_events.time(i);
+        %                 duration = newstim_events.duration(i);
+        %                 code = char(newstim_events.code(i));
+        %                 measures.markers = nt_insert_marker(measures.markers,time,code,params);
+        %                 measures.markers = nt_insert_marker(measures.markers,time+duration,['t' code(2)],params);
+        %             end
+        %         else
+        %             for i = 1:height(rwd_stim_events)
+        %                 time = rwd_stim_events.time(i); % in RWD time
+        %                 % duration = rwd_stim_events.duration(i); % can be ignored here
+        %                 measures.markers = nt_insert_marker(measures.markers,time,'h1',params);
+        %             end
+        %         end
+        %         nt_show_markers(measures.markers,handles.panel_timeline,params);
+        %         nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
+        %         state.newframe = true;
+        %         state.jumptime = -state.interframe_time;
+        %         record.measures = measures;
+        %         update_record(record,handles.h_dbfig,true);
+        %         logmsg('Imported RWD log')
+        %     end
         case 'marker_add'
             set(handles.fig_main,'WindowKeyPressFcn',[]);
             pause(0.01)
@@ -1073,8 +1084,9 @@ actions = {...
     {'forward_long',               {'rightarrow','control'},'Ctrl + Right arrow','1 min forward',0},...
     {'forward_short',              {'rightarrow','shift'},'Shift + Right arrow','0.5 s forward',0},...
     {'goto',                       {'g'},'g','Go to time',0},...
-    {'import_laser_log',           {'i','shift'},'I','Import laser log',0},...
-    {'import_rwd_log',             {'r','shift'},'R','Import RWD log',0},...
+    {'import_markers',           {'i','shift'},'I','Import markers',0},...
+    ... % {'import_laser_log',           {'i','shift'},'I','Import laser log',0},...
+    ... % {'import_rwd_log',             {'r','shift'},'R','Import RWD log',0},...
     {'marker_add',                 {'m'},'m','Add marker',0},...
     {'marker_delete',              {'delete'},'Del','Delete next marker',0},...
     {'marker_delete_all',          {'d','shift'},'D','Delete all markers',0},...
