@@ -19,7 +19,6 @@ if isempty(record.measures)
     return
 end
 
-record = nt_load_fiber_info(record);
 
 snippets = [];
 params = nt_default_parameters( record );

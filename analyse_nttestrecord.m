@@ -23,6 +23,8 @@ if ~isempty(params.nt_seed)
     rng(params.nt_seed);
 end
 
+record = nt_add_surgery_info(record);
+
 nt_data = nt_load_tracking_data(record);
 
 % [nt_data,neurotar_filename] = nt_load_neurotar_data(record);
@@ -39,6 +41,7 @@ end
 
 logmsg(['Analyzing ' recordfilter(record)]);
 
+record.measures.event = [];
 
 if isempty(nt_data) && params.automatically_track_mouse 
     time_range = [];

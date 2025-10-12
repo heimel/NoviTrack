@@ -1,7 +1,7 @@
 function [photometry,measures] = nt_load_photometry(record,params)
 % nt_load_photometry. Load photometry data into photometry struct
 %
-%  [photometry,measures] = nt_load_photometry(record,params)
+%  [photometry,measures] = nt_load_photometry(record,[PARAMS])
 %
 %  photometry.(channel).(type) = struct
 %   'time' [n_samples x 1] = time stamps in master time
@@ -24,6 +24,10 @@ function [photometry,measures] = nt_load_photometry(record,params)
 %
 % 2025, Alexander Heimel
 
+if nargin<2 || isempty(params)
+    params = nt_default_parameters( record );
+end
+
 measures = record.measures;
 photometry = [];
 
@@ -41,20 +45,52 @@ fluorescence = readtable(fullfile(folder, "Fluorescence-unaligned.csv"));
 
 wavelengths = unique(fluorescence.Lights);
 
+% get matching of channels to fibers
+result = parse_channels(record.comment);
+
 channel_names = unique(setdiff(fluorescence.Properties.VariableNames,{'TimeStamp','Lights'}));
+
+if ~isempty(result)
+    logmsg('No channels specified in comment. Assuming channelX = fiberX.')
+    for i=1:length(channel_names)
+        channel_name = channel_names{i};
+        result.(channel_name) = ['fiber' channel_names{i}(8:end)];
+    end
+end
+
 for c = 1:length(channel_names)
+    channel_name = channel_names{c};
+    fiber = result.(channel_name);
+    if isfield(measures,'fiber_info') && isfield(measures.fiber_info,fiber)
+        fiber_info = measures.fiber_info.(fiber);
+    else
+        fiber_info.hemisphere = '';
+        fiber_info.location = '';
+        fiber_info.green_sensor = 'green_sensor';
+        fiber_info.red_sensor = 'red_sensor';
+    end
+
     for i = 1:length(wavelengths)
         lights(i) = struct('wavelength',wavelengths(i),'type',''); %#ok<AGROW>
         switch wavelengths(i)
             case 410
                 lights(i).type = 'isosbestic'; %#ok<AGROW>
-            case 470
-                lights(i).type = 'gda3m'; %#ok<AGROW> % should depend on record info
+            case 470 
+                lights(i).type = 'green'; %#ok<AGROW> 
+            case 560
+                lights(i).type = 'red'; %#ok<AGROW> 
             otherwise
                 lights(i).type = 'unknown';
         end
     end
-    measures.channels(c) = struct('channel',channel_names{c},'location','','lights',lights,'fit_isos',[],'sample_rate',[]);
+    measures.channels(c) = struct('channel',channel_name,...
+        'hemisphere',fiber_info.hemisphere,...
+        'location',fiber_info.location,...
+        'green_sensor',fiber_info.green_sensor,...
+        'red_sensor',fiber_info.red_sensor,...
+        'lights',lights,...
+        'fit_isos',[],...
+        'sample_rate',[]);
 end % c
 
 % Change time from ms to s
@@ -81,17 +117,10 @@ else
     measures.period_of_interest(2) = fluorescence.time(end) - duration * 0.05;
 end
 
-% get matching of channels to fibers
-result = parse_channels(record.comment);
 
 % Convert to photometry structure
 for c = 1:length(measures.channels)
     channel = measures.channels(c);
-
-    disp('NEED TO ADD FIBER INFO TO CHANNEL')
-  %   measures.fiber_info.(channel)
-
-
     for i = 1:length(channel.lights)
             type = channel.lights(i).type;
             photometry.(channel.channel).(type).time = fluorescence.time(fluorescence.Lights==channel.lights(i).wavelength);
@@ -113,13 +142,13 @@ function result = parse_channels(comment)
 %PARSE_CHANNELS Parse channel mappings from a comment string.
 
 pattern = 'channel(\d+)\s*=\s*([^,]+)';
-tokens = regexp(comment, pattern, 'tokens');
+tokens = regexp(comment, pattern, 'tokens', 'ignorecase');
 
 result = struct();
 
 for i = 1:numel(tokens)
-    key = sprintf('channel%s', strtrim(tokens{i}{1}));
-    value = strtrim(tokens{i}{2});
+    key = sprintf('Channel%s', strtrim(tokens{i}{1}));
+    value = lower(strtrim(tokens{i}{2})); % fiberX made lower caser
     if value(end)=='.'
         value = value(1:end-1);
     end
