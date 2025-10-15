@@ -62,7 +62,8 @@ mt = [markers.time];
 % check if marker already exists
 ind = find(mt==t);
 if ~isempty(ind)
-    if strcmp(markers(ind).marker,marker)
+   % if strcmp(markers(ind).marker,marker)
+    if contains(marker,{markers(ind).marker})
         logmsg(['Marker ' marker ' already present at t = ' num2str(t) '. Not inserting again'])
         return
     end

@@ -29,8 +29,8 @@ for event_type = event_types(:)'
     observables = string(fields(event));
     n_observables = length(observables);
 
-    n_rows = ceil(sqrt(n_observables));
-    n_cols = min(2,ceil(n_observables/n_rows)); % min. 2nd col for info
+    n_rows = floor(sqrt(n_observables));
+    n_cols = max(2,ceil(n_observables/n_rows)); % min. 2nd col for info
 
     n_actual_rows = n_rows*2+n_rows-1;
     n_actual_cols = n_cols+n_cols-1;

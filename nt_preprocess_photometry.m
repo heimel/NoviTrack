@@ -20,6 +20,17 @@ if params.nt_photometry_isosbestic_correction
 
         % for computing regression parameters only use period of interest
         mask = (time>=measures.period_of_interest(1) & time<=measures.period_of_interest(2));
+
+        if params.nt_only_use_pretime_for_isosbestic_correction
+            mask = false(size(time));
+            for i = 1:length(measures.markers)
+                mask = mask | (time>measures.markers(i).time-params.nt_photometry_pretime & time<measures.markers(i).time);
+            end % i
+            if sum(mask)/channel.sample_rate<10
+                logmsg('Warning: less than 10s of pre-marker data to use for isosbestic correction');
+            end
+        end
+
         f_signal_part = f_signal(mask);
         f_iso_part = f_iso(mask);
         time_part = time(mask);
@@ -46,6 +57,14 @@ for c = 1:length(measures.channels)
         photometry.(channel.channel).(type).signal = filter_photometry(f_signal,channel.sample_rate,params);
     end
 end
+
+% time shift 
+for c = 1:length(measures.channels)
+    channel = measures.channels(c);
+    photometry.(channel.channel).(type).time = photometry.(channel.channel).(type).time - params.nt_photometry_time_offset;
+end
+
+
 
 end
 

@@ -16,7 +16,7 @@ function snippets = nt_make_photometry_snippets(photometry,measures,params)
 
 snippets = [];
 
-if isempty(measures.markers)
+if ~isfield(measures,'markers') || isempty(measures.markers)
     return
 end
 
@@ -34,6 +34,7 @@ for c = 1:length(measures.channels)
         type = channel.lights(i).type;
         field = [channel.channel '_' type];
         snippets.data.(field) = NaN(n_events,n_bins_per_snippet);
+        snippets.unit.(field) = 'raw';
         for j = 1:n_events
             event_time = events.time(j);
             time = photometry.(channel.channel).(type).time;
@@ -41,12 +42,16 @@ for c = 1:length(measures.channels)
                 time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
             % interpolate at bin times;
             snippet = interp1(time(mask),photometry.(channel.channel).(type).signal(mask),event_time + t_bins,[],'extrap');
-            snippets.data.(field)(j,:) = snippet - mean(snippet(mask_pre));
+            snippets.data.(field)(j,:) = snippet;
+            if params.nt_photometry_subtract_baseline
+                snippets.data.(field)(j,:) = snippets.data.(field)(j,:) - mean(snippet(mask_pre));
+            end
         end % events j
         snippets.baseline_std.(field) = median(std(snippets.data.(field)(:,mask_pre),[],2));
-        % z-score
-        snippets.data.(field) = snippets.data.(field)/snippets.baseline_std.(field); 
-        snippets.unit.(field) = 'zscore';
+        if params.nt_photometry_zscoring
+            snippets.data.(field) = snippets.data.(field)/snippets.baseline_std.(field);
+            snippets.unit.(field) = 'zscore';
+        end
     end % lights i
 end % c 
 

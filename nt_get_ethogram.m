@@ -24,6 +24,10 @@ motifs = params.markers(find([params.markers.behavior]));
 motif_list = [motifs.marker]; 
 n_motifs = length(motifs);
 
+if n_motifs==0 % no behaviors
+    return 
+end
+
 dt = 0.1; % 
 if isfield(record.measures,'min_time')
     min_time = record.measures.min_time;

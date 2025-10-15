@@ -36,6 +36,7 @@ for event_type = unique_events(:)'
         measures.event.(event_type).(field).min = min(snippet_mean(mask_post));
         measures.event.(event_type).(field).n = length(ind); % assume measured for all events
         measures.event.(event_type).(field).event_mean = mean(snippets.data.(field)(ind,:),2); % mean response over time
+        measures.event.(event_type).(field).unit = snippets.unit.(field);
     end % field
 end % event_type
 

@@ -1,9 +1,15 @@
-function record = nt_import_markers(record)
+function record = nt_import_markers(record,option)
 % nt_import_markers. Imports varies log files with markers into record
 %
-%   RECORD = nt_import_markers(RECORD)
+%   RECORD = nt_import_markers(RECORD,[OPTION])
+%       OPTION can be empty or 'RWD log','Laser log','Noldus EPM log'
+%
 %
 % 2025, Alexander Heimel
+
+if nargin<2 || isempty(option)
+    option = [];
+end
 
 if isempty(record)
     return
@@ -20,7 +26,11 @@ import_options{end+1} = {'Noldus EPM log','import_noldus_epm'};
 import_options{end+1} = {'RWD log','import_rwd'};
 import_options{end+1} = {'Laser log','import_laser'};
 
-selections = nt_import_logs_dialog(import_options);
+if isempty(option)
+    selections = nt_import_logs_dialog(import_options);
+else
+    selections = find(cellfun( @(x) strcmp(option,x{1}),import_options));
+end
 
 for i = 1:length(selections)
     ind = selections(i);
@@ -99,6 +109,7 @@ function record = import_rwd(record)
 if isempty(events)
     return
 end
+params = nt_default_parameters(record);
 
 % change to master time
 [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,record.measures.trigger_times) ;
@@ -107,12 +118,16 @@ events.duration = events.duration * multiplier;
 % check if rwd trigger2 triggers match newstim triggers
 [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
 
-rwd_stim_events = events(events.code=="Trigger2",:);
+if ~isempty(newstim_triggers)
+    rwd_stim_events = events(events.code=="Trigger2",:);  % for Huaxing using NewStim
+else
+    rwd_stim_events = events;  
+end
 
 markers = record.measures.markers;
 rwd_diff = diff(rwd_stim_events.time);
 newstim_diff = diff(newstim_triggers(:));
-if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020
+if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020 % using NewStim
     % triggers are the same, using newstim stimuli
     for i = 1:height(newstim_events)
         time = rwd_stim_events.time(i);
@@ -122,9 +137,11 @@ if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.0
         markers = nt_insert_marker(markers,time+duration,['t' code(2)],params);
     end
 else
+    unique_events = unique(rwd_stim_events.code,'sorted');
     for i = 1:height(rwd_stim_events)
         time = rwd_stim_events.time(i);
-        markers = nt_insert_marker(markers,time,'h1',params);
+        marker = ['o' num2str(find(unique_events==rwd_stim_events.code(i))) ]; 
+        markers = nt_insert_marker(markers,time,marker,params);
     end
 end
 

@@ -102,7 +102,21 @@ if isempty(triggers_fp)
     logmsg('No recorded RWD triggers. Assuming 0.');
     triggers_fp = 0;
 end
+
+if ~isfield(measures,'trigger_times') 
+    logmsg('TEMPORARY FOR MDJ DATA: EQUALIZING TRIGGERS')
+    measures.trigger_times = triggers_fp;
+end
+
 fluorescence.time = nt_change_times(fluorescence.TimeStamp,triggers_fp,measures.trigger_times);
+
+if ~isfield(measures,'markers') || isempty(measures.markers)
+    record.measures = measures;
+    record = nt_import_markers(record,'RWD log');
+    measures = record.measures;
+end
+
+
 
 % Determine period of interest
 measures.period_of_interest = [-Inf Inf];

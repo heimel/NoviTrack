@@ -233,9 +233,10 @@ if isempty(marker_set)
     switch lower(record.setup)
         case 'elevated_plus_maze'
             marker_set = 'elevated_plus_maze';
+        case 'rwd'
+            marker_set = 'rwd';
     end
 end
-
 
 
 if isempty(marker_set)
@@ -292,7 +293,7 @@ switch marker_set
         markers{end+1} = {'f','Freeze',                 [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'u','Rearing',                 [0.8 0.2 0.9],   true, false};
     case 'social_behavior'
-                markers{end+1} = {'t','Takeout intruder',[1 0 0]         ,false,true};
+        markers{end+1} = {'t','Takeout intruder',[1 0 0]         ,false,true};
         markers{end+1} = {'o','place intruder',  [0 0 1]         ,false,true};
         markers{end+1} = {'i','Idle',          [0 0 0],         true, false};
         markers{end+1} = {'a','Approach',      [0.03 0.46 0.73],true, true};
@@ -311,6 +312,9 @@ switch marker_set
         markers{end+1} = {'o','enter open arm',          [0 0 1],    true,false};
         markers{end+1} = {'c','enter closed arm',        [1 0 0],    true,false}; 
         markers{end+1} = {'m','enter middle',            [0 0 0],    true,false};
+    case 'rwd'
+        markers{end+1} = {'o','start stimulus',           [0.4 0.2 1],false,true};
+        markers{end+1} = {'t','stop stimulus',           [1 0 0],    false,true};
 end
 params.markers = cellfun( @(x) cell2struct(x,{'marker','description','color','behavior','linked'},2),markers);
 params.nt_stop_marker = 't';
@@ -381,12 +385,15 @@ params.nt_photometry_pretime = 10; % s
 params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
 params.nt_photometry_bin_width = 0.1; % s
-
-params.nt_photometry_isosbestic_correction = false;
+params.nt_photometry_time_offset = 0; % shifts all photometry data 
+params.nt_photometry_isosbestic_correction = true;
+params.nt_only_use_pretime_for_isosbestic_correction = false;
 params.nt_photometry_median_filter_window = 0.05; % s, use 0 to turn off 
 params.nt_photometry_low_pass = 5; % Hz, use Inf to turn off
 params.nt_photometry_high_pass = 0.01; % Hz, use 0 to turn off
 params.nt_photometry_butterworth_order = 2;
+params.nt_photometry_zscoring = true;
+params.nt_photometry_subtract_baseline = true;
 
 params.nt_color_green = [0 0.8 0];
 params.nt_color_gcamp = [0 0.8 0];

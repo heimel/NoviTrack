@@ -12,7 +12,7 @@ params = nt_default_parameters( record );
 
 triggers = [];
 events = [];
- 
+
 [folder,found] = nt_photometry_folder(record);
 if ~found
     return
@@ -36,52 +36,73 @@ end
 prev_state = params.rwd_initial_input_state;
 events = convert_event_rwd(events, prev_state);
 
-
+events = merge_simultaneous_triggers(events,params);
 
 end
 
+function events = merge_simultaneous_triggers(events,params)
+
+
+d = diff(events.time);
+ind = find(d<=params.rwd_slack_time);
+if any(diff(ind)==1)
+    logmsg('NOT IMPLEMENTED SIMULTANEOUS EVENTS OF MORE THAN TWO TRIGGERS');
+end
+sim_events = events(ind,:);
+%sim_events.code = events.code(ind)+"+"+events.code(ind+1);
+tt = sort([events.code(ind),events.code(ind+1)],2);
+sim_events.code = tt(:,1) + "+" + tt(:,2);
+
+sim_events.duration = min([events.duration(ind) events.duration(ind+1)],[],2);
+events([ind ind+1],:) = []; % remove original events
+
+events = [events; sim_events];
+events = sortrows(events, 'time');
+end
+
+
 function out_table = convert_event_rwd(event_rwd, prev_state)
-    input_names = {"Input1", "Input2","Input3","Input4","Input5"};
-    trigger_names = {"Trigger1","Trigger2","Trigger3","Trigger4","Trigger5"};
-    
-    % Preallocate output
-    out = struct('time', {}, 'code', {}, 'duration', {});
-    
-    for i = 1:2
-        input_name = input_names{i};
-        trigger_name = trigger_names{i};
-        state = prev_state(i);
-        
-        % Extract events for this input
-        idx = (event_rwd.Name==input_name );
-        times = event_rwd.TimeStamp(idx);
-        states = event_rwd.State(idx);
-        
-        % Append the starting state
-        %full_state = [state; states];
-        %full_time = [NaN; times];  % no timestamp for prev_state
-        
-        % Loop over transitions
-        for j = 1:length(states)
-            if states(j) ~= state
+input_names = {"Input1", "Input2","Input3","Input4","Input5"};
+trigger_names = {"Trigger1","Trigger2","Trigger3","Trigger4","Trigger5"};
 
-                out(end+1).time = times(j);
-                out(end).code = trigger_name;
+% Preallocate output
+out = struct('time', {}, 'code', {}, 'duration', {});
 
-                % Duration is time to next event in this input
-                if j < length(times)
-                    out(end).duration = times(j+1) - times(j);
-                else
-                    out(end).duration = 0;
-                end
+for i = 1:2
+    input_name = input_names{i};
+    trigger_name = trigger_names{i};
+    state = prev_state(i);
+
+    % Extract events for this input
+    idx = (event_rwd.Name==input_name );
+    times = event_rwd.TimeStamp(idx);
+    states = event_rwd.State(idx);
+
+    % Append the starting state
+    %full_state = [state; states];
+    %full_time = [NaN; times];  % no timestamp for prev_state
+
+    % Loop over transitions
+    for j = 1:length(states)
+        if states(j) ~= state
+
+            out(end+1).time = times(j);
+            out(end).code = trigger_name;
+
+            % Duration is time to next event in this input
+            if j < length(times)
+                out(end).duration = times(j+1) - times(j);
+            else
+                out(end).duration = 0;
             end
         end
     end
-    
-    % Convert to table
-    out_table = struct2table(out);
-    
-    % Sort by time
-    out_table = sortrows(out_table, 'time');
+end
+
+% Convert to table
+out_table = struct2table(out);
+
+% Sort by time
+out_table = sortrows(out_table, 'time');
 end
 

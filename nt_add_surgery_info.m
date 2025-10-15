@@ -7,6 +7,12 @@ function record = nt_add_surgery_info(record)
 
 folder = fullfile(nt_session_path(record),'..','..','Surgery_logs');
 filename = fullfile(folder,'Surgery_sites.xlsx');
+
+if ~exist(filename,'file')
+    logmsg(['Cannot find surgery log for ' recordfilter(record)]);
+    return
+end
+
 surgery_table = readtable(filename, 'Sheet', 'Sheet1','TextType','string');
 
 ind = find(surgery_table.subject == "#"+record.subject);
