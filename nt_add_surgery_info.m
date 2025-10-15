@@ -5,7 +5,7 @@ function record = nt_add_surgery_info(record)
 %
 % 2025, Alexander Heimel
 
-folder = fullfile(nt_session_path(record),'..','..','Surgery_logs');
+folder = fullfile(nt_session_path(record),'..','..','Surgery');
 filename = fullfile(folder,'Surgery_sites.xlsx');
 
 if ~exist(filename,'file')
