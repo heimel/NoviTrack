@@ -14,8 +14,13 @@ events = struct([]);
 
 file_pattern = 'Raw data-elevated_plus_maze-Trial*.xlsx';
 folder = nt_session_path(record);
-
 d = dir(fullfile(folder,file_pattern));
+if isempty(d)
+    file_pattern = [record.subject '_Noldus_behavioral_data.xlsx'];
+    d = dir(fullfile(folder,file_pattern));
+end
+
+
 if isempty(d)
     logmsg(['Cannot find Noldus analysis file in ' folder ]);
     logmsg(['Looking for "' file_pattern '"'])
