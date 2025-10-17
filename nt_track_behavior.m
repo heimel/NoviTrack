@@ -329,6 +329,8 @@ nt_update_arena_walls(handles.overhead_arena,state,params);
 if params.nt_show_overhead_mouse
     handles.overhead_mouse.XData = [state.X state.CoM_X state.tailbase_X];
     handles.overhead_mouse.YData = [state.Y state.CoM_Y state.tailbase_Y];
+
+    
 end
 
 

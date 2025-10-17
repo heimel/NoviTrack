@@ -34,7 +34,6 @@ end
 
 for i = 1:length(selections)
     ind = selections(i);
-    disp( import_options{ind}{2})
     record = feval(import_options{ind}{2},record);
 end
 
@@ -81,7 +80,7 @@ if isempty(events)
     return
 end
 
-% 
+%
 % offset_time = NaN;
 % while isnan(offset_time)
 %     time_prompt = 'Start time of analyzed movie:';
@@ -124,7 +123,7 @@ events.duration = events.duration * multiplier;
 if ~isempty(newstim_triggers)
     rwd_stim_events = events(events.code=="Trigger2",:);  % for Huaxing using NewStim
 else
-    rwd_stim_events = events;  
+    rwd_stim_events = events;
 end
 
 markers = record.measures.markers;
@@ -143,7 +142,7 @@ else
     unique_events = unique(rwd_stim_events.code,'sorted');
     for i = 1:height(rwd_stim_events)
         time = rwd_stim_events.time(i);
-        marker = ['o' num2str(find(unique_events==rwd_stim_events.code(i))) ]; 
+        marker = ['o' num2str(find(unique_events==rwd_stim_events.code(i))) ];
         markers = nt_insert_marker(markers,time,marker,params);
     end
 end
@@ -170,10 +169,10 @@ height = (n_options+1)*button_height + (n_options+2)*button_sep;
 dlg = dialog('Position',[500 400 250 height], 'Name','Import Options', 'WindowStyle','normal');
 
 y = button_sep;
-btn_import = uicontrol('Parent',dlg, 'Position',[30 y 80 30], 'String','Import', ...
+uicontrol('Parent',dlg, 'Position',[30 y 80 30], 'String','Import', ...
     'Callback',@import_callback);
 
-btn_cancel = uicontrol('Parent',dlg, 'Position',[140 y 80 30], 'String','Cancel', ...
+uicontrol('Parent',dlg, 'Position',[140 y 80 30], 'String','Cancel', ...
     'Callback',@cancel_callback);
 
 y = y + button_height + button_sep;

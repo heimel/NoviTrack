@@ -48,6 +48,10 @@ if isempty(tbl)
     return
 end
 
+if ~ismember('InZone_Center_Center_point_', tbl.Properties.VariableNames)
+    % no elevated plus maze
+    return;
+end
 
 % center_times = tbl.TrialTime(find(diff(tbl.InZone_Center_Center_point_)>0)+1);
 % closed_times = tbl.TrialTime(find(diff(tbl.InZone_ClosedArms_Center_point_)>0)+1);

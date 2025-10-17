@@ -241,7 +241,7 @@ end
 % handles.overhead_com = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'o','Color',[0.3 1 0.3]);
 % handles.overhead_tailbase = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'x','Color',[0 1 0]);
 
-handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0]);
+handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0],'Marker','o','MarkerFaceColor',[0 1 0]);
 
 % update_neurotar_frame(handles.overhead_neurotar_frame,params);
 

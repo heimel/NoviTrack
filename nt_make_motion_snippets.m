@@ -38,9 +38,16 @@ for observable = observables(:)'
         time = nt_data.Time;
         mask = time> (event_time - params.nt_photometry_pretime - params.nt_photometry_bin_width) & ...
             time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
-        snippet = interp1(time(mask),nt_data.(observable)(mask),event_time + t_bins,[],'extrap');
-        snippets.data.(observable)(j,:) = snippet;
-        snippets.unit.(observable) = 'a.u.';
+        if any(mask)
+            snippet = interp1(time(mask),nt_data.(observable)(mask),event_time + t_bins,[],'extrap');
+            snippets.data.(observable)(j,:) = snippet;
+            snippets.unit.(observable) = 'a.u.';
+        else
+            logmsg(['No samples for event at ' num2str(event_time)])
+            snippets.data.(observable)(j,:) = NaN(size(t_bins));
+            snippets.unit.(observable) = 'a.u.';
+
+        end
 
     end % events j
 end % variable v

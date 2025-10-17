@@ -81,7 +81,6 @@ end
 nt_data.Time = nt_data.Time - video_info.trigger_times(1);
 trigger_times = video_info.trigger_times - video_info.trigger_times(1);
 
-
 % Filter tracking data 
 filter_width = params.nt_pose_temporal_filter_width;
 
