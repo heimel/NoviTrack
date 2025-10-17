@@ -7,6 +7,8 @@ function tbl = nt_load_noldus_file(record)
 %
 % 2025, Alexander Heimel
 
+tbl = [];
+
 params = nt_default_parameters(record);
 
 folder = nt_session_path(record);
@@ -36,6 +38,13 @@ ind = find(contains(raw(1:10,1),'Number of header lines:'));
 n_header_lines = str2num(raw{ind,2});
 row_variable_names = n_header_lines - 1; 
 row_unit_names = n_header_lines ; 
+
+ind = find(contains(raw(1:n_header_lines,1),'Animal ID'));
+animal_id = raw{ind,2};
+
+if ~strcmp(record.subject,animal_id)
+    logmsg(['Warning: Record subject ' record.subject ' and Noldus animal_id ' animal_id ' are not identical.']);
+end
 
 ind = find(contains(raw(1:n_header_lines,1),'Video start time'));
 video_start_time = raw{ind,2}; % e.g. '08/10/2025 13:21:17'
