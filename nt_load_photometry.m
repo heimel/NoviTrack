@@ -50,7 +50,7 @@ result = parse_channels(record.comment);
 
 channel_names = unique(setdiff(fluorescence.Properties.VariableNames,{'TimeStamp','Lights'}));
 
-if ~isempty(result)
+if isempty(result)
     logmsg('No channels specified in comment. Assuming channelX = fiberX.')
     for i=1:length(channel_names)
         channel_name = channel_names{i};
