@@ -14,7 +14,7 @@ filename = [ record.sessionid '_' record.condition '_' record.stimulus ...
 filename = fullfile(session_path,filename);
 d = dir(filename);
 if isempty(d)
-    logmsg(['Cannot find tracking data for ' recordfilter(record)]);
+    % logmsg(['Cannot find tracking data for ' recordfilter(record)]);
     return
 end
 if length(d)>1

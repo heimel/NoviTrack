@@ -105,8 +105,13 @@ handles.speed_yaxis = line([0 0],[-1 1],'Color' ,0.7*[1 1 1]);
 disableDefaultInteractivity(handle(handles.panel_neurotar_speed))
 handles.speed_trace = line(0,0,'Color',[0 0 0]);
 set(handles.panel_neurotar_speed.XAxis,'visible','off')
-ylabel('Fwd speed');
-ylim(handles.panel_neurotar_speed,[-250 250]);
+if params.nt_forward_speed_in_speed_trace
+    ylabel('Fwd speed');
+    ylim(handles.panel_neurotar_speed,[-250 250]/1000);
+else
+    ylabel('Speed');
+    ylim(handles.panel_neurotar_speed,[0 250]/1000);
+end
 set(handles.panel_neurotar_speed,'ButtonDownFcn',@click_on_timeline);
 
 % Panel with camera distortion controls

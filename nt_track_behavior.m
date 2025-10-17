@@ -349,7 +349,11 @@ handles = update_object_positions(measures,state,handles,params);
 % update speed  velocity plots
 ind = state.ind_past:state.ind_future;
 handles.speed_trace.XData = nt_data.Time(ind);
-handles.speed_trace.YData = nt_data.Forward_speed(ind);
+if params.nt_forward_speed_in_speed_trace
+    handles.speed_trace.YData = nt_data.Forward_speed(ind);
+else
+    handles.speed_trace.YData = nt_data.Speed(ind);
+end
 handles.speed_xaxis.XData = [state.master_time-params.nt_mouse_trace_window state.master_time+params.nt_mouse_trace_window];
 handles.speed_xaxis.YData = [0 0];
 handles.speed_yaxis.XData = [state.master_time state.master_time];

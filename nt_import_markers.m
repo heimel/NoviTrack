@@ -81,15 +81,18 @@ if isempty(events)
     return
 end
 
-offset_time = NaN;
-while isnan(offset_time)
-    time_prompt = 'Start time of analyzed movie:';
-    time_input = inputdlg(time_prompt, 'Import Noldus EPM analysis', [1 50]);
-    if isempty(time_input)
-        time_input = '0';
-    end
-    offset_time = str2double(time_input{1});
-end
+% 
+% offset_time = NaN;
+% while isnan(offset_time)
+%     time_prompt = 'Start time of analyzed movie:';
+%     time_input = inputdlg(time_prompt, 'Import Noldus EPM analysis', [1 50]);
+%     if isempty(time_input)
+%         time_input = '0';
+%     end
+%     offset_time = str2double(time_input{1});
+% end
+
+offset_time = 0;
 
 % change to master time
 % [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,record.measures.trigger_times) ;

@@ -12,42 +12,50 @@ function events = nt_import_noldus_epm(record)
 
 events = struct([]);
 
-file_pattern = 'Raw data-elevated_plus_maze-Trial*.xlsx';
-folder = nt_session_path(record);
-d = dir(fullfile(folder,file_pattern));
-if isempty(d)
-    file_pattern = [record.subject '_Noldus_behavioral_data.xlsx'];
-    d = dir(fullfile(folder,file_pattern));
-end
+% file_pattern = 'Raw data-elevated_plus_maze-Trial*.xlsx';
+% folder = nt_session_path(record);
+% d = dir(fullfile(folder,file_pattern));
+% if isempty(d)
+%     file_pattern = [record.subject '_Noldus_behavioral_data.xlsx'];
+%     d = dir(fullfile(folder,file_pattern));
+% end
+% if isempty(d)
+%     logmsg(['Cannot find Noldus analysis file in ' folder ]);
+%     logmsg(['Looking for "' file_pattern '"'])
+%     return
+% end
+% if length(d)>1
+%     logmsg(['More than one Noldus analysis file in ' folder ]);
+%     logmsg('Remove or rename additional files');
+%     return
+% end
+% filename = fullfile(folder, d(1).name);
+% 
+% raw = readcell(filename);
+% nonEmptyRows = find(any(~cellfun(@(x) isempty(x) || (isstring(x) && strlength(x)==0), raw), 2));
+% lastRow = nonEmptyRows(end);
+% 
+% opts = detectImportOptions(filename);
+% opts.VariableNamesRange = '35:35';   % headers at row 36
+% opts.DataRange = sprintf('37:%d', lastRow); % data starts at row 38
+% 
+% tbl = readtable(filename, opts);
+% 
 
-
-if isempty(d)
-    logmsg(['Cannot find Noldus analysis file in ' folder ]);
-    logmsg(['Looking for "' file_pattern '"'])
+tbl = nt_load_noldus_file(record);
+if isempty(tbl)
+    logmsg('Could not import Noldus file');
     return
 end
-if length(d)>1
-    logmsg(['More than one Noldus analysis file in ' folder ]);
-    logmsg('Remove or rename additional files');
-    return
-end
-filename = fullfile(folder, d(1).name);
 
-raw = readcell(filename);
-nonEmptyRows = find(any(~cellfun(@(x) isempty(x) || (isstring(x) && strlength(x)==0), raw), 2));
-lastRow = nonEmptyRows(end);
 
-opts = detectImportOptions(filename);
-opts.VariableNamesRange = '35:35';   % headers at row 36
-opts.DataRange = sprintf('37:%d', lastRow); % data starts at row 38
+% center_times = tbl.TrialTime(find(diff(tbl.InZone_Center_Center_point_)>0)+1);
+% closed_times = tbl.TrialTime(find(diff(tbl.InZone_ClosedArms_Center_point_)>0)+1);
+% open_times = tbl.TrialTime(find(diff(tbl.InZone_OpenArms_Center_point_)>0)+1);
 
-tbl = readtable(filename, opts);
-
-logmsg('NOT SURE YET IF I NEED TO USE TRIALTIME OR RECORDINGTIME. CHECK');
-
-center_times = tbl.TrialTime(find(diff(tbl.InZone_Center_Center_point_)>0)+1);
-closed_times = tbl.TrialTime(find(diff(tbl.InZone_ClosedArms_Center_point_)>0)+1);
-open_times = tbl.TrialTime(find(diff(tbl.InZone_OpenArms_Center_point_)>0)+1);
+center_times = tbl.VideoTime(find(diff(tbl.InZone_Center_Center_point_)>0)+1);
+closed_times = tbl.VideoTime(find(diff(tbl.InZone_ClosedArms_Center_point_)>0)+1);
+open_times = tbl.VideoTime(find(diff(tbl.InZone_OpenArms_Center_point_)>0)+1);
 all_times = sort([center_times;closed_times;open_times]);
 
 n_events = length(all_times);

@@ -8,6 +8,9 @@ function [neurotar_data,neurotar_filename] = nt_load_neurotar_data(record)
 %
 %       Time = Since_track_start - First trigger in Since_track_start.
 %       So, when using Time, first trigger is a Time = 0.
+%
+%   NEUROTAR_DATA.Speed is in m/s (rather than in mm/s as in original file)
+%
 %  
 %  Check neurotar_data_explanation.md for more information.
 %
@@ -78,6 +81,11 @@ neurotar_trigger_frames = [neurotar_trigger_frames(1) ...
 
 neurotar_trigger_times = neurotar_data.Since_track_start(neurotar_trigger_frames);
 neurotar_data.Time = neurotar_data.Since_track_start-neurotar_trigger_times(1);
+
+
+% Change Speed to SI
+neurotar_data.Speed = neurotar_data.Speed / 1000; % Change from mm/s to m/s
+
 
 % Compute forward speed
 rx = -sin(neurotar_data.alpha/180*pi);

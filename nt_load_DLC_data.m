@@ -18,7 +18,7 @@ filename = [ record.sessionid '_*DLC*.csv'];
 filename = fullfile(session_path,filename);
 d = dir(filename);
 if isempty(d)
-    logmsg(['Cannot find DLC data for ' recordfilter(record)]);
+    % logmsg(['Cannot find DLC data for ' recordfilter(record)]);
     return
 end
 if length(d)>1

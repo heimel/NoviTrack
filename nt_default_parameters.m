@@ -328,6 +328,8 @@ params.nt_show_overhead_mouse = true;
 %% Analysis
 params.automatically_track_mouse = false;
 
+params.nt_recompute_tracking_data = false;
+
 behaviors = {...
     {'run','running forward',[0 .7 0]},...
     {'turn_towards','turn towards object',[0 .7 0]},...
@@ -354,11 +356,11 @@ rates = {...
 params.nt_rates = cellfun( @(x) cell2struct(x,{'rate','description','color'},2),rates);
 
 params.nt_max_touching_distance = 50; % mm
-params.nt_min_run_speed = 90; % mm/s
-params.nt_min_approach_speed = 90; % mm/s, change in object distance 
-params.nt_min_retreat_speed = -70; % mm/s, note the minus sign
+params.nt_min_run_speed = 0.09; % m/s
+params.nt_min_approach_speed = 0.09; % m/s, change in object distance 
+params.nt_min_retreat_speed = -0.07; % m/s, note the minus sign
 params.nt_min_angular_velocity = 100; % deg/s
-params.nt_max_stationarity_speed = 15; % mm/s
+params.nt_max_stationarity_speed = 0.015; % m/s
 params.nt_max_distance_to_wall = 115; % mm,  was 100 before diameter correction
 params.nt_interaction_period = 10; % s, period to count interactions
 params.nt_temporal_filter_width = 5; % neurotar samples
@@ -409,13 +411,14 @@ params.nt_result_shows_individual_object_insertions = true;
 
 %% Tracking
 params.nt_show_behavior_markers = true;
-params.nt_track_timeline_max_speed = 375; 
+params.nt_track_timeline_max_speed = 0.375; % m/s
 params.nt_show_help = false;
 params.nt_show_bridge = true;
 params.nt_show_horizon = true;
 params.nt_show_boundaries = true; % neurotar frame 
 params.nt_mouse_trace_window = 3; % s
 params.nt_show_leave_wall_boundary = true;
+params.nt_forward_speed_in_speed_trace = true;
 
 if params.neurotar
     params.nt_show_distance_trace = true;
