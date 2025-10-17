@@ -43,9 +43,16 @@ video_start_time = raw{ind,2}; % e.g. '08/10/2025 13:21:17'
 ind = find(contains(raw(1:n_header_lines,1),'Start time'));
 trial_start_time = raw{ind,2}; % e.g. '08/10/2025 13:22:06'
 
-video_start_time_dt = datetime(video_start_time, 'InputFormat', 'MM/dd/yyyy HH:mm:ss');
-trial_start_time_dt = datetime(trial_start_time, 'InputFormat', 'MM/dd/yyyy HH:mm:ss');
-
+try
+    video_start_time_dt = datetime(video_start_time, 'InputFormat', 'dd/MM/yyyy HH:mm:ss');
+    trial_start_time_dt = datetime(trial_start_time, 'InputFormat', 'dd/MM/yyyy HH:mm:ss');
+catch me
+    switch me.identifier
+        case  'MATLAB:datetime:ParseErr'
+            video_start_time_dt = datetime(video_start_time, 'InputFormat', 'dd-MM-yyyy HH:mm:ss');
+            trial_start_time_dt = datetime(trial_start_time, 'InputFormat', 'dd-MM-yyyy HH:mm:ss');
+    end
+end
 time_offset = seconds(trial_start_time_dt - video_start_time_dt); % in seconds
 
 opts = detectImportOptions(filename);
