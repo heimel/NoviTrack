@@ -156,7 +156,7 @@ measures.overhead_camera_height = params.overhead_camera_height;
 
 
 %% Set up figure
-handles = nt_draw_track_window(handles,record,get_list_of_actions(),nt_data,state,measures,params);
+handles = nt_draw_track_window(handles,record,get_extended_list_of_actions(params),nt_data,state,measures,params);
 update_neurotar_frame(handles.overhead_neurotar_frame,params);
 set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
 set(handles.fig_main,'UserData',struct('action',''));
@@ -492,6 +492,9 @@ end
 %% Take action
 function [measures,state,handles,params] = take_action(action,measures,state,handles,record,params)
 if ~isempty(action) % && ~strcmp(action,prev_action)
+    action = split(action,';')';
+    args = action(2:end);
+    action = action{1};
     switch action % order list alphabetically
         case 'backward_frame'
             state.newframe = true;
@@ -548,7 +551,6 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
         case 'import_markers'
             record = nt_import_markers(record);
             measures.markers = record.measures.markers;
-
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
             state.newframe = true;
@@ -556,84 +558,20 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
             logmsg('Imported markers')
-
-        % case 'import_laser_log'
-        %     %% Load laser triggers
-        %     [~,events] = nt_load_laser_triggers(record,[],params);
-        %     for i = 1:length(events)
-        %         time = events(i).time / params.laser_time_multiplier;
-        %         duration = events(i).duration / params.laser_time_multiplier;
-        %         switch events(i).code
-        %             case 'p' % prey
-        %                 measures.markers = nt_insert_marker(measures.markers,time,'v',params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
-        %             case 'b' % both
-        %                 measures.markers = nt_insert_marker(measures.markers,time,'v',params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'t',params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time,'1',params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
-        %             case 'o' % opto
-        %                 measures.markers = nt_insert_marker(measures.markers,time,'1',params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time + duration,'0',params);
-        %         end
-        %     end
-        %     nt_show_markers(measures.markers,handles.panel_timeline,params);
-        %     nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
-        %     state.newframe = true;
-        %     state.jumptime = -state.interframe_time;
-        %     record.measures = measures;
-        %     update_record(record,handles.h_dbfig,true);
-        %     logmsg('Imported laser log')
-        % case 'import_rwd_log'
-        %     %% Load triggers from RWD log
-        %     [rwd_triggers1,rwd_events] = nt_load_rwd_triggers(record);
-        % 
-        %     % [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to,multiplier_from,multiplier_to)
-        %     if ~isempty(rwd_events)
-        %         [rwd_events.time,~,multiplier] = nt_change_times(rwd_events.time,rwd_triggers1,measures.trigger_times) ;
-        %         rwd_events.duration = rwd_events.duration * multiplier;
-        % 
-        %         % check if rwd trigger2 triggers match newstim triggers
-        %         [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
-        % 
-        %         rwd_stim_events = rwd_events(rwd_events.code=="Trigger2",:);
-        % 
-        %         rwd_diff = diff(rwd_stim_events.time);
-        %         newstim_diff = diff(newstim_triggers(:));
-        %         if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020
-        %             % triggers are the same, using newstim stimuli
-        %             for i = 1:height(newstim_events)
-        %                 time = rwd_stim_events.time(i);
-        %                 duration = newstim_events.duration(i);
-        %                 code = char(newstim_events.code(i));
-        %                 measures.markers = nt_insert_marker(measures.markers,time,code,params);
-        %                 measures.markers = nt_insert_marker(measures.markers,time+duration,['t' code(2)],params);
-        %             end
-        %         else
-        %             for i = 1:height(rwd_stim_events)
-        %                 time = rwd_stim_events.time(i); % in RWD time
-        %                 % duration = rwd_stim_events.duration(i); % can be ignored here
-        %                 measures.markers = nt_insert_marker(measures.markers,time,'h1',params);
-        %             end
-        %         end
-        %         nt_show_markers(measures.markers,handles.panel_timeline,params);
-        %         nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
-        %         state.newframe = true;
-        %         state.jumptime = -state.interframe_time;
-        %         record.measures = measures;
-        %         update_record(record,handles.h_dbfig,true);
-        %         logmsg('Imported RWD log')
-        %     end
         case 'marker_add'
-            set(handles.fig_main,'WindowKeyPressFcn',[]);
-            pause(0.01)
             prev_state = get(handles.text_state,'String');
-            set(handles.text_state,'String','Choose marker');
-            fprintf('Choose which marker to add by pressing key: ')
-            drawnow
-            waitforbuttonpress;
-            key = get(gcf,'CurrentCharacter');
-            fprintf([key '\n']);
+            set(handles.fig_main,'WindowKeyPressFcn',[]);
+            if isempty(args)
+                pause(0.01)
+                set(handles.text_state,'String','Choose marker');
+                fprintf('Choose which marker to add by pressing key: ')
+                drawnow
+                waitforbuttonpress;
+                key = get(gcf,'CurrentCharacter');
+                fprintf([key '\n']);
+            else
+                key = args{1};
+            end
             [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
             if strcmp(key,params.nt_stop_marker)
                 measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id];
@@ -644,11 +582,8 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             set(handles.text_state,'String',prev_state);
             state.newframe = true;
             state.jumptime = -state.interframe_time;
-
             record.measures = measures;
-
             update_record(record,handles.h_dbfig,true);
-
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'marker_delete'
             answer = questdlg('Do you want to delete next marker?','Delete marker','Yes','No','No');
@@ -1072,7 +1007,19 @@ markers(ind) = [];
 end
 
 
+function actions = get_extended_list_of_actions(params)
+    actions = get_list_of_actions();
 
+    val = 200;
+    for i=1 : length(params.markers)
+        marker = params.markers(i);
+        actions(end+1) = struct('action',['marker_add;' marker.marker ';' mat2str(marker.color)],...
+            'keys',[],'key_description',marker.marker,...
+            'tooltip',['Add marker ' marker.description],...
+            'toolbutton_position',val+i); %#ok<AGROW>
+    end
+
+end
 
 %% Key capturing
 
@@ -1081,12 +1028,12 @@ function actions = get_list_of_actions()
 actions = {...
     {'backward_frame',             {'leftarrow'},'Left arrow','Frame backward',90},...
     {'backward_marker',            {'p'},'p','Previous marker',80},...
-    {'backward_medium',            {'leftarrow','alt'},'Alt + Left arrow','5 s backward',0},...
+    {'backward_medium',            {'leftarrow','alt'},'Alt + Left arrow','5 s backward',85},...
     {'backward_long',              {'leftarrow','control'},'Ctrl + Left arrow','1 min backward',0},...
     {'backward_short',             {'leftarrow','shift'},'Shift + Left arrow','0.5 s backward',0},...
     {'forward_frame',              {'rightarrow'},'Right arrow','Frame forward',110},...
     {'forward_marker',             {'n'},'n','Next marker',120},...
-    {'forward_medium',             {'rightarrow','alt'},'Alt + Right arrow','5 s forward',0},...
+    {'forward_medium',             {'rightarrow','alt'},'Alt + Right arrow','5 s forward',115},...
     {'forward_long',               {'rightarrow','control'},'Ctrl + Right arrow','1 min forward',0},...
     {'forward_short',              {'rightarrow','shift'},'Shift + Right arrow','0.5 s forward',0},...
     {'goto',                       {'g'},'g','Go to time',0},...
@@ -1114,6 +1061,7 @@ actions = {...
     {'toggle_play',                {'space'},'Space','Toggle play',100},...
     {'toggle_overhead_mouse',      {'m','shift'},'M','Toggle showing mouse in overhead video',0},...
     };
+
 
 actions = cellfun( @(x) cell2struct(x,{'action','keys','key_description','tooltip','toolbutton_position'},2),actions);
 end

@@ -105,7 +105,7 @@ if ~isfield(nt_data,'Speed')
         dt = mean(diff(nt_data.Time));
         overhead_mm_per_pixel = 0.5; % coarse estimate.
         nt_data.Speed = NaN(size(nt_data.CoM_X));
-        nt_data.Speed(1:end-1) = sqrt(diff(nt_data.CoM_X).^2 + diff(nt_data.CoM_Y).^2) / dt * overhead_mm_per_pixel;
+        nt_data.Speed(1:end-1) = sqrt(diff(nt_data.CoM_X).^2 + diff(nt_data.CoM_Y).^2) / dt * overhead_mm_per_pixel /1000; % in m/s
     else
         nt_data.Speed = NaN(size(nt_data.Time));
     end

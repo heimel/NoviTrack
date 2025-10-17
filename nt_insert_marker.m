@@ -30,21 +30,23 @@ if params.markers(ind).linked
     elseif params.neurotar 
         stim_id = 1; % don't ask
     else
-        if ~isempty(handles)
-            set(handles.text_state,'String','Choose stim');
-        end
-        stim_id = NaN;
-        while isnan(stim_id)
-            fprintf('Choose which stim_id (1,2,...) by pressing number key: ')
-            drawnow
-            waitforbuttonpress;
-            key = get(gcf,'CurrentCharacter');
-            fprintf([key '\n']);
-            stim_id = str2double(key);
-            if isnan(stim_id)
-                disp([key ' is not a digit. Choose again.']);
-            end
-        end
+        stim_id = nt_ask_stim_id(handles);
+
+        % if ~isempty(handles)
+        %     set(handles.text_state,'String','Choose stim');
+        % end
+        % stim_id = NaN;
+        % while isnan(stim_id)
+        %     fprintf('Choose which stim_id (1,2,...) by pressing number key: ')
+        %     drawnow
+        %     waitforbuttonpress;
+        %     key = get(gcf,'CurrentCharacter');
+        %     fprintf([key '\n']);
+        %     stim_id = str2double(key);
+        %     if isnan(stim_id)
+        %         disp([key ' is not a digit. Choose again.']);
+        %     end
+        % end
     end
     marker = [marker(1) num2str(stim_id)];
 else 

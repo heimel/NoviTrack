@@ -8,7 +8,13 @@ function set_button_icon(button,arg)
 %
 % 2025, Alexander Heimel
 
-switch button.Tag
+tag = split(button.Tag,';');
+args = tag(2:end);
+tag = tag{1};
+
+switch tag
+    case 'marker_add'
+        ico = create_icon(args{1},'Color',str2num(args{2}));
     case 'toggle_play'
         if arg
             ico = [
@@ -50,8 +56,10 @@ switch button.Tag
                 ];
 
         end
-        ico = ico*0.95;
-        ico = repmat(ico,[1 1 3]);
+        if ndims(ico)==2
+            ico = ico*0.95;
+            ico = repmat(ico,[1 1 3]);
+        end
     otherwise
         filename = fullfile(fileparts(mfilename("fullpath")),'Icons',[button.Tag,'.png']);
         if exist(filename,'file')
@@ -83,3 +91,5 @@ switch button.Tag
 end
 button.CData = ico;
 end
+
+
