@@ -52,6 +52,7 @@ channel_names = unique(setdiff(fluorescence.Properties.VariableNames,{'TimeStamp
 
 if isempty(result)
     logmsg('No channels specified in comment. Assuming channelX = fiberX.')
+    result = [];
     for i=1:length(channel_names)
         channel_name = channel_names{i};
         result.(channel_name) = ['fiber' channel_names{i}(8:end)];
@@ -158,7 +159,7 @@ function result = parse_channels(comment)
 pattern = 'channel(\d+)\s*=\s*([^,]+)';
 tokens = regexp(comment, pattern, 'tokens', 'ignorecase');
 
-result = struct();
+result = [];
 
 for i = 1:numel(tokens)
     key = sprintf('Channel%s', strtrim(tokens{i}{1}));
@@ -169,5 +170,9 @@ for i = 1:numel(tokens)
 
     result.(key) = value;
 end
+if isempty(result)
+    result = struct([]);
+end    
+
 end
 

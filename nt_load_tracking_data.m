@@ -36,6 +36,11 @@ end
 [folder,exists] = nt_session_path(record);
 if ~exists
     logmsg(['Folder ' folder ' does not exist.'])
+    if isfield(record.measures,'trigger_times')
+        trigger_times = record.measures.trigger_times;
+    else
+        trigger_times = [];
+    end
     return
 end
 

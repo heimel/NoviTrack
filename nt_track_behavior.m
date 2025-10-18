@@ -87,30 +87,10 @@ num_cameras = length(params.nt_camera_names);
 %% Load tracking data
 [nt_data,measures.trigger_times] = nt_load_tracking_data(record,true);
 
-% %% Set time and triggers if not yet set
-% if isempty(nt_data) || ~isfield(nt_data,'Time')
-%     % no previous tracking data, using overhead camera movie as main time
-%     % from point of first trigger.
-%     % If there is no trigger, then set trigger at start of overhead video.
-%     %
-%     % Assuming mouse_tracks or DLC data to be frame-by-frame from overhead
-%     % video
-%     %
-% 
-%     if isempty(active_cameras)
-%         errormsg('No neurotar data and no video data. I don''t know what to do. I quit.');
-%         return
-%     end
-% 
-%     % video_trigger_times = measures.video_trigger_times{params.nt_overhead_camera};
-%     % if isempty(video_trigger_times)
-%     %     video_trigger_times = 0;
-%     % end
-% 
-%     nt_data.Time = extract_frametimes(handles.vidobj{params.nt_overhead_camera}) - measures.video_info(params.nt_overhead_camera).trigger_times(1);
-% 
-%     measures.trigger_times = measures.video_info(params.nt_overhead_camera).trigger_times - measures.video_info(params.nt_overhead_camera).trigger_times(1);
-% end
+if isempty(nt_data)
+    logmsg(['No data found to track for ' recordfilter(record)]);
+    return
+end
 
 %% Align videos to master_time
 for c = active_cameras
@@ -121,6 +101,8 @@ for c = active_cameras
     % TO = FROM * from_camera(c).multiplier + from_camera(c).time_offset
     [~,from_camera(c).time_offset,from_camera(c).multiplier] = nt_change_times(0,measures.video_info(c).trigger_times,measures.trigger_times);    
 end
+
+
 
 
 %% Adjust min and max time
@@ -561,8 +543,9 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
         case 'marker_add'
             prev_state = get(handles.text_state,'String');
             set(handles.fig_main,'WindowKeyPressFcn',[]);
+            pause(0.01)
+
             if isempty(args)
-                pause(0.01)
                 set(handles.text_state,'String','Choose marker');
                 fprintf('Choose which marker to add by pressing key: ')
                 drawnow
@@ -572,7 +555,9 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             else
                 key = args{1};
             end
-            [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
+           [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
+            logmsg('INSERTED MARKER')
+
             if strcmp(key,params.nt_stop_marker)
                 measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id];
                 [~,ind] = sort(measures.object_positions(:,1));
@@ -829,6 +814,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
     userdata = get(handles.fig_main,'UserData');
     userdata.action = '';
     set(handles.fig_main,'UserData',userdata);
+
 end % action different from prev_action
 end
 

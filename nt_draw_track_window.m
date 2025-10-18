@@ -241,7 +241,9 @@ end
 % handles.overhead_com = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'o','Color',[0.3 1 0.3]);
 % handles.overhead_tailbase = plot(handle(handles.panel_video(params.nt_overhead_camera)),1,1,'x','Color',[0 1 0]);
 
-handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0],'Marker','o','MarkerFaceColor',[0 1 0]);
+% with marker nicer but much slower
+%handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0],'Marker','o','MarkerFaceColor',[0 1 0]);
+handles.overhead_mouse = line(handle(handles.panel_video(params.nt_overhead_camera)),[0 10 0],[0 20 40],'Color',[0 1 0]);
 
 % update_neurotar_frame(handles.overhead_neurotar_frame,params);
 
@@ -265,10 +267,11 @@ end
 
 
 
-function callback_toolbar(src,~)
+function callback_toolbar(src,event)
 % callback for toolbar buttons
 toolbar = src.Parent;
 fig = get(toolbar,'Parent');
+focus(fig); % to avoid a new call to the button when user hits space
 userdata = get(fig,'UserData');
 userdata.action = src.Tag;
 set(fig,'UserData',userdata)

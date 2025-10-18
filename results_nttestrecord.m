@@ -21,6 +21,7 @@ if isempty(measures)
     return
 end
 
+
 nt_get_ethogram(record,true); % Show ethogram
 
 nt_plot_photometry(record);
@@ -28,7 +29,7 @@ nt_plot_photometry(record);
 nt_plot_events(record);
 
 if ~isfield(measures,'behaviors')
-    logmsg('No behaviors. Run analysis first');
+    %logmsg('No behaviors. Run analysis first');
     return
 end
 
@@ -187,5 +188,5 @@ if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
 end
 
 %%
-
 logmsg('Measures available in workspace as ''measures'', record as ''global_record''.');
+
