@@ -31,9 +31,9 @@ for c = 1:length(measures.channels)
     hold on
     for i = 1:length(channel.lights)
         type = channel.lights(i).type;
-        if strcmp(type,'isosbestic') && measures.photometry_isosbestic_correction
-            continue % don't plot if used for correction
-        end
+        % if strcmp(type,'isosbestic') && measures.photometry_isosbestic_correction
+        %     continue % don't plot if used for correction
+        % end
         f_signal = photometry.(channel.channel).(type).signal;
         time = photometry.(channel.channel).(type).time;
         mask = (time>measures.period_of_interest(1) & time<measures.period_of_interest(2));

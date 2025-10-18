@@ -18,10 +18,10 @@ end
 params = struct;
 
 % Constants
-params.ARENA = 1;
-params.NEUROTAR = 2;
-params.CAMERA = 3;
-params.OVERHEAD = 4; 
+params.ARENA = 1;      % m
+params.NEUROTAR = 2;   % m
+params.CAMERA = 3;     % m
+params.OVERHEAD = 4;   % pxl
 
 % Data storage
 % Below is a placeholder line. Replace to right folder in processparams_local.m
@@ -403,11 +403,8 @@ params.nt_color_gda3m = [0 0.8 0];
 params.nt_color_signal = [0 0.8 0];
 params.nt_color_isosbestic = [0.2 0.2 1];
 
-
-
 %% Results
 params.nt_result_shows_individual_object_insertions = true;
-
 
 %% Tracking
 params.nt_show_behavior_markers = true;
@@ -419,6 +416,7 @@ params.nt_show_boundaries = true; % neurotar frame
 params.nt_mouse_trace_window = 3; % s
 params.nt_show_leave_wall_boundary = true;
 params.nt_forward_speed_in_speed_trace = true;
+params.nt_show_mouse_keypoints = true; % true is nice, but slow
 
 if params.neurotar
     params.nt_show_distance_trace = true;

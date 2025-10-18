@@ -117,6 +117,9 @@ neurotar_data.CoM_Y = NaN(n_samples,1);
 neurotar_data.tailbase_X = NaN(n_samples,1);
 neurotar_data.tailbase_Y = NaN(n_samples,1);
 
+
+neurotar_data.Coordinates = params.ARENA;
+
 end
 
 function neurotar_data = convert_table_to_struct( neurotar_data_table)

@@ -4,17 +4,18 @@ function [nt_data,trigger_times] = nt_load_tracking_data(record,recompute)
 %   [NT_DATA,TRIGGER_TIMES] = nt_load_tracking_data(RECORD,VID,RECOMPUTE = false)
 %
 %   returns NT_DATA = struct with fields
-%             Time: [n_samples×1 double]  in seconds
-%                X: [n_samples×1 double]  tip of nose, X
-%                Y: [n_samples×1 double]  tip of nose, Y
-%            CoM_X: [n_samples×1 double]  center of mass, X
-%            CoM_Y: [n_samples×1 double]  center of mass, Y
-%       tailbase_X: [n_samples×1 double]  tailbase, X
-%       tailbase_Y: [n_samples×1 double]  tailbase, Y
-%    	     alpha: [n_samples×1 double]
-%    Forward_speed: [n_samples×1 double]
-% Angular_velocity: [n_samples×1 double]
-%  Object_distance: 
+%             Time: [n_samples×1 double]  (s)
+%                X: [n_samples×1 double]  tip of nose, X 
+%                Y: [n_samples×1 double]  tip of nose, Y 
+%            CoM_X: [n_samples×1 double]  center of mass, X 
+%            CoM_Y: [n_samples×1 double]  center of mass, Y 
+%       tailbase_X: [n_samples×1 double]  tailbase, X 
+%       tailbase_Y: [n_samples×1 double]  tailbase, Y 
+%    	     alpha: [n_samples×1 double]  NOT IMPLEMENTED
+%    Forward_speed: [n_samples×1 double]  NOT IMPLEMENTED
+% Angular_velocity: [n_samples×1 double]  NOT IMPLEMENTED
+%  Object_distance: [n_samples×1 double]  NOT IMPLEMENTED
+%      Coordinates: params.ARENA,.NEUROTAR,.CAMERA,.OVERHEAD coordinate system of X,Y data
 %
 %   TRIGGER_TIMES = [1xn_triggers] vector of trigger times in reference of
 %   NT_DATA.Time
