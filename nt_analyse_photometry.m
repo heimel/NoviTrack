@@ -46,7 +46,7 @@ end
 %% Compute correlations
 nt_data_sample_rate = 1/median(diff(nt_data.Time));
 
-variables = {'Speed','Angular_velocity'};
+variables = {'Speed','Angular_velocity','Abs_angular_velocity','Distance_to_center'};
 
 measures.correlation = [];
 for v = 1:length(variables)
@@ -60,7 +60,7 @@ for v = 1:length(variables)
             if resample_motion
                 t = photometry.(channel.channel).(type).time;
                 mask = (t>measures.period_of_interest(1) & t<measures.period_of_interest(2));
-                x = photometry.Channel1.gda3m.signal(mask);
+                x = photometry.(channel.channel).(type).signal(mask);
                 y = interp1(nt_data.Time,nt_data.(variable),t(mask));
             else % resample photometry
                 t = nt_data.Time;
@@ -68,8 +68,9 @@ for v = 1:length(variables)
                 x = nt_data.(variable)(mask);
                 y = interp1(photometry.(channel.channel).(type).time,photometry.(channel.channel).(type).signal,t(mask));
             end
-            [cc,p] = corrcoef(x,y);
-            if p<0.05
+            [cc,p] = corrcoef(x,y,'Rows','complete');
+            if p<0.10
+                logmsg('Found some correlation')
                 measures.correlation.(channel.channel).(type).(variable) = cc(1,2);
             end
         end % type i

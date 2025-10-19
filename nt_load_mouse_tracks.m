@@ -1,5 +1,5 @@
 function nt_data = nt_load_mouse_tracks(record)
-%nt_load_mouse_tracks. Loads results from nt_track_mouse
+%nt_load_mouse_tracks. Loads results from nt_track_mouse (Blomer analysis)
 %
 %    nt_data = nt_load_mouse_tracks(record)
 %

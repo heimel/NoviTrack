@@ -26,7 +26,7 @@ n_events = height(events);
 
 t_bins = measures.snippets_tbins;
 
-observables = ["Speed","Angular_velocity"];
+observables = ["Speed","Abs_angular_velocity","Distance_to_center"];
 
 measures.correlation = [];
 for observable = observables(:)'
