@@ -45,6 +45,9 @@ function events = merge_simultaneous_triggers(events,params)
 
 d = diff(events.time);
 ind = find(d<=params.rwd_slack_time);
+if isempty(ind) % no events to merge
+    return
+end
 if any(diff(ind)==1)
     logmsg('NOT IMPLEMENTED SIMULTANEOUS EVENTS OF MORE THAN TWO TRIGGERS');
 end
