@@ -43,7 +43,7 @@ for c = 1:length(measures.channels)
             % interpolate at bin times;
 
             if sum(mask)<3
-                logmsg('No photometry data points in event')
+                logmsg(['No photometry data points for event at ' num2str(event_time,2) ' s.'])
                 snippet = NaN(size(t_bins));
             else
                 snippet = interp1(time(mask),photometry.(channel.channel).(type).signal(mask),event_time + t_bins,[],'extrap');
@@ -51,10 +51,10 @@ for c = 1:length(measures.channels)
 
             snippets.data.(field)(j,:) = snippet;
             if params.nt_photometry_subtract_baseline
-                snippets.data.(field)(j,:) = snippets.data.(field)(j,:) - mean(snippet(mask_pre));
+                snippets.data.(field)(j,:) = snippets.data.(field)(j,:) - mean(snippet(mask_pre),'omitnan');
             end
         end % events j
-        snippets.baseline_std.(field) = median(std(snippets.data.(field)(:,mask_pre),[],2));
+        snippets.baseline_std.(field) = median(std(snippets.data.(field)(:,mask_pre),[],2,'omitnan'),'omitnan');
         if params.nt_photometry_zscoring
             snippets.data.(field) = snippets.data.(field)/snippets.baseline_std.(field);
             snippets.unit.(field) = 'zscore';

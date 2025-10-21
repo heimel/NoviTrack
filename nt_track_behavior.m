@@ -612,7 +612,11 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             update_record(record,handles.h_dbfig,true);
 
         case 'position_delete'
-            ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
+            if ~isempty(measures.object_positions)
+                ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
+            else
+                ind = [];
+            end
             if ~isempty(ind)
                 logmsg(['Deleting object position: ' mat2str(measures.object_positions(ind,:))])
                 measures.object_positions(ind,:) = [];
