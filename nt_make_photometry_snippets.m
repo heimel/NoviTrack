@@ -41,7 +41,14 @@ for c = 1:length(measures.channels)
             mask = time> (event_time - params.nt_photometry_pretime - params.nt_photometry_bin_width) & ...
                 time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
             % interpolate at bin times;
-            snippet = interp1(time(mask),photometry.(channel.channel).(type).signal(mask),event_time + t_bins,[],'extrap');
+
+            if sum(mask)<3
+                logmsg('No photometry data points in event')
+                snippet = NaN(size(t_bins));
+            else
+                snippet = interp1(time(mask),photometry.(channel.channel).(type).signal(mask),event_time + t_bins,[],'extrap');
+            end
+
             snippets.data.(field)(j,:) = snippet;
             if params.nt_photometry_subtract_baseline
                 snippets.data.(field)(j,:) = snippets.data.(field)(j,:) - mean(snippet(mask_pre));

@@ -122,6 +122,12 @@ if ~isfield(nt_data,'X') % nose
     nt_data.X = NaN(size(nt_data.Time));
     nt_data.Y = NaN(size(nt_data.Time));
 end
+
+if ~isfield(nt_data,'Coordinates') % nose
+    nt_data.Coordinates = params.OVERHEAD;
+end
+
+
 if ~isfield(nt_data,'CoM_X')
     nt_data.CoM_X = NaN(size(nt_data.Time));
     nt_data.CoM_Y = NaN(size(nt_data.Time));
