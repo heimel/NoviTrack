@@ -16,7 +16,12 @@ params = nt_default_parameters(record);
 event_types = string(fields(measures.event));
 
 filename = fullfile(nt_session_path(record),'nt_snippets.mat');
-load(filename,'snippets'); 
+if exist(filename,'file')
+    load(filename,'snippets');
+else
+    logmsg('No snippets file found. Run analysis.')
+    snippets = [];
+end
 events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
 n_events = height(events);
 
@@ -78,7 +83,9 @@ for event_type = event_types(:)'
         nexttile(3*row*n_actual_cols + col*2+1);
         title([char(subst_ctlchars(observable)) ', n = ' num2str(event.(observable).n)])
         ind_events = find(events.event==event_type);
-        imagesc('xdata',t,'cdata',snippets.data.(observable)(ind_events,:))
+        if ~isempty(snippets)
+            imagesc('xdata',t,'cdata',snippets.data.(observable)(ind_events,:))
+        end
         xlabel([]);
         xticks([]);
         ylabel('Trial');
@@ -102,7 +109,9 @@ for event_type = event_types(:)'
         errorband(t,y,1.97*b,clr,0.3); % 95% CI
         h(end+1) = plot(t,y,'Color',clr);
         xlabel('Time (s)')
-        ylabel(snippets.unit.(observable));
+        if ~isempty(snippets)
+            ylabel(snippets.unit.(observable));
+        end
         count = count + 1;
     end % observable 
 end % event

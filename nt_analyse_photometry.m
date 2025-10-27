@@ -43,13 +43,61 @@ end
 
 nt_data_sample_rate = 1/median(diff(nt_data.Time));
 
-%% Compute map
+%% Compute maps
+measures = compute_maps(nt_data,photometry,measures,params);
+
+%% Compute correlations
+
+variables = {'Speed','Angular_velocity','Abs_angular_velocity','Distance_to_center'};
+
+measures.correlation = [];
+for v = 1:length(variables)
+    variable = variables{v};
+    for c = 1:length(measures.channels)
+        channel = measures.channels(c);
+        photometry_sample_rate = measures.channels(c).sample_rate;
+        resample_motion = (photometry_sample_rate < nt_data_sample_rate);
+        for i =1:length(channel.lights)
+            type = channel.lights(i).type;
+            if resample_motion
+                t = photometry.(channel.channel).(type).time;
+                mask = (t>measures.period_of_interest(1) & t<measures.period_of_interest(2));
+                x = photometry.(channel.channel).(type).signal(mask);
+                y = interp1(nt_data.Time,nt_data.(variable),t(mask));
+            else % resample photometry
+                t = nt_data.Time;
+                mask = (t>measures.period_of_interest(1) & t<measures.period_of_interest(2));
+                x = nt_data.(variable)(mask);
+                y = interp1(photometry.(channel.channel).(type).time,photometry.(channel.channel).(type).signal,t(mask));
+            end
+            [cc,p] = corrcoef(x,y,'Rows','complete');
+            if p<0.10
+                logmsg('Found some correlation')
+                measures.correlation.(channel.channel).(type).(variable) = cc(1,2);
+            end
+        end % type i
+    end % channel c
+end % variable v
+
+record.measures = measures;
+end
+
+%%
+
+function measures = compute_maps(nt_data,photometry,measures,params)
+% computes spatials maps of photometry data
+
+if ~params.nt_compute_maps
+    return
+end
+
+if all(isnan(nt_data.CoM_X))
+    return
+end
 
 ind = find(nt_data.Time >= measures.period_of_interest(1) & nt_data.Time <= measures.period_of_interest(2));
 time = nt_data.Time(ind);
 
-
-params.nt_map_bins = 100;
 n_x = ceil(sqrt(params.nt_map_bins));
 n_y = n_x;
 range_x = [min(nt_data.CoM_X(ind)) max(nt_data.CoM_X(ind))];
@@ -89,38 +137,4 @@ for c = 1:length(measures.channels)
         measures.maps.(channel.channel).(type) = map;
     end % type t
 end % channel c
-
-%% Compute correlations
-
-variables = {'Speed','Angular_velocity','Abs_angular_velocity','Distance_to_center'};
-
-measures.correlation = [];
-for v = 1:length(variables)
-    variable = variables{v};
-    for c = 1:length(measures.channels)
-        channel = measures.channels(c);
-        photometry_sample_rate = measures.channels(c).sample_rate;
-        resample_motion = (photometry_sample_rate < nt_data_sample_rate);
-        for i =1:length(channel.lights)
-            type = channel.lights(i).type;
-            if resample_motion
-                t = photometry.(channel.channel).(type).time;
-                mask = (t>measures.period_of_interest(1) & t<measures.period_of_interest(2));
-                x = photometry.(channel.channel).(type).signal(mask);
-                y = interp1(nt_data.Time,nt_data.(variable),t(mask));
-            else % resample photometry
-                t = nt_data.Time;
-                mask = (t>measures.period_of_interest(1) & t<measures.period_of_interest(2));
-                x = nt_data.(variable)(mask);
-                y = interp1(photometry.(channel.channel).(type).time,photometry.(channel.channel).(type).signal,t(mask));
-            end
-            [cc,p] = corrcoef(x,y,'Rows','complete');
-            if p<0.10
-                logmsg('Found some correlation')
-                measures.correlation.(channel.channel).(type).(variable) = cc(1,2);
-            end
-        end % type i
-    end % channel c
-end % variable v
-
-record.measures = measures;
+end

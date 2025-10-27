@@ -403,6 +403,11 @@ params.nt_color_gda3m = [0 0.8 0];
 params.nt_color_signal = [0 0.8 0];
 params.nt_color_isosbestic = [0.2 0.2 1];
 
+% Spatial maps
+params.nt_compute_maps = true;
+params.nt_map_bins = 100; % Approximate number
+
+
 %% Results
 params.nt_result_shows_individual_object_insertions = true;
 
