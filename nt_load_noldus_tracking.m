@@ -23,5 +23,5 @@ nt_data.Time = tbl.VideoTime;
 nt_data.CoM_X = tbl.XCenter * 0.01; % convert to m
 nt_data.CoM_Y = -tbl.YCenter * 0.01; % convert to m, and swap axis
 nt_data.Speed = tbl.Velocity * 0.01; % converting to m/s
-nt_data.Coordinates = params.ARENA; 
+nt_data.Coordinates = params.CAMERA; 
 

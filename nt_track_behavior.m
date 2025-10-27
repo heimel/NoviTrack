@@ -318,6 +318,11 @@ if params.nt_show_overhead_mouse
             %     nt_change_arena_to_overhead_coordinates([state.X state.CoM_X state.tailbase_X],[state.Y state.CoM_Y state.tailbase_Y],[],[],[],params);
             [handles.overhead_mouse.XData,handles.overhead_mouse.YData] = ...
                 nt_change_arena_to_overhead_coordinates(state.CoM_X *1000,state.CoM_Y*1000 ,[],[],[],params);
+
+        case params.CAMERA
+            [handles.overhead_mouse.XData,handles.overhead_mouse.YData] = ...
+                nt_change_camera_to_overhead_coordinates(state.CoM_X *1000,state.CoM_Y*1000,params);
+            
         otherwise
             logmsg('SHOWING OVERHEAD MOUSE IN THESE COORDINATES IS NOT YET IMPLEMENTED.')
     end

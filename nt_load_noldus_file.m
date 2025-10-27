@@ -1,7 +1,7 @@
 function tbl = nt_load_noldus_file(record)
 % nt_load_noldus_file. Loads Noldus analysis xlsx file
 %
-%    tbl = nt_load_noluds_tracking(record)
+%    tbl = nt_load_noldus_file(record)
 %
 %      tbl.VideoTime contains time from start of video (s)
 %

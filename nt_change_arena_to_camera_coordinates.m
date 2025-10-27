@@ -9,6 +9,13 @@ if params.neurotar
     errormsg('NOT IMPLEMENTED YET');
 end
 
+if isempty(arena_x) || isempty(arena_y)
+    camera_x = [];
+    camera_y = [];
+    return
+end
+
+
 %% Fixed arena
 
 % swap direction of x-axis

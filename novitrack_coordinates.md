@@ -18,6 +18,8 @@ Two temporal coordinate systems are used in NoviTrack.
 
 The tracking defaults to using Neurotar time if it is available.
 
+IN THE MIDDLE OF TRANSITION OF mm as UNIT to m.
+
 ## Spatial coordinate systems 
 
 ### Overhead 
@@ -33,7 +35,7 @@ Only used internally as intermediate transformation.
 
 ### Arena 
 
-[arena_x, arena_y] (mm) are coordinates in the arena. 
+[arena_x, arena_y] (m) are coordinates in the arena. 
 
 On the neurotar setup, a physical object in the arena will have fixed arena coordinates. 
 The neurotar coordinates of the object will change if the arena is moved on the neurotar setup. 

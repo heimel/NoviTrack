@@ -26,6 +26,8 @@ nt_get_ethogram(record,true); % Show ethogram
 
 nt_plot_photometry(record);
 
+nt_plot_maps(record);
+
 nt_plot_events(record);
 
 if ~isfield(measures,'behaviors')

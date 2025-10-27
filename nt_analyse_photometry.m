@@ -37,14 +37,60 @@ record.measures = measures;
 filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');
 save(filename,'photometry');
 
-
-
 if isempty(nt_data)
     return
 end
 
-%% Compute correlations
 nt_data_sample_rate = 1/median(diff(nt_data.Time));
+
+%% Compute map
+
+ind = find(nt_data.Time >= measures.period_of_interest(1) & nt_data.Time <= measures.period_of_interest(2));
+time = nt_data.Time(ind);
+
+
+params.nt_map_bins = 100;
+n_x = ceil(sqrt(params.nt_map_bins));
+n_y = n_x;
+range_x = [min(nt_data.CoM_X(ind)) max(nt_data.CoM_X(ind))];
+range_y = [min(nt_data.CoM_Y(ind)) max(nt_data.CoM_Y(ind))];
+
+res = min([diff(range_x)/n_x diff(range_y)/n_y]);
+n_x = ceil(diff(range_x)/res);
+n_y = ceil(diff(range_y)/res);
+
+x = nt_data.CoM_X(ind) - range_x(1) ;
+x = ceil(x/res);
+x(x==0) = 1;
+y = nt_data.CoM_Y(ind) - range_y(1) ;
+y = ceil(y/res);
+y(y==0) = 1;
+
+counts = zeros(n_x,n_y);
+for i = 1:length(x)
+    counts(x(i),y(i)) = counts(x(i),y(i)) + 1;
+end
+
+measures.maps.counts = counts;
+for c = 1:length(measures.channels)
+    channel = measures.channels(c);
+    for t = 1:length(channel.lights)
+        type = channel.lights(t).type;
+        map = NaN(n_x,n_y);
+        ph = interp1(photometry.(channel.channel).(type).time,photometry.(channel.channel).(type).signal,time);
+        for i = 1:length(time)
+            if isnan(map(x(i),y(i)))
+                map(x(i),y(i)) = ph(i);
+            else
+                map(x(i),y(i)) = map(x(i),y(i)) + ph(i);
+            end
+        end
+        map = map ./ counts;
+        measures.maps.(channel.channel).(type) = map;
+    end % type t
+end % channel c
+
+%% Compute correlations
 
 variables = {'Speed','Angular_velocity','Abs_angular_velocity','Distance_to_center'};
 
