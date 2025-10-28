@@ -33,7 +33,6 @@ if params.nt_photometry_isosbestic_correction
 
         f_signal_part = f_signal(mask);
         f_iso_part = f_iso(mask);
-        time_part = time(mask);
 
         % Linear regression: F_signal ≈ a * F_iso + b
         X = [f_iso_part ones(size(f_iso_part))];

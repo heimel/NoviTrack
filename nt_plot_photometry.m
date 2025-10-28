@@ -55,7 +55,11 @@ for c = 1:length(measures.channels)
     if ~isempty(channel.red_sensor)
         txt =txt +  ", red = " + channel.red_sensor;
     end
-    txt(end+1) = sprintf("Baseline = %.2f Isos %+.2f",channel.fit_isos(1),-channel.fit_isos(2));
+    ind410 = find([channel.lights(:).wavelength]==410);
+    ind470 = find([channel.lights(:).wavelength]==470);
+
+    txt(end+1) = sprintf("Median410 = %.2f, Median470 = %.2f, Baseline = %.2f Isos %+.2f",...
+        channel.lights(ind410).median,channel.lights(ind470).median,channel.fit_isos(1),-channel.fit_isos(2));
     title(txt)
     nt_show_markers(measures.markers,ax1,params,[],[])
 

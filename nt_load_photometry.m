@@ -123,8 +123,8 @@ end
 measures.period_of_interest = [-Inf Inf];
 if isfield(measures,'markers') && ~isempty(measures.markers) 
     % if there are markers
-    measures.period_of_interest(1) = max(fluorescence.time(1),min([measures.markers.time]) - params.nt_pretime * 2);
-    measures.period_of_interest(2) = min(fluorescence.time(end),max([measures.markers.time]) + params.nt_posttime * 2);
+    measures.period_of_interest(1) = max(fluorescence.time(1),min([measures.markers.time]) - params.nt_pretime );
+    measures.period_of_interest(2) = min(fluorescence.time(end),max([measures.markers.time]) + params.nt_posttime );
 else
     % otherwise remove first and last 5% of the data
     duration = fluorescence.time(end) - fluorescence.time(1);
@@ -138,8 +138,12 @@ for c = 1:length(measures.channels)
     channel = measures.channels(c);
     for i = 1:length(channel.lights)
             type = channel.lights(i).type;
-            photometry.(channel.channel).(type).time = fluorescence.time(fluorescence.Lights==channel.lights(i).wavelength);
+            time = fluorescence.time(fluorescence.Lights==channel.lights(i).wavelength);
+            photometry.(channel.channel).(type).time = time;
             photometry.(channel.channel).(type).signal = fluorescence.(channel.channel)(fluorescence.Lights==channel.lights(i).wavelength);
+
+            msk = (time>measures.period_of_interest(1) & time<measures.period_of_interest(2));
+            measures.channels(c).lights(i).median = median(photometry.(channel.channel).(type).signal(msk));
     end
     dt = median(diff(photometry.(channel.channel).(type).time));
     measures.channels(c).sample_rate = 1/dt;
