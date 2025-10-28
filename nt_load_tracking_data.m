@@ -84,7 +84,14 @@ video_info = record.measures.video_info(params.nt_overhead_camera);
 
 if ~isfield(nt_data,'Time') || isempty(nt_data.Time)
     nt_data.Time = extract_frametimes(video_info);
+
+    if isfield(nt_data,'CoM_X') && ~isempty(nt_data.CoM_X)
+        if length(nt_data.CoM_X) ~= length(nt_data.Time)
+            logmsg(['Number of video frames and number of tracked position are unequal in ' recordfilter(record)]);
+        end
+    end
 end
+
 
 nt_data.Time = nt_data.Time - video_info.trigger_times(1);
 trigger_times = video_info.trigger_times - video_info.trigger_times(1);

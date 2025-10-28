@@ -46,9 +46,12 @@ if nt_check_markers( record, params, verbose ) == false
 end
 
 % make events table, used throughout analysis
-record.measures.events = table([record.measures.markers.time]',...
-    string({record.measures.markers.marker}'),'VariableNames',{'time','event'});
-
+if ~isempty(record.measures.markers)
+    record.measures.events = table([record.measures.markers.time]',...
+        string({record.measures.markers.marker}'),'VariableNames',{'time','event'});
+else
+    record.measures.events = table([],[],'VariableNames',{'time','event'});
+end
 
 if params.use_clean_baseline 
     events = record.measures.events;
