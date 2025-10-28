@@ -330,6 +330,11 @@ params.automatically_track_mouse = false;
 
 params.nt_recompute_tracking_data = false;
 
+params.nt_pretime = 10; % s, pre-event time (baseline)
+params.nt_posttime = 20; % s, post-event time (response period)
+params.use_clean_baseline = false; % if true, then removes all following same events within pretime of event.
+params.use_ultraclean_baseline = false; % if true, then removes all following events within pretime of event.
+
 behaviors = {...
     {'run','running forward',[0 .7 0]},...
     {'turn_towards','turn towards object',[0 .7 0]},...
@@ -383,8 +388,6 @@ params.rwd_n_inputs = 5; % number of input channels
 params.rwd_initial_input_state = NaN(1,params.rwd_n_inputs);
 params.rwd_initial_input_state([1 2]) = [1 1];
 
-params.nt_photometry_pretime = 10; % s
-params.nt_photometry_posttime = 20; % s
 params.nt_photometry_window_width = 0.1; % s
 params.nt_photometry_bin_width = 0.1; % s
 params.nt_photometry_time_offset = 0; % shifts all photometry data 

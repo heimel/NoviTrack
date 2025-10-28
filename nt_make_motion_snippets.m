@@ -20,9 +20,9 @@ if isempty(measures.markers) || isempty(nt_data)
     return
 end
 
-events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+% events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+events = measures.events;
 n_events = height(events);
-
 
 t_bins = measures.snippets_tbins;
 
@@ -36,8 +36,8 @@ for observable = observables(:)'
     for j = 1:n_events
         event_time = events.time(j);
         time = nt_data.Time;
-        mask = time> (event_time - params.nt_photometry_pretime - params.nt_photometry_bin_width) & ...
-            time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
+        mask = time> (event_time - params.nt_pretime - params.nt_photometry_bin_width) & ...
+            time < (event_time + params.nt_posttime + params.nt_photometry_bin_width);
         if any(mask)
             snippet = interp1(time(mask),nt_data.(observable)(mask),event_time + t_bins,[],'extrap');
             snippets.data.(observable)(j,:) = snippet;

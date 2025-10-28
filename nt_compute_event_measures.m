@@ -16,7 +16,8 @@ if isempty(snippets)
     return
 end
 
-events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+%events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+events = measures.events;
 unique_events = unique(events.event);
 
 mask_post = (measures.snippets_tbins>0);

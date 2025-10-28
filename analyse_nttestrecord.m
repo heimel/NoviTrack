@@ -27,14 +27,6 @@ record = nt_add_surgery_info(record);
 
 nt_data = nt_load_tracking_data(record);
 
-% [nt_data,neurotar_filename] = nt_load_neurotar_data(record);
-% if isempty(nt_data)
-%     nt_data = nt_load_mouse_tracks(record);
-% end
-% if isempty(nt_data)
-%      nt_data = nt_load_DLC_data(record);
-% end
-
 if isempty(nt_data)
     logmsg(['Could not any position data for ' recordfilter(record)]);
 end
@@ -53,7 +45,34 @@ if nt_check_markers( record, params, verbose ) == false
     return
 end
 
-record.measures.snippets_tbins = (-params.nt_photometry_pretime + params.nt_photometry_bin_width/2):params.nt_photometry_bin_width:(params.nt_photometry_posttime-params.nt_photometry_bin_width/2);
+% make events table, used throughout analysis
+record.measures.events = table([record.measures.markers.time]',...
+    string({record.measures.markers.marker}'),'VariableNames',{'time','event'});
+
+
+if params.use_clean_baseline 
+    events = record.measures.events;
+    i = 1;
+    % remove all same events within pretime
+    while i<height(events)
+        events(events.time>events.time(i) & events.time<(events.time(i) + params.nt_pretime) & events.event == events.event(i),:) = [];
+        i = i + 1;
+    end
+    record.measures.events = events;
+end
+if params.use_ultraclean_baseline 
+    events = record.measures.events;
+    i = 1;
+    % remove all events within pretime
+    while i<height(events)
+        events(events.time>events.time(i) & events.time<(events.time(i) + params.nt_pretime) ,:) = [];
+        i = i + 1;
+    end
+    record.measures.events = events;
+end
+
+
+record.measures.snippets_tbins = (-params.nt_pretime + params.nt_photometry_bin_width/2):params.nt_photometry_bin_width:(params.nt_posttime-params.nt_photometry_bin_width/2);
 
 %% Photometry analysis
 [record,photometry] = nt_analyse_photometry(record,nt_data,verbose);

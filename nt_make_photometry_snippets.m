@@ -20,7 +20,8 @@ if ~isfield(measures,'markers') || isempty(measures.markers)
     return
 end
 
-events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+%events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+events = measures.events;
 n_events = height(events);
 
 t_bins = measures.snippets_tbins;
@@ -38,8 +39,8 @@ for c = 1:length(measures.channels)
         for j = 1:n_events
             event_time = events.time(j);
             time = photometry.(channel.channel).(type).time;
-            mask = time> (event_time - params.nt_photometry_pretime - params.nt_photometry_bin_width) & ...
-                time < (event_time + params.nt_photometry_posttime + params.nt_photometry_bin_width);
+            mask = time> (event_time - params.nt_pretime - params.nt_photometry_bin_width) & ...
+                time < (event_time + params.nt_posttime + params.nt_photometry_bin_width);
             % interpolate at bin times;
 
             if sum(mask)<3

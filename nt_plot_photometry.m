@@ -48,7 +48,9 @@ for c = 1:length(measures.channels)
     nt_show_markers(measures.markers,ax1,params,[],[])
 
     % Heat plot all snippets
-        events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+    %    events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+        events = measures.events;
+
     n_plots = length(channel.lights);
     if measures.photometry_isosbestic_correction
         n_plots = n_plots - 1;
@@ -89,7 +91,7 @@ end %c
 %     count = 1;
 %     for event = measures.unique_events(:)'
 %         subplot(n_rows,n_cols,count);
-%         plot([-params.nt_photometry_pretime params.nt_photometry_posttime],[0 0],'-k');
+%         plot([-params.nt_pretime params.nt_posttime],[0 0],'-k');
 %         hold on
 %         h = [];
 %         labels = {};

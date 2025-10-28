@@ -22,9 +22,8 @@ else
     logmsg('No snippets file found. Run analysis.')
     snippets = [];
 end
-events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
-n_events = height(events);
-
+%events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
+events = measures.events;
 
 for event_type = event_types(:)'
     event = measures.event.(event_type);
@@ -98,7 +97,7 @@ for event_type = event_types(:)'
         nexttile((3*row+1)*n_actual_cols + col*2+1);
         hold on
 
-        plot([-params.nt_photometry_pretime params.nt_photometry_posttime],[0 0],'-k');
+        plot([-params.nt_pretime params.nt_posttime],[0 0],'-k');
         box off
         y = event.(observable).snippet_mean;
         b = event.(observable).snippet_sem;

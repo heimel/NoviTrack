@@ -24,7 +24,7 @@ if params.nt_photometry_isosbestic_correction
         if params.nt_only_use_pretime_for_isosbestic_correction
             mask = false(size(time));
             for i = 1:length(measures.markers)
-                mask = mask | (time>measures.markers(i).time-params.nt_photometry_pretime & time<measures.markers(i).time);
+                mask = mask | (time>measures.markers(i).time-params.nt_pretime & time<measures.markers(i).time);
             end % i
             if sum(mask)/channel.sample_rate<10
                 logmsg('Warning: less than 10s of pre-marker data to use for isosbestic correction');

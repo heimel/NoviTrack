@@ -123,8 +123,8 @@ end
 measures.period_of_interest = [-Inf Inf];
 if isfield(measures,'markers') && ~isempty(measures.markers) 
     % if there are markers
-    measures.period_of_interest(1) = max(fluorescence.time(1),min([measures.markers.time]) - params.nt_photometry_pretime * 2);
-    measures.period_of_interest(2) = min(fluorescence.time(end),max([measures.markers.time]) + params.nt_photometry_posttime * 2);
+    measures.period_of_interest(1) = max(fluorescence.time(1),min([measures.markers.time]) - params.nt_pretime * 2);
+    measures.period_of_interest(2) = min(fluorescence.time(end),max([measures.markers.time]) + params.nt_posttime * 2);
 else
     % otherwise remove first and last 5% of the data
     duration = fluorescence.time(end) - fluorescence.time(1);
