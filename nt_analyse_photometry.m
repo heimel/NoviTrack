@@ -116,7 +116,9 @@ y(y==0) = 1;
 
 counts = zeros(n_x,n_y);
 for i = 1:length(x)
-    counts(x(i),y(i)) = counts(x(i),y(i)) + 1;
+    if ~isnan(x(i)) && ~isnan(y(i))
+        counts(x(i),y(i)) = counts(x(i),y(i)) + 1;
+    end
 end
 
 measures.maps.counts = counts;
@@ -127,6 +129,9 @@ for c = 1:length(measures.channels)
         map = NaN(n_x,n_y);
         ph = interp1(photometry.(channel.channel).(type).time,photometry.(channel.channel).(type).signal,time);
         for i = 1:length(time)
+            if isnan(x(i)) || isnan(y(i))
+                continue
+            end
             if isnan(map(x(i),y(i)))
                 map(x(i),y(i)) = ph(i);
             else

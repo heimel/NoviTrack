@@ -44,7 +44,19 @@ for c = 1:length(measures.channels)
     xlabel('Time (s)')
     plot(measures.period_of_interest(1)*[1 1],ylim,'-k');
     plot(measures.period_of_interest(2)*[1 1],ylim,'-k');
-    title(channel.channel)
+
+    txt = string(subst_ctlchars(record.sessionid));
+    txt = txt + " " + channel.channel;
+
+    txt =txt +  ", " + channel.hemisphere + " " + channel.location;
+    if ~isempty(channel.green_sensor)
+        txt = txt + ", green = " +  channel.green_sensor;
+    end
+    if ~isempty(channel.red_sensor)
+        txt =txt +  ", red = " + channel.red_sensor;
+    end
+    txt(end+1) = sprintf("Baseline = %.2f Isos %+.2f",channel.fit_isos(1),-channel.fit_isos(2));
+    title(txt)
     nt_show_markers(measures.markers,ax1,params,[],[])
 
     % Heat plot all snippets
