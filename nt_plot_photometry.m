@@ -58,7 +58,7 @@ for c = 1:length(measures.channels)
     ind410 = find([channel.lights(:).wavelength]==410);
     ind470 = find([channel.lights(:).wavelength]==470);
 
-    txt(end+1) = sprintf("Median410 = %.2f, Median470 = %.2f, Baseline = %.2f Isos %+.2f",...
+    txt(end+1) = sprintf("Median410 = %.2f, Median470 = %.2f, Fit of green = %.2f x Isos %+.2f",...
         channel.lights(ind410).median,channel.lights(ind470).median,channel.fit_isos(1),-channel.fit_isos(2));
     title(txt)
     nt_show_markers(measures.markers,ax1,params,[],[])

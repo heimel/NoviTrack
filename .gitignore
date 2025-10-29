@@ -1,3 +1,4 @@
 *.asv
 nt_db_examples.mat_copy
 nt_db_examples.mat_copy
+nt_db_examples.mat.lock
