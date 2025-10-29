@@ -79,6 +79,17 @@ if isempty(nt_data) % Noldus tracking
      nt_data = nt_load_noldus_tracking(record); % 
 end
 
+logmsg('TEMPORARY CHECKS')
+load(fullfile(nt_session_path(record),'luminance_per_frame.mat'),'luminance');
+n_frames = length(luminance);
+framerate = 30;
+time = (0:n_frames-1)' / framerate;
+luminance = zscore(luminance);
+luminance = luminance/prctile(luminance,98)*0.2;
+nt_data.Forward_speed = interp1(time,luminance,nt_data.Time);
+nt_data.Speed = abs(nt_data.Forward_speed);
+
+
 % Get time and trigger from overhead video
 video_info = record.measures.video_info(params.nt_overhead_camera);
 

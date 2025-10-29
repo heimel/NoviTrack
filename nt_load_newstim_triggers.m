@@ -63,3 +63,8 @@ end
 code = string(code);
 events = table(time,code,dur,'VariableNames',{'time','code','duration'});
 
+if ~all(diff(triggers)>0)
+    logmsg(['Stimulus times are not all in increasing order. Resorting, but check results for ' recordfilter(record)]);
+    triggers = sort(triggers);
+    events = sortrows(events,'time');
+end
