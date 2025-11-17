@@ -19,10 +19,13 @@ params = nt_default_parameters(record);
 
 measures = record.measures;
 
-% parameters
-params.make_track_video = false;
 
-mask = nt_arena_mask(record);
+
+if params.nt_constrain_to_arena 
+    mask = nt_arena_mask(record);
+else 
+    mask = [];
+end
 
 % defaults
 logmsg(['Tracking mouse in ' recordfilter(record)]);
@@ -98,7 +101,7 @@ if verbose
     handles.tailbase = plot(NaN,NaN,'rx');
     handles.com = plot(NaN,NaN,'c+');
 
-    if params.make_track_video
+    if params.nt_make_track_video
         writerObj = VideoWriter('mousetracking1.avi');
         writerObj.FrameRate = framerate;
         open(writerObj);
@@ -173,7 +176,11 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
         handles.image.CData = gFrame;
     end
 
-    cur_stim_ids = nt_which_stimuli(measures.markers,frametimes(i),params);
+    if isfield(measures,'markers')
+        cur_stim_ids = nt_which_stimuli(measures.markers,frametimes(i),params);
+    else
+        cur_stim_ids = [];
+    end
     n_cur_stims = length(cur_stim_ids);
 
     % overrule previous stimulus position by measures
@@ -246,7 +253,7 @@ while vid.CurrentTime < time_range(2) && hasFrame(vid)
     if verbose
         handles.clock.String = [num2str(vid.CurrentTime,'%0.2f') ' s'];
         drawnow
-        if params.make_track_video
+        if params.nt_make_track_video
             frame = getframe;
             writeVideo(writerObj,frame);
         end
@@ -267,7 +274,7 @@ filename = fullfile(session_path,filename);
 save(filename,'frametimes','position','stim_position','params','record')
 logmsg(['Saved tracking data in ' filename]);
 
-if params.make_track_video
+if params.nt_make_track_video
     close(writerObj);
 end
 

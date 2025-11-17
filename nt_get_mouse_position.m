@@ -87,7 +87,9 @@ while  ~matched_criteria && black_threshold>params.nt_min_black_threshold
     black_threshold = 0.9*black_threshold; % lower threshold
 
     imbw = (frame_bg_subtracted > black_threshold);
-    imbw = imbw.*mask;
+    if ~isempty(mask)
+        imbw = imbw.*mask;
+    end
     %imbw = imclose(imbw,params.nt_dilation);
     cc = bwconncomp(imbw);
 
@@ -120,7 +122,9 @@ if black_threshold<params.nt_min_black_threshold
     end
     black_threshold = 0.2362;
     imbw = frame_bg_subtracted> black_threshold;
-    imbw = imbw.*mask;
+    if ~isempty(mask)
+        imbw = imbw.*mask;
+    end
     %imbw = imclose(imbw,params.nt_dilation);
     cc = bwconncomp(imbw);
 end

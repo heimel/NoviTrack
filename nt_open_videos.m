@@ -53,4 +53,6 @@ for i = 1:num_cameras
     video_info(i).NumFrames = vidobj{i}.NumFrames;
     video_info(i).Duration = vidobj{i}.Duration;
     video_info(i).trigger_times = nt_load_video_triggers(record,params.nt_camera_names{i},vidobj{i}.FrameRate);
+    video_info(i).filename = filename;
+    video_info(i).ext = ext;
 end % camera i

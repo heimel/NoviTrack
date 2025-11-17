@@ -46,10 +46,11 @@ if nt_check_markers( record, params, verbose ) == false
 end
 
 % make events table, used throughout analysis
-if ~isempty(record.measures.markers)
+if isfield(record.measures,'markers') && ~isempty(record.measures.markers)
     record.measures.events = table([record.measures.markers.time]',...
         string({record.measures.markers.marker}'),'VariableNames',{'time','event'});
 else
+    record.measures.markers = [];
     record.measures.events = table([],[],'VariableNames',{'time','event'});
 end
 

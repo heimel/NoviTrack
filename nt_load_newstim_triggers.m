@@ -5,6 +5,7 @@ function [triggers,events] = nt_load_newstim_triggers(record)
 %  [TRIGGERS,EVENTS] = nt_load_newstim_triggers(RECORD)
 %        TRIGGERS in seconds from stimulus computer clock (from stims.mat)
 %        EVENTS is table with fields: time, code, duration
+%               time is stimulus computer clock
 %
 % 2025, Alexander Heimel
 

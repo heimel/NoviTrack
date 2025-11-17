@@ -52,17 +52,18 @@ for event_type = event_types(:)'
     txt{2} =  [params.markers(ind).description ' ' event_type{1} ];
     txt(end+1) = "";
 
-    for c=1:length(measures.channels)
-        txt{end+1} = measures.channels(c).channel;
-        txt(end+1) = measures.channels(c).hemisphere + " " + measures.channels(c).location;
-        if ~isempty(measures.channels(c).green_sensor)
-            txt(end+1) = "green = " +  measures.channels(c).green_sensor;
+    if isfield(measures,'channels')
+        for c=1:length(measures.channels)
+            txt{end+1} = measures.channels(c).channel;
+            txt(end+1) = measures.channels(c).hemisphere + " " + measures.channels(c).location;
+            if ~isempty(measures.channels(c).green_sensor)
+                txt(end+1) = "green = " +  measures.channels(c).green_sensor;
+            end
+            if ~isempty(measures.channels(c).red_sensor)
+                txt(end+1) = "red = " + measures.channels(c).red_sensor;
+            end
+            txt(end+1) = "";
         end
-        if ~isempty(measures.channels(c).red_sensor)
-            txt(end+1) = "red = " + measures.channels(c).red_sensor;
-        end
-        txt(end+1) = "";
-
     end
 
     text(0.1,1,txt,'VerticalAlignment','top');

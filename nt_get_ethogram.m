@@ -28,7 +28,8 @@ if n_motifs==0 % no behaviors
     return 
 end
 
-dt = 0.1; % 
+params.nt_ethogram_dt = 0.1; % s
+dt = params.nt_ethogram_dt; % s
 if isfield(record.measures,'min_time')
     min_time = record.measures.min_time;
 else
@@ -40,8 +41,6 @@ else
     max_time = ceil(max([record.measures.markers.time])/60)*60;
 end
 
-% min_time = 120;
-% max_time = 300;
 
    
     n_samples = ceil((max_time-min_time)/dt);
@@ -68,6 +67,12 @@ if ~isempty(current_motif)
     ethogram(ind_start:ind_stop,current_motif) = current_motif;
 end
 t = ((1:n_samples)-0.5)*dt + min_time;
+
+for i=1:length(motifs)
+    motifs(i).total_duration = nnz(ethogram(:,i))*dt;
+    motifs(i).n = sum(diff(ethogram(:,1))>0);
+    motifs(i).mean_duration = motifs(i).total_duration / motifs(i).n;
+end
 
 %seq = max(ethogram,[],2);
 %trans_motifs = zeros(n_motifs,n_motifs);

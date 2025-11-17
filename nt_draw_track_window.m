@@ -9,7 +9,8 @@ max_time = measures.max_time;
 min_time = measures.min_time;
 
 handles.fig_main = figure('units','pixels','MenuBar','none','ToolBar','none',...
-    'Name',['Tracking - ' subst_ctlchars(record.sessionid)],'NumberTitle','off','WindowStyle','normal');
+    'Name',['Tracking - ' subst_ctlchars(record.sessionid)],...
+    'NumberTitle','off','WindowStyle','normal');
 
 % Speeding up graphics management
 set(handles.fig_main, 'GraphicsSmoothing',params.nt_graphicssmoothing);
@@ -56,10 +57,14 @@ for i = 1:num_cameras
         continue
     end
     frame = readFrame(handles.vidobj{i});
-    handles.camera_image(i) = image(frame, 'Parent', handles.panel_video(i)); 
+%    handles.camera_image(i) = image(frame, 'Parent', handles.panel_video(i)); 
+    handles.camera_image(i) = image('Parent', handles.panel_video(i),...
+        'CData',frame,'CDataMapping', 'direct'); 
     set(handles.panel_video(i),'visible','off')
     set(handles.panel_video(i),'DataAspectRatioMode','manual')
     set(handles.panel_video(i),'DataAspectRatio',[1 1 1])
+    set(handles.camera_image(i), 'Interpolation', 'nearest');
+
     disableDefaultInteractivity(handle(handles.panel_video(i)))
 
     if params.overhead_camera_rotated && i == 2

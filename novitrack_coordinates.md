@@ -74,7 +74,7 @@ stored. They are synchronized by shared triggers, of which the times are recorde
 
 - On the Neurotar setup, the video recordings starts first. The neurotar sends a trigger at the start of the recording. It does not record its own trigger, but it takes place at its time 0.
 
-- For fiber photometry experiments, multiple triggers are manually send to the video raspberry pi's and the fiber photometer. The master time is from the video, but starting from the first trigger received.
+- For fiber photometry experiments, multiple triggers are manually sent to the video raspberry pi's and the fiber photometer. The master time is from the video, but starting from the first trigger received.
 
 
 NoviTrack is assuming that videos have a fixed framerate. The first frame will be at time 0 s, and the last at (video.NumFrames-1) * 1 / video.FrameRate. If a trigger has been recorded, the 

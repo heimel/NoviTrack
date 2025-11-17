@@ -49,8 +49,6 @@ end
 
 filename = fullfile(folder,'nt_tracking_data.mat');
 
-
-
 if ~recompute && exist(filename,'file') 
     logmsg(['Loading precomputed tracking data. To recompute set params.nt_recompute_tracking_data = true or delete ''' filename ''''] )
     load(filename,'nt_data');
@@ -79,16 +77,6 @@ if isempty(nt_data) % Noldus tracking
      nt_data = nt_load_noldus_tracking(record); % 
 end
 
-% logmsg('TEMPORARY CHECKS')
-% load(fullfile(nt_session_path(record),'luminance_per_frame.mat'),'luminance');
-% n_frames = length(luminance);
-% framerate = 30;
-% time = (0:n_frames-1)' / framerate;
-% luminance = zscore(luminance);
-% luminance = luminance/prctile(luminance,98)*0.2;
-% nt_data.Forward_speed = interp1(time,luminance,nt_data.Time);
-% nt_data.Speed = abs(nt_data.Forward_speed);
-
 
 % Get time and trigger from overhead video
 video_info = record.measures.video_info(params.nt_overhead_camera);
@@ -102,6 +90,25 @@ if ~isfield(nt_data,'Time') || isempty(nt_data.Time)
         end
     end
 end
+
+if params.nt_replace_speed_by_luminance
+    logmsg('Replacing speed by luminance to check timing. Set params.nt_replace_speed_by_luminance = false to turn off.')
+    stats_filename = [video_info.filename '_stats.mat'];
+    if ~exist(stats_filename,'file')
+        logmsg(['Computing frame stats for ' filename]);
+        stats = compute_stats_per_frame([video_info.filename video_info.ext],true);
+    else
+        load(stats_filename,'stats');
+    end
+    n_frames = length(stats.mean_luminance);
+    framerate = 30;
+    time = (0:n_frames-1)' / framerate;
+    luminance = zscore(stats.mean_luminance);
+    luminance = luminance/prctile(luminance,98)*0.2;
+    nt_data.Forward_speed = interp1(time,luminance,nt_data.Time);
+    nt_data.Speed = abs(nt_data.Forward_speed);
+end
+
 
 
 nt_data.Time = nt_data.Time - video_info.trigger_times(1);

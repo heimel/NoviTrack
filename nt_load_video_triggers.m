@@ -34,7 +34,8 @@ else
     end
 
     if isempty(triggers)
-        logmsg(['No triggers for ' recordfilter(record)]);
+        logmsg(['No triggers for ' recordfilter(record) '. Adding trigger at 0:00.']);
+        triggers = 0;
     end
 
     % Create events table

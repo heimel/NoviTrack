@@ -25,6 +25,7 @@ import_options = {};
 import_options{end+1} = {'Noldus EPM log','import_noldus_epm'};
 import_options{end+1} = {'RWD log','import_rwd'};
 import_options{end+1} = {'Laser log','import_laser'};
+import_options{end+1} = {'NewStim log','import_newstim'};
 
 if isempty(option)
     selections = nt_import_logs_dialog(import_options);
@@ -107,6 +108,7 @@ end
 
 
 function record = import_rwd(record)
+% adds triggers from RWD event log to record.measures.markers
 [rwd_triggers1,events] = nt_load_rwd_triggers(record);
 if isempty(events)
     return
@@ -152,8 +154,45 @@ end
 
 
 
+function record = import_newstim(record)
+% adds triggers from newstim stims.mat files to record.measures.markers
+
+params = nt_default_parameters(record);
+markers = record.measures.markers;
+[newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
 
 
+if isempty(record.measures.trigger_times) || (isscalar(record.measures.trigger_times) && record.measures.trigger_times(1) == 0)
+    trigger_time_shift = NaN;
+    while isnan(trigger_time_shift)
+        prompt = {'Enter trigger time shift (in seconds):'};
+        dlg_title = 'Trigger Time Shift';
+        num_lines = 1;
+        answer = inputdlg(prompt, dlg_title, num_lines);
+        if isempty(answer)
+            trigger_time_shift = 0; % Default to 0 if dialog is canceled
+        else
+            trigger_time_shift = str2double(answer{1});
+        end
+    end
+end
+
+%record.measures.trigger_times = 826;
+
+for i = 1:height(newstim_events)
+        time = newstim_events.time(i);
+        [time,~,multiplier] = nt_change_times(time,newstim_triggers,record.measures.trigger_times) ;
+
+        time = time + trigger_time_shift;
+        duration = newstim_events.duration(i) * multiplier;
+        code = char(newstim_events.code(i));
+        markers = nt_insert_marker(markers,time,code,params);
+        markers = nt_insert_marker(markers,time+duration,['t' code(2)],params);
+end
+record.measures.markers = markers;
+end
+
+%%
 function selections = nt_import_logs_dialog(import_options)
 % IMPORT_DIALOG creates a dialog with 3 checkboxes and 2 buttons.
 % Returns a logical vector [cb1, cb2, cb3] with checkbox states if 'Import' is pressed.

@@ -86,6 +86,7 @@ num_cameras = length(params.nt_camera_names);
 
 %% Load tracking data
 [nt_data,measures.trigger_times] = nt_load_tracking_data(record,true);
+record.measures = measures;
 
 if isempty(nt_data)
     logmsg(['No data found to track for ' recordfilter(record)]);

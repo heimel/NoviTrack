@@ -38,7 +38,7 @@ params.fontsize = 8; % pt
 
 % Automated mouse tracking
 params.nt_play_gamma = 1; % default gamma to use for showing mouse movies
-params.make_track_video = false; % to store a video with the tracked mouse
+params.nt_make_track_video = false; % to store a video with the tracked mouse
 
 % Mouse detection 
 params.nt_min_mouse_length = 120;
@@ -53,6 +53,7 @@ params.nt_bg_normalization = 20;
 params.nt_black_threshold = 0.25;
 params.nt_min_black_threshold = 0.1;
 params.nt_recompute_background = false; % force to recompute background
+params.nt_constrain_to_arena = false; % if true, limits mouse finding to arena
 
 
 % Automated freezing detection parameters
@@ -220,6 +221,8 @@ switch lower(record.stimulus)
     % preferred way is to link the marker_set to the stimulus
     case 'firstandnovelobject'
         marker_set = 'object_investigation';
+    case 'looming_stimulus'
+        marker_set = 'looming';
 end
 if isempty(marker_set) && isfield(record,'condition')
     switch lower(record.condition)
@@ -328,7 +331,10 @@ params.nt_show_overhead_mouse = true;
 %% Analysis
 params.automatically_track_mouse = false;
 
-params.nt_recompute_tracking_data = false;
+
+params.nt_replace_speed_by_luminance = false;
+
+params.nt_recompute_tracking_data = true;
 
 params.nt_pretime = 10; % s, pre-event time (baseline)
 params.nt_posttime = 20; % s, post-event time (response period)
