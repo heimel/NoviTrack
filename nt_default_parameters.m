@@ -283,13 +283,13 @@ switch marker_set
         markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
         markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 
         markers{end+1} = {'i','Idle',                   [0 0 0],    true, false};
-       % markers{end+1} = {'a','Approach',      [.46 0.73],true, true};
+        markers{end+1} = {'a','Approach to the shelter',[0.03 0.46 0.73],true, true};
        % markers{end+1} = {'s','Sniff',         [0.83 0.34 0.12],true, true};
        % markers{end+1} = {'b','Bite',          [0.94 0.68 0.11],true, true};
        % markers{end+1} = {'g','Grab',          [0.51 0.17 0.57],true, true};
        % markers{end+1} = {'c','Carry',         [0.45 0.69 0.28],true, true};
        % markers{end+1} = {'p','Push',          [0.65 0.39 0.28],true, true};
-       % markers{end+1} = {'v','aVoid',         [0.29 0.76 0.92],true, true};
+        markers{end+1} = {'v','aVoid to the shelter',   [0.29 0.76 0.92],true, true};
         markers{end+1} = {'r','gRoom',                  [0.1 0.5 0.8],   true, false};
         markers{end+1} = {'l','cLimb',                  [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'e','Escape',                 [0.8 0.2 0.9],   true, false};
