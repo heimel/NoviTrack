@@ -43,7 +43,7 @@ for i = 1:length(d)
         break
     end
 
-    triggers(count) = stims{count}.start; %#ok<AGROW>
+    triggers(count,1) = stims{count}.start; %#ok<AGROW>
     time(count,1) =  stims{count}.start; %#ok<AGROW>
     dur(count,1) = duration(stims{count}.saveScript); %#ok<AGROW>
     new_stimulus = true;

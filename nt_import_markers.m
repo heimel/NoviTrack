@@ -175,6 +175,8 @@ if isempty(record.measures.trigger_times) || (isscalar(record.measures.trigger_t
             trigger_time_shift = str2double(answer{1});
         end
     end
+else
+    trigger_time_shift = 0;
 end
 
 %record.measures.trigger_times = 826;
