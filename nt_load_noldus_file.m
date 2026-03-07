@@ -16,8 +16,8 @@ file_pattern = [record.subject '_Noldus_behavioral_data.xlsx'];
 d = dir(fullfile(folder,file_pattern));
 
 if isempty(d)
-    logmsg(['Cannot find Noldus analysis file in ' folder ]);
-    logmsg(['Looking for "' file_pattern '"'])
+    % logmsg(['Cannot find Noldus analysis file in ' folder ]);
+    % logmsg(['Looking for "' file_pattern '"'])
     return
 end
 if length(d)>1

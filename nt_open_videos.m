@@ -23,6 +23,12 @@ video_info = struct('trigger_times',[],'framerate',[],'n_frames',[],'duration',[
 for i = 1:num_cameras
     filename = fullfile(session_path,[record.sessionid '_' record.condition '_' record.stimulus '_' params.nt_camera_names{i} ]);
     d = dir( [filename '.*'] );
+
+    if isempty(d)
+        filename = fullfile(session_path,[record.sessionid '_'  record.stimulus '_' params.nt_camera_names{i} ]);
+        d = dir( [filename '.*'] );
+    end
+    
     if isempty(d)
         filename = fullfile(session_path,[record.sessionid  '_' params.nt_camera_names{i} ]);
     end
