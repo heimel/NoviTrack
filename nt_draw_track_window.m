@@ -279,7 +279,16 @@ function callback_toolbar(src,event)
 % callback for toolbar buttons
 toolbar = src.Parent;
 fig = get(toolbar,'Parent');
-focus(fig); % to avoid a new call to the button when user hits space
+try
+    focus(fig); % to avoid a new call to the button when user hits space
+catch me
+    switch me.identifier
+        case 'MATLAB:ui:uifigure:UnsupportedAppDesignerFunctionality'
+            % seems problem in Matlab R2024b, which was solved in R2025b
+        otherwise
+            logmsg(me.message);
+    end
+end
 userdata = get(fig,'UserData');
 userdata.action = src.Tag;
 set(fig,'UserData',userdata)
