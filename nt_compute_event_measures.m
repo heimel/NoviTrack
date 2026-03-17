@@ -66,6 +66,29 @@ for event_type = unique_events(:)'
 end % event_type
 
 
+% compute motif statistics for non-stimulus linked behavior
+ for i = 1:n_motifs
+     motif = motif_list(i);
+     duration = 0;
+     ind = find(behaviors.event == motif);
+     count = length(ind);
+     if isempty(ind)
+         continue
+     end
+     for k = 1:length(ind)
+         if ind(k) == height(behaviors)
+             duration = duration + measures.max_time - behaviors.time(ind(k));
+         else
+             duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
+         end % end if
+     end  % end k
+     measures.behavior.spontaneous.(motif).duration_total = duration;
+     measures.behavior.spontaneous.(motif).duration_average = duration/count;
+     measures.behavior.spontaneous.(motif).count = count;
+
+ end % end motif i
+
+
 %% Compute results from snippets
 if isempty(snippets)
     measures.event = [];

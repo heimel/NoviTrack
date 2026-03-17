@@ -280,6 +280,7 @@ switch marker_set
         markers{end+1} = {'r','gRoom',         [0.1 0.5 0.8],   true, false};
         markers{end+1} = {'l','cLimb',         [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'d','Dig',           [0.6 0.3 0  ],   true, false};
+        markers{end+1} = {'y','pushbedding burYing', [0.3 0.6 0  ],   true, false};
     case 'looming'
         markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
         markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 
