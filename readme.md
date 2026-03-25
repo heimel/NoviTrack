@@ -32,14 +32,19 @@ For visual stimulation also install repository [heimel/NewStim3](https://github.
 Check readme information on github for install information.
 
 ### Raspberry Pi for video recording ###
-In shell:
+In a shell:
 ```
-git -clone https://github.com/heimel/NoviTrack 
+git clone https://github.com/heimel/NoviTrack ~/NoviTrack
 ```
-The raspberry pi needs to be mounted to the network to be able to save the data. 
-A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/. 
-This is done automatically when you use the shell script "mount_fileserver".
+The '~' is automatically interpreted as your home folder.
 
+The fileserver needs to be mounted on the raspberry pi to save the data. 
+A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/. 
+This is done automatically when you use the shell script "mount_fileserver". 
+To make the script executable, type in a shell:
+```
+chmod +x ~/NoviTrack/mount_fileserver
+```
 
 ### Visual Stimulus PC ###
 
@@ -105,11 +110,11 @@ documentation for how to invoke NewStim3 for this purpose.
 ### Raspberry pi for video recording ###
 Mount fileserver in a shell:
 ``` 
-mount_fileserver
+~/NoviTrack/mount_fileserver
 ``` 
 Start video recording by opening a shell:
 ``` 
-python NoviTrack/nt_picam_slave.py Behavior_arena
+python ~/NoviTrack/nt_picam_slave.py Behavior_arena
 ``` 
 The name of the setup, in this example 'Behavior_arena', determines the folder where the raspberry pi will look for the 
 acqReady file.
