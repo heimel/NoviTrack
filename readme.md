@@ -11,17 +11,18 @@ NoviTrack is developed and maintained by Alexander Heimel, with help of Zhiting 
 ### Experiment control or analysis PC ###
 
 Install MATLAB.
-Install repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), 
+Download repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), 
 [heimel/NoviTrack](https://github.com/heimel/NoviTrack).
 
-After installing InVivoTools and adding the InVivoTools folder to the Matlab path, run 'load_invivotools' 
-in matlab. This creates a file processparams_local.m, in which you can place local parameters overrides. 
+After downloading InVivoTools and adding the InVivoTools folder to the MATLAB path, run 'load_invivotools' 
+in MATLAB. This creates a file processparams_local.m, in which you can place local parameters overrides. 
 In this file, add a line like 
 ```
 params.networkpathbase = 'YOUR_DATA_FOLDER';
 ```
 where you replace YOUR_DATA_FOLDER with the root folder of your data. 
 
+Add the NoviTrack/Toolbox folder to your MATLAB path.
 
 For creating FYD-session logs, install repository
 [Herseninstituut/FYD_Matlab](https://github.com/Herseninstituut/FYD_Matlab). For connecting 
