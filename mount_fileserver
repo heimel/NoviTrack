@@ -4,4 +4,4 @@
 SHARE="VS03.herseninstituut.knaw.nl/VS03-CSF-1"
 MOUNT_POINT="/$SHARE"
 sudo mkdir -p "$MOUNT_POINT"
-sudo mount -t cifs -o uid=$(id -u),gid=$(id -g),workgroup=herseninstituut,vers=1.0 "//$SHARE" "$MOUNT_POINT"
+sudo mount -t cifs -o username=$(>&2 echo -n "Enter remote username: "; read u; echo $u),uid=$(id -u),gid=$(id -g),workgroup=herseninstituut "//$SHARE" "$MOUNT_POINT"
