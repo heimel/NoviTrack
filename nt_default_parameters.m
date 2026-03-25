@@ -267,7 +267,7 @@ switch marker_set
         markers{end+1} = {'a','begin approach object',          [0 0.7 0],  true ,true};
         markers{end+1} = {'r','begin retreat from object',      [0.7 0 0],  true ,true};
     case 'object_investigation'
-        markers{end+1} = {'t','Takeout object',[1 0 0]         ,false,true};
+        markers{end+1} = {'t','Takeout object/sTop stimulus',[1 0 0]         ,false,true};
         markers{end+1} = {'o','place Object',  [0 0 1]         ,false,true};
         markers{end+1} = {'i','Idle',          [0 0 0],         true, false};
         markers{end+1} = {'a','Approach',      [0.03 0.46 0.73],true, true};
@@ -281,6 +281,7 @@ switch marker_set
         markers{end+1} = {'l','cLimb',         [0.8 0.2 0.9],   true, false};
         markers{end+1} = {'d','Dig',           [0.6 0.3 0  ],   true, false};
         markers{end+1} = {'y','pushbedding burYing', [0.3 0.6 0  ],   true, false};
+        markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true};
     case 'looming'
         markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
         markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 

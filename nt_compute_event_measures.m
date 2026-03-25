@@ -13,7 +13,7 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 
 %% Compute measures for behavioral responses to stimuli
 motifs = params.markers(find([params.markers.behavior]));
-motif_list = [motifs.marker]; 
+motif_list = [motifs.marker];
 n_motifs = length(motifs);
 events = measures.events;
 unique_events = unique(events.event);
@@ -24,19 +24,25 @@ behaviors = get_behaviors(events,motif_list);
 for event_type = unique_events(:)'
     event_type_char= char(event_type);
     if ~ismember(event_type_char(1),params.nt_stim_markers)
-        continue
+        continue % if not a stimulus
     end
     event_type
     ind_stim = find(events.event==event_type);
 
-    for i = 1:n_motifs 
+    for i = 1:n_motifs
         motif = motif_list(i);
         latency = [];
         duration = 0;
         response = zeros(length(ind_stim),1);
         for j = 1:length(ind_stim)
             stim_start = events.time(ind_stim(j));
-            stim_stop = events.time(find(events.time>stim_start & events.event == string([ params.nt_stop_marker event_type_char(2)]),1));
+
+            ind_stop = find(events.time>stim_start & events.event == string([ params.nt_stop_marker event_type_char(2)]),1);
+            if isempty(ind_stop)
+                stim_stop = inf; % not until next stimulus, but until end of time
+            else
+                stim_stop = events.time(ind_stop);
+            end
 
             ind = find(behaviors.time>stim_start & behaviors.time<stim_stop & behaviors.event == motif);
             if isempty(ind)
@@ -52,10 +58,10 @@ for event_type = unique_events(:)'
                 if ind(k)==height(behaviors)
                     duration = duration + measures.max_time - behaviors.time(ind(k));
                 else
-                    duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k)); 
+                    duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
                 end
             end % k
-        end % j 
+        end % j
         measures.behavior.(event_type).(motif).n = length(latency); % all response, multiple per stim possible
         measures.behavior.(event_type).(motif).response = sum(response); % response, max one per stim.
         measures.behavior.(event_type).(motif).response_fraction = sum(response)/length(ind_stim); % fraction of stimuli with a response
@@ -66,30 +72,30 @@ for event_type = unique_events(:)'
 end % event_type
 
 
-% compute motif statistics for non-stimulus linked behavior
- for i = 1:n_motifs
-     motif = motif_list(i);
-     duration = 0;
-     ind = find(behaviors.event == motif);
-     count = length(ind);
-     if isempty(ind)
-         continue
-     end
-     for k = 1:length(ind)
-         if ind(k) == height(behaviors)
-             duration = duration + measures.max_time - behaviors.time(ind(k));
-         else
-             duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
-         end % end if
-     end  % end k
-     measures.behavior.spontaneous.(motif).duration_total = duration;
-     measures.behavior.spontaneous.(motif).duration_average = duration/count;
-     measures.behavior.spontaneous.(motif).count = count;
+%% compute motif statistics for non-stimulus linked behavior
+for i = 1:n_motifs
+    motif = motif_list(i);
+    duration = 0;
+    ind = find(behaviors.event == motif);
+    count = length(ind);
+    if isempty(ind)
+        continue
+    end
+    for k = 1:length(ind)
+        if ind(k) == height(behaviors)
+            duration = duration + measures.max_time - behaviors.time(ind(k));
+        else
+            duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
+        end % end if
+    end  % end k
+    measures.behavior.spontaneous.(motif).duration_total = duration;
+    measures.behavior.spontaneous.(motif).duration_average = duration/count;
+    measures.behavior.spontaneous.(motif).count = count;
 
- end % end motif i
+end % end motif i
 
 
-%% Compute results from snippets
+%% Compute results from snippets 
 if isempty(snippets)
     measures.event = [];
     return
