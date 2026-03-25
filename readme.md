@@ -37,7 +37,8 @@ In shell:
 git -clone https://github.com/heimel/NoviTrack 
 ```
 The raspberry pi needs to be mounted to the network to be able to save the data. 
-A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/.
+A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/. 
+This is done automatically when you use the shell script "mount_fileserver".
 
 
 ### Visual Stimulus PC ###
@@ -102,7 +103,10 @@ documentation for how to invoke NewStim3 for this purpose.
 ## Running an experiment ##
 
 ### Raspberry pi for video recording ###
-
+Mount fileserver in a shell:
+``` 
+mount_fileserver
+``` 
 Start video recording by opening a shell:
 ``` 
 python NoviTrack/nt_picam_slave.py Behavior_arena

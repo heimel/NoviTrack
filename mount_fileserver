@@ -1,0 +1,7 @@
+#!/bin/bash
+# 2026, Alexander Heimel
+#
+SHARE="VS03.herseninstituut.knaw.nl/VS03-CSF-1"
+MOUNT_POINT="/$SHARE"
+sudo mkdir -p "$MOUNT_POINT"
+sudo mount -t cifs -o uid=$(id -u),gid=$(id -g),workgroup=herseninstituut,vers=1.0 "//$SHARE" "$MOUNT_POINT"
