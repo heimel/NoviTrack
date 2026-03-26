@@ -11,17 +11,18 @@ NoviTrack is developed and maintained by Alexander Heimel, with help of Zhiting 
 ### Experiment control or analysis PC ###
 
 Install MATLAB.
-Install repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), 
+Download repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), 
 [heimel/NoviTrack](https://github.com/heimel/NoviTrack).
 
-After installing InVivoTools and adding the InVivoTools folder to the Matlab path, run 'load_invivotools' 
-in matlab. This creates a file processparams_local.m, in which you can place local parameters overrides. 
+After downloading InVivoTools and adding the InVivoTools folder to the MATLAB path, run 'load_invivotools' 
+in MATLAB. This creates a file processparams_local.m, in which you can place local parameters overrides. 
 In this file, add a line like 
 ```
 params.networkpathbase = 'YOUR_DATA_FOLDER';
 ```
 where you replace YOUR_DATA_FOLDER with the root folder of your data. 
 
+Add the NoviTrack/Toolbox folder to your MATLAB path.
 
 For creating FYD-session logs, install repository
 [Herseninstituut/FYD_Matlab](https://github.com/Herseninstituut/FYD_Matlab). For connecting 
@@ -32,13 +33,19 @@ For visual stimulation also install repository [heimel/NewStim3](https://github.
 Check readme information on github for install information.
 
 ### Raspberry Pi for video recording ###
-In shell:
+In a shell:
 ```
-git -clone https://github.com/heimel/NoviTrack 
+git clone https://github.com/heimel/NoviTrack ~/NoviTrack
 ```
-The raspberry pi needs to be mounted to the network to be able to save the data. 
-A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/.
+The '~' is automatically interpreted as your home folder.
 
+The fileserver needs to be mounted on the raspberry pi to save the data. 
+A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/. 
+This is done automatically when you use the shell script "mount_fileserver". 
+To make the script executable, type in a shell:
+```
+chmod +x ~/NoviTrack/mount_fileserver
+```
 
 ### Visual Stimulus PC ###
 
@@ -102,10 +109,13 @@ documentation for how to invoke NewStim3 for this purpose.
 ## Running an experiment ##
 
 ### Raspberry pi for video recording ###
-
+Mount fileserver in a shell:
+``` 
+~/NoviTrack/mount_fileserver
+``` 
 Start video recording by opening a shell:
 ``` 
-python NoviTrack/nt_picam_slave.py Behavior_arena
+python ~/NoviTrack/nt_picam_slave.py Behavior_arena
 ``` 
 The name of the setup, in this example 'Behavior_arena', determines the folder where the raspberry pi will look for the 
 acqReady file.

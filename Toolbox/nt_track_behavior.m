@@ -1,7 +1,10 @@
-function record = nt_track_behavior(record,h_dbfig,verbose)
+function [record,changed] = nt_track_behavior(record,h_dbfig,verbose)
 %nt_track_behavior Tracks neurotar experiment from movie and neurotar
 %
-%  RECORD = nt_track_behavior( RECORD, [VERBOSE=true])
+%  [RECORD,CHANGED] = nt_track_behavior( RECORD, [VERBOSE=true])
+%
+%     CHANGED is true if markers have been changed
+%
 %
 % 2023-2025, Alexander Heimel, Zhiting Ren
 %
@@ -25,7 +28,6 @@ global_record = record;
 evalin('base','global measures');
 evalin('base','global global_record');
 logmsg('Measures available in workspace as ''measures'', record as ''global_record''.');
-
 warning('on')
 
 if nargin<2 || isempty(h_dbfig)
@@ -37,6 +39,7 @@ if nargin<3 || isempty(verbose)
 end
 
 %% Preamble
+changed = false;
 measures = record.measures;
 params = nt_default_parameters(record);
 
@@ -149,7 +152,7 @@ handles.h_dbfig = h_dbfig;
 
 
 %% Main playback
-logmsg('Starting play')
+logmsg(['Playing record ' recordfilter(record)],[],true);
 set(handles.text_state,'String','Playing');
 
 state.playback_speed = 1;
@@ -164,7 +167,7 @@ state.frame_update = 1;
 state.loop_time = 0.03; % s
 state.fps = state.video_framerate;
 state.extra_delay = 0.0; % to adjust fps to video_framerate
-
+state.changed = false; % keep track of marker changes by user
 set(handles.text_playback_speed,'String',num2str(state.playback_speed))
 
 figure(handles.fig_main);
@@ -280,7 +283,7 @@ set(handles.fig_main,'CloseRequestFcn','closereq');
 if ishandle(handles.fig_main_help)
     close(handles.fig_main_help);
 end
-logmsg('Finished tracking and updating record.');
+logmsg(['Finished tracking and updating record ' recordfilter(record)]);
 record.measures = measures;
 if state.close_window
     close(handles.fig_main);
@@ -289,6 +292,7 @@ end
 clear handles.vidobj
 
 global_record = record;
+changed = state.changed;
 
 end
 
@@ -553,12 +557,12 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             state.jumptime = -state.interframe_time;
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
+            state.changed = true;
             logmsg('Imported markers')
         case 'marker_add'
             prev_state = get(handles.text_state,'String');
             set(handles.fig_main,'WindowKeyPressFcn',[]);
             pause(0.01)
-
             if isempty(args)
                 set(handles.text_state,'String','Choose marker');
                 fprintf('Choose which marker to add by pressing key: ')
@@ -569,11 +573,11 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             else
                 key = args{1};
             end
-           [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
-            logmsg('INSERTED MARKER')
+            [measures.markers,stim_id] = nt_insert_marker(measures.markers,state.master_time,key,params,true,handles);
 
             if strcmp(key,params.nt_stop_marker)
                 measures.object_positions(end+1,:) = [state.master_time NaN NaN params.ARENA stim_id];
+                logmsg(['Adding position ' mat2str(measures.object_positions(end,:)) ])
                 [~,ind] = sort(measures.object_positions(:,1));
                 measures.object_positions = measures.object_positions(ind,:);
             end
@@ -583,31 +587,34 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             state.jumptime = -state.interframe_time;
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
+            state.changed = true;
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'marker_delete'
             answer = questdlg('Do you want to delete next marker?','Delete marker','Yes','No','No');
             switch answer
                 case 'Yes'
                     [measures.markers,removed_marker] = delete_next_marker(measures.markers,state.master_time);
-                    if strcmp(removed_marker.marker,params.nt_stop_marker)
-                        % remove object_position entries too
-                        ind = find(measures.object_positions(:,1)==removed_marker.time);
-                        if ~isempty(ind)
-                            measures.object_positions(ind,:) = [];
+                    if ~isempty(removed_marker)
+                        if strcmp(removed_marker.marker,params.nt_stop_marker)
+                            % remove object_position entries too
+                            ind = find(measures.object_positions(:,1)==removed_marker.time);
+                            if ~isempty(ind)
+                                measures.object_positions(ind,:) = [];
+                            end
                         end
+                        state.changed = true;
+                        nt_show_markers(measures.markers,handles.panel_timeline,params);
+                        state.newframe = true;
+                        state.jumptime = -state.interframe_time;
+                        record.measures = measures;
+                        update_record(record,handles.h_dbfig,true);
                     end
-                    nt_show_markers(measures.markers,handles.panel_timeline,params);
-                    state.newframe = true;
-                    state.jumptime = -state.interframe_time;
             end
-
-            record.measures = measures;
-            update_record(record,handles.h_dbfig,true);
-
         case 'marker_delete_all'
             answer = questdlg('Do you want to delete all markers?','Delete all markers','Yes','No','No');
             switch answer
                 case 'Yes'
+                    logmsg('Deleting all markers')
                     measures.markers = [];
                     nt_show_markers(measures.markers,handles.panel_timeline,params);
                     state.newframe = true;
@@ -616,7 +623,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
 
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
         case 'position_delete'
             if ~isempty(measures.object_positions)
                 ind = find(measures.object_positions(:,1)<=state.master_time,1,'last');
@@ -631,14 +638,12 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             end
             state.newframe = true;
             state.jumptime = -state.interframe_time;
-
             record.measures = measures;
             nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
-
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
         case 'quit'
-            logmsg('Quit tracking. Exiting main loop and closing window.');
+            % logmsg('Quit tracking. Exiting main loop and closing window.');
             state.loop = false;
             state.close_window = true;
         case 'show_help'
@@ -655,14 +660,13 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             set(handles.fig_main,'WindowKeyPressFcn',[]);
             camera = ask_for_camera('Set trigger');
             measures.video_info(camera).trigger_times(1) = handles.vidobj{camera}.CurrentTime;
+            logmsg(['Setting trigger time of camera ' num2str(camera) ' to ' num2str(measures.video_info(camera).trigger_times(1))]);
             handles.vidobj{camera}.CurrentTime = measures.video_info(camera).trigger_times(1) + state.master_time * params.picamera_time_multiplier ;
             state.jumptime = -state.master_time;
             state.newframe = true;
-            %jumptime = -1 * interframe_time;
-
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
             set(handles.fig_main,'WindowKeyPressFcn',@keypressfcn);
         case 'set_led_position'
             set(handles.fig_main,'WindowKeyPressFcn',[]);
@@ -676,7 +680,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             end
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
         case {'set_real_object_position','set_virtual_object_position'}
             stim_ids = nt_which_stimuli(measures.markers,state.master_time,params);
             if isempty(stim_ids)
@@ -713,15 +717,14 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
                 measures.object_positions(end+1,:) = [state.master_time overhead_x overhead_y params.OVERHEAD stim_id];
 
             end
+            logmsg(['Adding position ' mat2str(measures.object_positions(end,:)) ])
             [~,ind] = sort(measures.object_positions(:,1));
             measures.object_positions = measures.object_positions(ind,:);
             nt_show_markers(measures.markers,handles.panel_timeline,params);
             nt_show_position_changes(measures.object_positions,handles.panel_timeline,params);
-            %update_object_positions(measures,state,handles,params);
-
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
             drawnow
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -742,7 +745,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
 
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
-
+            state.changed = true;
             state.newframe = true;
             state.jumptime = -state.interframe_time;
         case 'set_neurotar_headring'
@@ -753,6 +756,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             update_neurotar_headring(handles.overhead_neurotar_headring,params);
             update_neurotar_frame(handles.overhead_neurotar_frame,params);
             update_record(record,handles.h_dbfig,true);
+            state.changed = true;
 
             state.newframe = true;
             state.jumptime = -state.interframe_time;
@@ -826,6 +830,7 @@ if ~isempty(action) % && ~strcmp(action,prev_action)
             
             record.measures = measures;
             update_record(record,handles.h_dbfig,true);
+            state.changed = true;
 
             state.newframe = true;
     end
@@ -1001,11 +1006,13 @@ set(fig,'WindowKeyPressFcn',@keypressfcn);
 end
 
 function [markers,removed_marker] = delete_next_marker(markers,t)
+removed_marker = [];
 mt = [markers.time];
 ind = find(mt>t,1);
 if isempty(ind)
     return
 end
+logmsg(['Deleting marker ''' markers(ind).marker ''' at time ' num2str(markers(ind).time)])
 removed_marker = markers(ind);
 markers(ind) = [];
 end
