@@ -74,7 +74,7 @@ end
 
 %
 
-neurotar_trigger_frames = find(neurotar_data.TTL_outputs==1);
+neurotar_trigger_frames = find(neurotar_data.TTL_outputs~=0);
 neurotar_trigger_frames = [neurotar_trigger_frames(1) ...
     neurotar_trigger_frames(diff(neurotar_trigger_frames)>1) ...
     length(neurotar_data.Since_track_start)]; % add last frame as off-trigger
