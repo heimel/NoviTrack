@@ -11,7 +11,7 @@ import json
 
 def read_acqready( setup):
     # returns sessions path specifiec in acqReady
-    root_communication_path = os.path.join(os.path.sep+os.path.sep,"VS03.herseninstituut.knaw.nl",'VS03-CSF-1','Communication')
+    root_communication_path = os.path.join(os.path.sep+os.path.sep,"vs03.herseninstituut.knaw.nl",'VS03-CSF-1','Communication')
     communication_path = os.path.join(root_communication_path, setup)
     acqready_filename = os.path.join(communication_path,'acqReady')
     print('ACQUISITION_SLAVE: Reading ' + acqready_filename)
@@ -19,7 +19,19 @@ def read_acqready( setup):
     acqready_file.readline() # remove pathSpec header
     session_path = acqready_file.readline().strip()
     acqready_file.close()
-    session_path = os.path.sep + os.path.join(*session_path.split('\\'))
+    # session_path = os.path.sep + os.path.join(*session_path.split('\\'))
+    parts = session_path.split('\\')
+
+    # remove empty parts from leading \\ 
+    parts = [p for p in parts if p]
+
+    # parts[0] = server name (ignore)
+    # parts[1] = share name
+    # rest = path
+
+    mount_base = os.path.join(os.path.sep, parts[0], parts[1])
+
+    session_path = os.path.join(mount_base, *parts[2:])
     print("ACQUISITION_SLAVE: Session path = " + session_path)
     return session_path
 

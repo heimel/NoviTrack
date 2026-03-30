@@ -22,6 +22,17 @@ import socket # for gethostname
 import json
 #from pynput import keyboard
 import acquisition_slave
+import signal
+
+stop_requested = False
+
+def signal_handler(sig, frame):
+    global stop_requested
+    print("Stop requested...")
+    stop_requested = True
+
+signal.signal(signal.SIGINT, signal_handler)
+
 
 setup = sys.argv[1] if len(sys.argv) > 1 else 'Neurotar'
 
@@ -33,9 +44,23 @@ if not os.path.isdir(session_path):
     sys.exit(error_message)
 
 session_json = acquisition_slave.read_session_json(session_path)
-session_name = os.path.basename(session_path)
 
+ttl_setup = session_json['setup']
+
+if ttl_setup == 'Neurotar': 
+    sources = {
+        27: 'sync_ttl',
+        17: 'neurotar'        
+        }
+    
+else:
+    sources = {
+        17: 'sync_ttl'        
+        }
+    
+session_name = os.path.basename(session_path)
 hostname = socket.gethostname()
+
 
 video_filename = os.path.join(session_path , session_name + "_" + hostname + '.h264')
 print("Checking existence of " + video_filename)
@@ -49,9 +74,11 @@ if os.path.exists(triggers_filename):
 
 #initialize camera
 camera = Picamera2()
+rg, bg = (1.0, 1.5) # for neurotar room
+
 
 video_config = camera.create_video_configuration(
-    main={"size": (752, 582), "format": "RGB888"},
+    main={"size": (752, 582), "format": "YUV420"},
     controls={"FrameRate": 30}
 )
 camera.configure(video_config)
@@ -59,45 +86,78 @@ camera.configure(video_config)
 # AWB / exposure (limited support in Picamera2)
 camera.set_controls({
     "AwbEnable": True,
-    "ExposureTime": 0  # auto
+    "ExposureTime": 0,  # auto
+    "ColourGains": (rg, bg)
 })
 
-# encoder setup
+# encoder setup (may need to change these later)
 encoder = H264Encoder(bitrate=10000000)
 output = FileOutput(video_filename)
 
 # Initialize GPIO pin
-butPin = 17 # Broadcom pin 17 (P1 pin 11)
-GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
-GPIO.setup(butPin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button pin set as input w/ pull-up
-boolPinState = GPIO.input(butPin)
+GPIO.setmode(GPIO.BCM)
+pin_states = {}
+for pin in sources:
+    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # connfigures which pins are to be used as inputs
+    pin_states[pin] = GPIO.input(pin) # state of pin (0/LOW/False or 1/HIGH/True)
+    
+# GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
+# GPIO.setup(butPin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Button pin set as input w/ pull-up
+# boolPinState = GPIO.input(butPin)
 
 #pre-allocate
 triggercount = 0
 triggerframes = []
 start_time = 0
-frame_ind = 0
+frame_ind = 0 #     frame_ind = camera.frame.index
+
 
 def ttl_callback(channel):
-    # Rising edge and only change from low to high is marked as a trigger
-    global boolPinState
-    global frame_ind
+    
+    if stop_requested:
+        return
+    
+    global pin_states
+    global frame_ind #     frame_ind = camera.frame.index
+
     current_time = datetime.now()
     elapsed_time = current_time - start_time
     frame_ind = int(elapsed_time.total_seconds() * 30)
-    if GPIO.input(butPin)==True and boolPinState==False :
-        triggerframes.append([frame_ind,current_time.strftime("%H:%M:%S.%f"),elapsed_time.total_seconds()])
-        print("Received trigger at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
+    
+    # Only log rising edge (LOW to HIGH)
+    if GPIO.input(channel) == True and pin_states[channel] == False:
+        triggerframes.append([
+            frame_ind,
+            current_time.strftime("%H:%M:%S.%f"),
+            elapsed_time.total_seconds(),
+            sources[channel],
+            'recieved'
+        ])
+        # print(f"Trigger on {sources[channel]} at {current_time.strftime('%H:%M:%S.%f')}. Elapsed: {elapsed_time.total_seconds()} s")
+        print("Recieved " + sources[channel] + " trigger at " + current_time.strftime('%H:%M:%S.%f') + ". Elapsed: " + str(elapsed_time.total_seconds()) )
+
     else:
-        print("Ignoring level change at " + current_time.strftime("%H:%M:%S.%f") + ". Elapsed time = " + str(elapsed_time.total_seconds()) )
-    boolPinState = GPIO.input(butPin)        
+        print("Ignored change on " + sources[channel] + " at " + current_time.strftime('%H:%M:%S.%f'))
         
-GPIO.add_event_detect(butPin, GPIO.BOTH, callback=ttl_callback)
+        # dirty fix for now, in case a real pulse was not 'received'. caveat is that i'm not sure where in the ttl pulse the ignored change is detected
+        triggerframes.append([
+            frame_ind,
+            current_time.strftime("%H:%M:%S.%f"),
+            elapsed_time.total_seconds(),
+            sources[channel],
+            'ignored'
+        ])
+    
+    pin_states[channel] = GPIO.input(channel)
+        
+for pin in sources:
+    GPIO.add_event_detect(pin, GPIO.BOTH, callback=ttl_callback, bouncetime = 10)
+    
 time.sleep(0.1)
 
 #camera.start_preview(fullscreen=False, window = (200, 50, 640, 480))
 try:
-    camera.start_preview(Preview.DRM)
+    camera.start_preview(Preview.QTGL) # need to enable Glamor on Pi 3 or older
 except:
     camera.start()
 
@@ -110,17 +170,24 @@ current_time = datetime.now()
 elapsed_time = current_time - start_time
 print("Started recording at " + start_time.strftime("%H:%M:%S.%f") + ". Press Escape to stop.")
 print(frame_ind)
-triggerframes.append([frame_ind,start_time.strftime("%H:%M:%S.%f"),elapsed_time.total_seconds()])
-               
+triggerframes.append([
+    frame_ind,
+    start_time.strftime("%H:%M:%S.%f"),
+    0.0,
+    'start',
+    'none'
+])                              
 main_loop = True
 try:
     print('Started loop. Waiting for Ctrl-c to exit')
-    while main_loop:
+    while not stop_requested:
         time.sleep(1) # check every second if not stopped
+        #  camera.wait_recording(1) # (wait_recording not in picamera2)
+
 finally:
     
-    # ~ for pin in sources: # prevents callback from firing when encoder shuts down
-        # ~ GPIO.remove_event_detect(pin)
+    for pin in sources: # prevents callback from firing when encoder shuts down
+        GPIO.remove_event_detect(pin)
         
     print("Stopping recording.")
     time.sleep(0.5)
@@ -131,7 +198,7 @@ finally:
     print("Writing to " + triggers_filename )
     f = open(triggers_filename, 'w')
     csvWriter = csv.writer(f)
-    csvWriter.writerow(['frame','time'])
+    csvWriter.writerow(['frame','time', 'time elapsed (s)', 'ttl source', 'input type'])
     i = 0
     while i < len(triggerframes):
         csvWriter.writerow(triggerframes[i])
