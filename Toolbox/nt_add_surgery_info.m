@@ -13,7 +13,7 @@ if ~exist(filename,'file')
     return
 end
 
-surgery_table = readtable(filename, 'Sheet', 'Sheet1','TextType','string');
+surgery_table = readtable(filename, 'Sheet', 'Sheet1','TextType','string', 'VariableNamingRule', 'preserve');
 
 ind = find(surgery_table.subject == "#"+record.subject);
 if isempty(ind)

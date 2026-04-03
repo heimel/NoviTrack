@@ -161,6 +161,10 @@ params = nt_default_parameters(record);
 markers = record.measures.markers;
 [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
 
+if isempty(newstim_triggers)
+    logmsg('No NewStim triggers to import.')
+    return
+end
 
 if isempty(record.measures.trigger_times) || (isscalar(record.measures.trigger_times) && record.measures.trigger_times(1) == 0)
     trigger_time_shift = NaN;
@@ -181,11 +185,10 @@ end
 
 %record.measures.trigger_times = 826;
 
-for i = 1:height(newstim_events)
-        time = newstim_events.time(i);
-        [time,~,multiplier] = nt_change_times(time,newstim_triggers,record.measures.trigger_times) ;
+[newstim_events_in_mastertime,~,multiplier] = nt_change_times(newstim_events.time,newstim_triggers,record.measures.trigger_times);
 
-        time = time + trigger_time_shift;
+for i = 1:height(newstim_events)
+        time = newstim_events_in_mastertime(i) + trigger_time_shift;
         duration = newstim_events.duration(i) * multiplier;
         code = char(newstim_events.code(i));
         markers = nt_insert_marker(markers,time,code,params);

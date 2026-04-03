@@ -17,8 +17,6 @@ motif_list = [motifs.marker];
 n_motifs = length(motifs);
 events = measures.events;
 unique_events = unique(events.event);
-logmsg('WORKING HERE ON GETTING STIMULUS RESPONSES')
-
 behaviors = get_behaviors(events,motif_list);
 
 for event_type = unique_events(:)'
@@ -26,7 +24,6 @@ for event_type = unique_events(:)'
     if ~ismember(event_type_char(1),params.nt_stim_markers)
         continue % if not a stimulus
     end
-    event_type
     ind_stim = find(events.event==event_type);
 
     for i = 1:n_motifs
@@ -51,7 +48,7 @@ for event_type = unique_events(:)'
                 response(j) = 1;
             end
 
-            latency(end+1) = behaviors.time(ind(1)) - stim_start;
+            latency(end+1) = behaviors.time(ind(1)) - stim_start; %#ok<AGROW>
 
             for k = 1:length(ind)
 

@@ -274,7 +274,7 @@ while state.loop
     % Perform action
     action = get(handles.fig_main,'Userdata').('action');
     [measures,state,handles,params] = take_action(action,measures,state,handles,record,params);
-
+    record.measures = measures;
 end % play loop
 
 set(handles.text_state,'String','Stopped')

@@ -71,25 +71,28 @@ for c = 1:length(measures.channels)
     if measures.photometry_isosbestic_correction
         n_plots = n_plots - 1;
     end
-    count = 1;
-    for i = 1:length(channel.lights)
-        type = channel.lights(i).type;
-        if measures.photometry_isosbestic_correction && strcmp(type,'isosbestic')
-            continue
-        end
-        subplot(2,n_plots,n_plots+count)
-        hold on
-        [~,ind] = sort(events.event);
-        imagesc('XData',measures.snippets_tbins',...
-            'CData',snippets.data.([channel.channel '_' type])(ind,:))
-        ylim([0.5 height(events)+0.5])
 
-        xlabel('Time (s)')
-        ylabel('Event (sorted by type)')
-        colorbar
-        title(type)
-        count = count + 1;
-    end % i
+    if ~isempty(snippets) && ~isempty(events)
+        count = 1;
+        for i = 1:length(channel.lights)
+            type = channel.lights(i).type;
+            if measures.photometry_isosbestic_correction && strcmp(type,'isosbestic')
+                continue
+            end
+            subplot(2,n_plots,n_plots+count)
+            hold on
+            [~,ind] = sort(events.event);
+            imagesc('XData',measures.snippets_tbins',...
+                'CData',snippets.data.([channel.channel '_' type])(ind,:))
+            ylim([0.5 height(events)+0.5])
+
+            xlabel('Time (s)')
+            ylabel('Event (sorted by type)')
+            colorbar
+            title(type)
+            count = count + 1;
+        end % i
+    end
 end %c
 
 

@@ -96,5 +96,8 @@ b1 = x\y;
 offset = b1(1);
 multiplier = b1(2);
 
+if abs(multiplier-1)>0.01
+    logmsg('Clocks are more than 1% different. There is a likely mismatch of triggers.')
+end
 
 to = from * multiplier + offset;
