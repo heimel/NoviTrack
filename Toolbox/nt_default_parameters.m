@@ -284,7 +284,8 @@ switch marker_set
         markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true};
     case 'looming'
         markers{end+1} = {'t','sTop stimulus',          [1 0 0],    false,true};
-        markers{end+1} = {'h','start overHead stimulus',[0.4 0.2 1],false,true}; 
+        markers{end+1} = {'h','start overHead stimulus',[0.4 0.4 0.8],false,true}; 
+        markers{end+1} = {'o','start stimulus',         [0.4 0.2 1],false,true}; % use for non-overhead stimuli
         markers{end+1} = {'i','Idle',                   [0 0 0],    true, false};
         markers{end+1} = {'a','Approach to the shelter',[0.03 0.46 0.73],true, true};
        % markers{end+1} = {'s','Sniff',         [0.83 0.34 0.12],true, true};
