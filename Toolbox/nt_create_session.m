@@ -13,7 +13,7 @@ function [json, session_path] = nt_create_session()
 % 2023-2025, Alexander Heimel
 
 
-params = nt_default_parameters();
+params = nt_load_parameters();
 
 json = myGetFYD();
 if isempty(json)

@@ -18,7 +18,7 @@ if ~isfield(record,'measures') || ~isfield(record.measures,'markers') || isempty
     return
 end
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 motifs = params.markers(find([params.markers.behavior]));
 motif_list = [motifs.marker]; 

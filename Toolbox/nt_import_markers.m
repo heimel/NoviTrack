@@ -43,7 +43,7 @@ end
 function record = import_laser(record)
 % import prey laser and optogenetics log made on raspberry pi
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 [~,events] = nt_load_laser_triggers(record,[],params);
 if isempty(events)
@@ -98,7 +98,7 @@ offset_time = 0;
 % [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,record.measures.trigger_times) ;
 % events.duration = events.duration * multiplier;
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 markers = record.measures.markers;
 for i = 1:height(events)
     markers = nt_insert_marker(markers,offset_time + events.time(i),char(events.code(i)),params);
@@ -113,7 +113,7 @@ function record = import_rwd(record)
 if isempty(events)
     return
 end
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 % change to master time
 [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,record.measures.trigger_times) ;
@@ -157,7 +157,7 @@ end
 function record = import_newstim(record)
 % adds triggers from newstim stims.mat files to record.measures.markers
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 markers = record.measures.markers;
 [newstim_triggers,newstim_events] = nt_load_newstim_triggers(record);
 

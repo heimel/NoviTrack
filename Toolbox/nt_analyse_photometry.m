@@ -21,7 +21,7 @@ end
 
 
 snippets = [];
-params = nt_default_parameters( record );
+params = nt_load_parameters( record );
 
 [photometry,measures] = nt_load_photometry(record,params);
 

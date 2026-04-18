@@ -5,7 +5,7 @@ function mask = nt_arena_mask(record)
 %
 % 2025, Alexander Heimel
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 arena_x = [-1  1 1 -1 -1]*params.arena_diameter_mm/2; % mm
 arena_y = [-1 -1 1  1 -1]*params.arena_diameter_mm/2; % mm

@@ -9,7 +9,7 @@ function tbl = nt_load_noldus_file(record)
 
 tbl = [];
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 folder = nt_session_path(record);
 file_pattern = [record.subject '_Noldus_behavioral_data.xlsx'];

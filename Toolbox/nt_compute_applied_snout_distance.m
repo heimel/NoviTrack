@@ -5,7 +5,7 @@ function neurotar_snout_distance_mm = nt_compute_applied_snout_distance(record)
 %
 % 2024, Alexander Heimel
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 neurotar_path = fullfile(params.networkpathbase,record.project,'Data_collection','Neurotar');
 neurotar_mask = fullfile(neurotar_path,['Track_[' record.date '*]_' record.subject '_session' num2str(record.sessnr)]);
 d = dir(neurotar_mask);

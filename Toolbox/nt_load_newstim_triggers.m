@@ -14,7 +14,7 @@ function [triggers,events] = nt_load_newstim_triggers(record)
 triggers = [];
 events = [];
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 session_path = nt_session_path(record,params);
 d = dir(fullfile(session_path,'t00*'));
 d = d([d.isdir]);

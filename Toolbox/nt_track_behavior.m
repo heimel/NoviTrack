@@ -13,7 +13,7 @@ function [record,changed] = nt_track_behavior(record,h_dbfig,verbose)
 % align times from this common trigger and then multiply master time with specific
 % multiplier to obtain time in [picamera] values. 
 % 
-% See also nt_default_parameters.
+% See also nt_load_parameters.
 %
 % Coordinates frames:
 %    Arena coordinates: x,y position in circular arena in mm
@@ -41,7 +41,7 @@ end
 %% Preamble
 changed = false;
 measures = record.measures;
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 if isempty(measures)
     measures = struct([]);
@@ -73,7 +73,7 @@ set(groot, 'defaultAxesCreateFcn', @(ax,~) disableDefaultInteractivity(ax))
 
 state.master_time = 0;
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 % update object_positions format
 if ~isfield(measures,'object_positions')

@@ -1,7 +1,7 @@
-function params = nt_default_parameters(record)
+function params = nt_load_parameters(record)
 %nt_default_paramters Contains default parameters for neurotar analysis
 %
-%  PARAM = nt_default_parameters([RECORD])
+%  PARAM = nt_load_parameters([RECORD])
 %
 %  Edit processparams_local for local and temporary edits to these default
 %  parameters.

@@ -12,7 +12,7 @@ if nargin<3 || isempty(bounds)
 end
 
 if isempty(params)
-    params = nt_default_parameters();
+    params = nt_load_parameters();
 end
 
 c = get(ax,'Children');

@@ -9,7 +9,7 @@ function [pth,exists] = nt_session_path(record,params)
 % 2024-2025, Alexander Heimel
 
 if nargin<2 || isempty(params)
-    params = nt_default_parameters(record);
+    params = nt_load_parameters(record);
 end
 
 pth = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);

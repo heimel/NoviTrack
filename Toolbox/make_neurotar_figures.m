@@ -6,7 +6,7 @@
 
 %% Load database
 %sParams = vr_defaultParameters();
-sParams = nt_default_parameters(); % perhaps should be line above?
+sParams = nt_load_parameters(); % perhaps should be line above?
 dbfilename = fullfile(sParams.strOutputPath,'Innate_approach','Data_analysis','db_nt_94755.mat');
 %dbfilename = fullfile(sParams.strOutputPath,'Innate_approach','Data_analysis','db_nt_test_alexander.mat');
 load(dbfilename,'db');
@@ -88,7 +88,7 @@ end
 %% Compare laser behaviors
 subjects = {'82793','82794','85230','85231','85232','85233'};
 clr = [0.8 0.8 0];
-params = nt_default_parameters();
+params = nt_load_parameters();
 for b = 1:length(params.nt_behaviors)
     behavior = params.nt_behaviors(b).behavior;
     for s = 1:length(subjects)
@@ -150,7 +150,7 @@ end % b
 %% Compare laser indices
 subjects = {'82793','82794','85230','85231','85232','85233'};
 clr = [0.8 0.8 0];
-params = nt_default_parameters();
+params = nt_load_parameters();
 val = [];
 shuffles = [];
 for b = 1:length(params.nt_indices)

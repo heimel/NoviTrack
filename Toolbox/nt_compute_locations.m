@@ -15,7 +15,7 @@ if nargin<2 || isempty(nt_data)
     end
 end
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 measures = record.measures;
 
 [arena_x,arena_y] = nt_change_overhead_to_arena_coordinates(nt_data.CoM_X',nt_data.CoM_Y',[],[],[],params);

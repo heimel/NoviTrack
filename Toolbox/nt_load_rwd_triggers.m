@@ -8,7 +8,7 @@ function [triggers,events] = nt_load_rwd_triggers(record)
 %
 % 2025, Alexander Heimel
 
-params = nt_default_parameters( record );
+params = nt_load_parameters( record );
 
 triggers = [];
 events = [];

@@ -6,7 +6,7 @@ function [motion,time] = nt_compute_visual_motion(record)
 % 2024, Alexander Heimel
 
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 movie_path = nt_session_path(record,params);
 

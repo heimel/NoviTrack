@@ -15,7 +15,7 @@ if nargin<2 || isempty(time_range)
     time_range = [];
 end
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 measures = record.measures;
 

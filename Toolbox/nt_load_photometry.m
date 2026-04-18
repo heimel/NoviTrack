@@ -25,7 +25,7 @@ function [photometry,measures] = nt_load_photometry(record,params)
 % 2025, Alexander Heimel
 
 if nargin<2 || isempty(params)
-    params = nt_default_parameters( record );
+    params = nt_load_parameters( record );
 end
 
 measures = record.measures;

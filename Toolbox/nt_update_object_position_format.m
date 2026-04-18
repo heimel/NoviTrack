@@ -29,7 +29,7 @@ end
 n = size(old_positions,1);
 new_positions = [old_positions ones(n,1)];
 
-old_params = nt_default_parameters_20231201(record);
+old_params = nt_load_parameters_20231201(record);
 
 for i = 1:n
     if old_positions(i,4) == params.NEUROTAR
@@ -43,8 +43,8 @@ logmsg('Updated object positions in measures')
 
 end
 
-function params = nt_default_parameters_20231201(record)
-% nt_default_parameters version from 2023-12-01
+function params = nt_load_parameters_20231201(record)
+% nt_load_parameters version from 2023-12-01
 
 % General
 params = struct;
