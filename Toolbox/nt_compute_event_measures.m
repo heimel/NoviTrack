@@ -31,6 +31,7 @@ for event_type = unique_events(:)'
         latency = [];
         duration = 0;
         response = zeros(length(ind_stim),1);
+        count = length(ind);
         for j = 1:length(ind_stim)
             stim_start = events.time(ind_stim(j));
 
@@ -41,6 +42,7 @@ for event_type = unique_events(:)'
                 stim_stop = events.time(ind_stop);
             end
 
+            total_stim_time = stim_stop - stim_start; % to define the start and end of one stimuli
             ind = find(behaviors.time>stim_start & behaviors.time<stim_stop & behaviors.event == motif);
             if isempty(ind)
                 continue
@@ -64,6 +66,8 @@ for event_type = unique_events(:)'
         measures.behavior.(event_type).(motif).response_fraction = sum(response)/length(ind_stim); % fraction of stimuli with a response
         measures.behavior.(event_type).(motif).latency = mean(latency,'omitnan');
         measures.behavior.(event_type).(motif).duration = duration/length(ind_stim);
+        measures.behavior.(event_type).(motif).duration_percent = duration/total_stim_time*100; % calculate the duration percent
+        measures.behavior.(event_type).(motif).frequency = count/total_stim_time * 100; % calculate the count frequency
     end % motif i
 
 end % event_type
@@ -88,7 +92,6 @@ for i = 1:n_motifs
     measures.behavior.spontaneous.(motif).duration_total = duration;
     measures.behavior.spontaneous.(motif).duration_average = duration/count;
     measures.behavior.spontaneous.(motif).count = count;
-
 end % end motif i
 
 
