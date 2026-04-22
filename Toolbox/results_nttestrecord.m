@@ -12,7 +12,7 @@ evalin('base','global measures');
 evalin('base','global analysed_script');
 evalin('base','global global_record');
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 measures = record.measures;
 

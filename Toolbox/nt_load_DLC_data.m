@@ -7,7 +7,7 @@ function nt_data = nt_load_DLC_data(record)
 %
 % 2025, Alexander Heimel
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 nt_data = [];
 session_path = nt_session_path(record,params);

@@ -11,7 +11,7 @@ function nt_data = nt_load_noldus_tracking(record)
 
 nt_data = [];
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 tbl = nt_load_noldus_file(record);
 

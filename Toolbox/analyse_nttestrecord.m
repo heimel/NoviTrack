@@ -17,7 +17,7 @@ if ~exists
     return
 end
 
-params = nt_default_parameters( record );
+params = nt_load_parameters( record );
 
 if ~isempty(params.nt_seed)
     rng(params.nt_seed);

@@ -11,7 +11,7 @@ if nargin<3 || isempty(framerate)
     framerate = 30;
 end
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 session_path = nt_session_path(record,params);
 

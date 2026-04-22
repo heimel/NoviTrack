@@ -8,7 +8,7 @@ function correct = nt_check_markers( record, params, verbose )
 % 2023-2024, Alexander Heimel
 
 if nargin<2 || isempty(params)
-    params = nt_default_parameters(record);
+    params = nt_load_parameters(record);
 end
 if nargin<3 || isempty(verbose)
     verbose = true;

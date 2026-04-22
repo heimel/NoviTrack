@@ -9,7 +9,7 @@ logmsg('DEPRECATED. ONLY WORKS FOR ONE OBJECT')
 
 logmsg(['Adding objects to nt_data for ' recordfilter(record)])
 
-params = nt_default_parameters( record );
+params = nt_load_parameters( record );
 measures = record.measures;
 
 if isfield(measures,'object_positions')

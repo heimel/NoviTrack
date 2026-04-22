@@ -19,7 +19,7 @@ function [neurotar_data,neurotar_filename] = nt_load_neurotar_data(record)
 neurotar_data = [];
 neurotar_filename = [];
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 neurotar_path = fullfile(params.networkpathbase,record.project,'Data_collection','Neurotar');
 neurotar_mask = fullfile(neurotar_path,['Track_[' record.date '*]_' record.subject '_session' num2str(record.sessnr)]);

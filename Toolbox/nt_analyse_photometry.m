@@ -21,7 +21,7 @@ end
 
 
 snippets = [];
-params = nt_default_parameters( record );
+params = nt_load_parameters( record );
 
 [photometry,measures] = nt_load_photometry(record,params);
 
@@ -46,7 +46,7 @@ nt_data_sample_rate = 1/median(diff(nt_data.Time));
 %% Compute maps
 measures = compute_maps(nt_data,photometry,measures,params);
 
-%% Compute correlations
+%% Compute correlations with behavior
 
 variables = {'Speed','Angular_velocity','Abs_angular_velocity','Distance_to_center'};
 

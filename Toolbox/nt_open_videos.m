@@ -9,7 +9,7 @@ function [vidobj,video_info,available_cameras] = nt_open_videos(record)
 %
 % 2025, Alexander Heimel
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 session_path = nt_session_path(record,params);
 

@@ -30,7 +30,7 @@ function [nt_data,trigger_times] = nt_load_tracking_data(record,recompute)
 nt_data = [];
 
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 if nargin<2 || isempty(recompute)
     recompute = params.nt_recompute_tracking_data;

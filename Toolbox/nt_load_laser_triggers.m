@@ -21,7 +21,7 @@ if nargin<2
     neurotar_data = [];
 end
 if nargin<3 || isempty(params)
-    params = nt_default_parameters(record);
+    params = nt_load_parameters(record);
 end
 
 events = [];

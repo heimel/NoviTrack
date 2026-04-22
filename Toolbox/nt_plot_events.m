@@ -11,7 +11,7 @@ if ~isfield(measures,'event') || isempty(measures.event)
     return
 end
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 event_types = string(fields(measures.event));
 

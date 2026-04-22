@@ -8,7 +8,7 @@ function [folder,found] = nt_photometry_folder(record)
  
 found = false;
 
-params = nt_default_parameters(record);
+params = nt_load_parameters(record);
 
 folder = fullfile(params.networkpathbase,record.project,'Data_collection',record.dataset,record.subject,record.sessionid);
 if ~exist(folder,'dir')
