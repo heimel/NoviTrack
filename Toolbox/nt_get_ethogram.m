@@ -90,4 +90,8 @@ if show && any(ethogram(:))
     set(gca,'yticklabel',cellfun(@(x) capitalize(x),{motifs.description},'UniformOutput',false));
     colormap([1 1 1; reshape([motifs.color],3,n_motifs)'])
     xlabel('Time (s)')
+
+    params = nt_load_parameters(record);
+    params.nt_show_behavior_markers = false;
+     nt_show_markers(record.measures.markers,gca,params);
 end

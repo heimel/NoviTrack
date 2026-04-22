@@ -159,7 +159,7 @@ nt_marker_sets:
         groom:     ['r', 'gRoom',                        [0.1, 0.5, 0.8], true, false]
         climb:     ['l', 'cLimb',                        [0.8, 0.2, 0.9], true, false]
         dig:       ['d', 'Dig',                          [0.6, 0.3, 0], true, false]
-        bury:      ['y', 'pushbedding burYing',          [0.3, 0.6, 0], true, false]
+        bury:      ['y', 'burYing',                      [0.3, 0.6, 0], true, false]
         overhead:  ['h', 'start overHead stimulus',      [0.4, 0.2, 1], false, true]
     prey_capture:
         stop:      ['t', 'stop stimulus',                   [1, 0, 0],    false, true]
