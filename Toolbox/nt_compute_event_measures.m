@@ -65,6 +65,9 @@ for event_type = unique_events(:)'
         measures.behavior.(event_type).(motif).duration = duration/length(ind_stim);
         measures.behavior.(event_type).(motif).duration_percent = duration/total_stim_time*100; % calculate the duration percent
         measures.behavior.(event_type).(motif).duration_fraction = duration/total_stim_time; % behavior duration as fractioin of total time
+        % duration_fraction can be over 100%, as the duration of the
+        % behavior is counted until the end of the behavior, not until
+        % the end of the stimulus
         measures.behavior.(event_type).(motif).rate = sum(response)/total_stim_time; % calculate the response rate
 
         if measures.behavior.(event_type).(motif).duration_fraction==0 && measures.behavior.(event_type).(motif).duration~=0
