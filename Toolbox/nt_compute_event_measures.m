@@ -9,12 +9,16 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 %
 %  See nt_data_structures.md for more information.
 %
-% 2025, Alexander
+% 2025-2026, Alexander
 
 %% Compute measures for behavioral responses to stimuli
 motifs = params.markers(find([params.markers.behavior]));
 motif_list = [motifs.marker];
 n_motifs = length(motifs);
+if isempty(measures)
+    return
+end
+
 events = measures.events;
 unique_events = unique(events.event);
 behaviors = get_behaviors(events,motif_list);
@@ -37,7 +41,7 @@ for event_type = unique_events(:)'
             if isempty(ind_stop)
                 % stim_stop = inf; % not until next stimulus, but until end of time
                 logmsg(['Stop marker missing for event type ' event_type_char '. Temporarily taking to end of video, but should be added.'])
-                stim_stop = measures.video_info(2).Duration;
+                stim_stop = measures.max_time;
             else
                 stim_stop = events.time(ind_stop);
             end
@@ -98,6 +102,8 @@ for i = 1:n_motifs
     measures.behavior.spontaneous.(motif).duration_total = duration;
     measures.behavior.spontaneous.(motif).duration_average = duration/count;
     measures.behavior.spontaneous.(motif).count = count;
+    movie_duration = measures.max_time - measures.min_time;
+    measures.behavior.spontaneous.(motif).duration_fraction = duration / movie_duration; % this assumes whole movie is marked for behavior
 end % end motif i
 
 
