@@ -1,18 +1,22 @@
-function [triggers,events] = nt_load_newstim_triggers(record)
+function [triggers,events] = nt_load_newstim_triggers(record,fields2add)
 %nt_load_newstim_triggers. Loads triggers and creates events from NewStim
 %folders
 %
-%  [TRIGGERS,EVENTS] = nt_load_newstim_triggers(RECORD)
+%  [TRIGGERS,EVENTS] = nt_load_newstim_triggers(RECORD,FIELDS2ADD = {})
+%        FIELDS2ADD is a cell list with parameters to add to EVENTS.
 %        TRIGGERS in seconds from stimulus computer clock (from stims.mat)
 %        EVENTS is table with fields: time, code, duration
 %               time is stimulus computer clock
 %
-% 2025, Alexander Heimel
+% 2025-2026, Alexander Heimel
 
-%%
+if nargin<2 || isempty(fields2add)
+    fields2add = {};
+end
 
 triggers = [];
 events = [];
+
 
 params = nt_load_parameters(record);
 session_path = nt_session_path(record,params);
@@ -62,7 +66,18 @@ for i = 1:length(d)
     count = count + 1;
 end
 code = string(code);
+
 events = table(time,code,dur,'VariableNames',{'time','code','duration'});
+
+% add columns with parameters in which the stimuli differ
+ss = cellfun(@(ss) getparameters(ss),unique_scripts);
+fields = find_differing_fields(ss);
+fields = unique({fields{:},fields2add{:}});
+for f = 1:length(fields)
+    field = fields{f};
+    val = cellfun( @(c) getparameters(unique_scripts{str2double(c(2:end))}).(field), code);
+    events.(field) = val;
+end % f
 
 if ~all(diff(triggers)>0)
     logmsg(['Stimulus times are not all in increasing order. Resorting, but check results for ' recordfilter(record)]);

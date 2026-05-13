@@ -13,8 +13,13 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 
 %% Compute measures for behavioral responses to stimuli
 motifs = params.markers(find([params.markers.behavior]));
-motif_list = [motifs.marker];
-n_motifs = length(motifs);
+motif_list = {motifs.marker};
+
+% temporarily added for looming analysis
+motif_list = {motif_list{:},'a1','v1'};
+
+
+n_motifs = length(motif_list);
 if isempty(measures)
     return
 end
@@ -30,16 +35,15 @@ for event_type = unique_events(:)'
     end
     ind_stim = find(events.event==event_type);
 
-    for i = 1:n_motifs
-        motif = motif_list(i);
+    for i = 1:n_motifs % behaviors
+        motif = motif_list{i};
         latency = [];
         duration = 0;
         response = zeros(length(ind_stim),1);
-        for j = 1:length(ind_stim)
+        for j = 1:length(ind_stim) % stimuli
             stim_start = events.time(ind_stim(j));
             ind_stop = find(events.time>stim_start & events.event == string([ params.nt_stop_marker event_type_char(2)]),1);
             if isempty(ind_stop)
-                % stim_stop = inf; % not until next stimulus, but until end of time
                 logmsg(['Stop marker missing for event type ' event_type_char '. Temporarily taking to end of video, but should be added.'])
                 stim_stop = measures.max_time;
             else
@@ -47,8 +51,7 @@ for event_type = unique_events(:)'
             end
             total_stim_time = stim_stop - stim_start; % to define the start and end of one stimuli
             ind = find(behaviors.time>stim_start & behaviors.time<stim_stop & behaviors.event == motif);
-            count = length(ind);
-            if isempty(ind)
+            if isempty(ind) % no response
                 continue
             else
                 response(j) = 1;
@@ -60,9 +63,9 @@ for event_type = unique_events(:)'
                 else
                     duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
                 end
-            end % k
-        end % j
-        measures.behavior.(event_type).(motif).n = length(latency); % all response, multiple per stim possible
+            end % response k
+        end % stimulus j
+        measures.behavior.(event_type).(motif).count = length(latency); % all response, multiple per stim possible
         measures.behavior.(event_type).(motif).response = sum(response); % response, max one per stim.
         measures.behavior.(event_type).(motif).response_fraction = sum(response)/length(ind_stim); % fraction of stimuli with a response
         measures.behavior.(event_type).(motif).latency = mean(latency,'omitnan');
@@ -73,38 +76,34 @@ for event_type = unique_events(:)'
         % behavior is counted until the end of the behavior, not until
         % the end of the stimulus
         measures.behavior.(event_type).(motif).rate = sum(response)/total_stim_time; % calculate the response rate
-
-        if measures.behavior.(event_type).(motif).duration_fraction==0 && measures.behavior.(event_type).(motif).duration~=0
-            keyboard
-        end
-
     end % motif i
-
 end % event_type
 
 
 %% compute motif statistics for non-stimulus linked behavior
 for i = 1:n_motifs
-    motif = motif_list(i);
+    motif = motif_list{i};
     duration = 0;
     ind = find(behaviors.event == motif);
     count = length(ind);
-    if isempty(ind)
-        continue
-    end
     for k = 1:length(ind)
         if ind(k) == height(behaviors)
             duration = duration + measures.max_time - behaviors.time(ind(k));
         else
             duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
-        end % end if
-    end  % end k
-    measures.behavior.spontaneous.(motif).duration_total = duration;
-    measures.behavior.spontaneous.(motif).duration_average = duration/count;
-    measures.behavior.spontaneous.(motif).count = count;
+        end 
+    end % behavior k
+    measures.behavior.session.(motif).count = count;
+    measures.behavior.session.(motif).duration_total = duration;
+    if count>0
+        measures.behavior.session.(motif).duration_average = duration/count;
+    else
+        measures.behavior.session.(motif).duration_average = NaN;
+    end
+    measures.behavior.session.(motif).count = count;
     movie_duration = measures.max_time - measures.min_time;
-    measures.behavior.spontaneous.(motif).duration_fraction = duration / movie_duration; % this assumes whole movie is marked for behavior
-end % end motif i
+    measures.behavior.session.(motif).duration_fraction = duration / movie_duration; % this assumes whole movie is marked for behavior
+end % motif i
 
 
 %% Compute results from snippets 

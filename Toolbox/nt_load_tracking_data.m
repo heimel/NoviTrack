@@ -79,7 +79,11 @@ end
 
 
 % Get time and trigger from overhead video
-video_info = record.measures.video_info(params.nt_overhead_camera);
+if numel(record.measures.video_info)>1
+    video_info = record.measures.video_info(params.nt_overhead_camera);
+else
+    video_info = record.measures.video_info;
+end
 
 if ~isfield(nt_data,'Time') || isempty(nt_data.Time)
     nt_data.Time = extract_frametimes(video_info);
