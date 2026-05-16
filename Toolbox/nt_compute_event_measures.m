@@ -7,6 +7,31 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 %        snippet_mean, snippet_std, mean, max, min, event_mean
 %   from SNIPPETS.data
 %
+%   and for MEASURES.behavior.(EVENT_TYPE).(MOTIF).(FIELD)
+%   where MOTIF is a behavior and event_type is a type of event or 'session'
+%   for events, the measures are calculated for the period the stimulus is present
+%   FIELD is
+%       n_occurences_per_stimulus: # of occurrences per stimulus, multiple per stimulus possible.
+%       n_responses_per_stimulus: # of occurrences per stimulus, with max. one per stim.
+%       shortest_latency: shortest latency of the first response 
+%       duration_per_stimulus: average duration of the response per stimulus;
+%           duration can be longer than the stimulus, as it is counted
+%           until the end of the behavior, not of the stimulus
+%       duration_fraction: fraction of average duration of the stimulus duration
+%       duration_per_occurence: total duration / # of occurrences
+%       interval: mean time between start of occurrences 
+%       rate: # of occurrences / total stimulus time
+%   for EVENT_TYPE is 'session', FIELD is
+%       n_occurrences_per_session: # occurrences per session
+%       duration_per_session: total duration per session
+%       duration_per_occurrence: total duration / # of occurrence
+%       interval: mean time between start of occurrences 
+%       duration_fraction:  duration / marked_period;
+%       rate: # of occurrences / marked_period; 
+%       duration_fraction_of_movie: duration / movie_duration; 
+%       rate_in_movie: count / movie_duration; 
+%      
+%
 %  See nt_data_structures.md for more information.
 %
 % 2025-2026, Alexander
@@ -15,7 +40,7 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 motifs = params.markers(find([params.markers.behavior]));
 motif_list = {motifs.marker};
 
-% temporarily added for looming analysis
+% temporarily added for looming analysisn (where shelter is object 1)
 motif_list = {motif_list{:},'a1','v1'};
 
 
@@ -34,13 +59,16 @@ for event_type = unique_events(:)'
         continue % if not a stimulus
     end
     ind_stim = find(events.event==event_type);
-
+    n_stimuli = length(ind_stim);
     for i = 1:n_motifs % behaviors
         motif = motif_list{i};
-        latency = [];
-        duration = 0;
-        response = zeros(length(ind_stim),1);
-        for j = 1:length(ind_stim) % stimuli
+        shortest_latency = inf; % s
+        total_duration = 0; % s
+        n_occurrences = 0;
+        n_responses = 0;
+        total_stim_duration = 0; % s
+        intervals = [];
+        for j = 1:n_stimuli % stimuli
             stim_start = events.time(ind_stim(j));
             ind_stop = find(events.time>stim_start & events.event == string([ params.nt_stop_marker event_type_char(2)]),1);
             if isempty(ind_stop)
@@ -49,60 +77,81 @@ for event_type = unique_events(:)'
             else
                 stim_stop = events.time(ind_stop);
             end
-            total_stim_time = stim_stop - stim_start; % to define the start and end of one stimuli
+            stim_duration = stim_stop - stim_start; % to define the start and end of one stimuli
+            total_stim_duration = total_stim_duration + stim_duration;
+ 
             ind = find(behaviors.time>stim_start & behaviors.time<stim_stop & behaviors.event == motif);
             if isempty(ind) % no response
                 continue
-            else
-                response(j) = 1;
             end
-            latency(end+1) = behaviors.time(ind(1)) - stim_start; %#ok<AGROW>
+            n_responses = n_responses + 1;
+            n_occurrences = n_occurrences + length(ind);
+
+            latency = behaviors.time(ind(1)) - stim_start; 
+            if latency < shortest_latency
+                shortest_latency = latency;
+            end
+
+            intervals = [intervals; diff(behaviors.time(ind))];
+
             for k = 1:length(ind)
                 if ind(k)==height(behaviors)
-                    duration = duration + measures.max_time - behaviors.time(ind(k));
+                    duration =  stim_stop - behaviors.time(ind(k));
+                    logmsg(['No end for ' behaviors.event(ind(k)) '. Taking end of stimulus'])
                 else
-                    duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
+                    duration =  behaviors.time(ind(k)+1) - behaviors.time(ind(k));
                 end
+                total_duration = total_duration + duration;
             end % response k
         end % stimulus j
-        measures.behavior.(event_type).(motif).count = length(latency); % all response, multiple per stim possible
-        measures.behavior.(event_type).(motif).response = sum(response); % response, max one per stim.
-        measures.behavior.(event_type).(motif).response_fraction = sum(response)/length(ind_stim); % fraction of stimuli with a response
-        measures.behavior.(event_type).(motif).latency = mean(latency,'omitnan');
-        measures.behavior.(event_type).(motif).duration = duration/length(ind_stim);
-        measures.behavior.(event_type).(motif).duration_percent = duration/total_stim_time*100; % calculate the duration percent
-        measures.behavior.(event_type).(motif).duration_fraction = duration/total_stim_time; % behavior duration as fractioin of total time
-        % duration_fraction can be over 100%, as the duration of the
-        % behavior is counted until the end of the behavior, not until
-        % the end of the stimulus
-        measures.behavior.(event_type).(motif).rate = sum(response)/total_stim_time; % calculate the response rate
+
+        res.n_occurrences_per_stimulus = n_occurrences / n_stimuli;
+        res.n_responses_per_stimulus = n_responses / n_stimuli; 
+        res.shortest_latency = shortest_latency;
+        res.duration_per_stimulus = total_duration / n_stimuli;
+        res.duration_fraction = total_duration / total_stim_duration;
+        res.duration_per_occurrence = total_duration / n_occurrences;
+        res.interval = mean(intervals);
+        res.rate = n_occurrences / total_stim_duration;
+
+        measures.behavior.(event_type).(motif) = res;
     end % motif i
 end % event_type
 
 
-%% compute motif statistics for non-stimulus linked behavior
+%% compute motif statistics for behavior during full session
 for i = 1:n_motifs
     motif = motif_list{i};
-    duration = 0;
+    total_duration = 0; % s
     ind = find(behaviors.event == motif);
-    count = length(ind);
+    n_occurrences = length(ind);
     for k = 1:length(ind)
         if ind(k) == height(behaviors)
-            duration = duration + measures.max_time - behaviors.time(ind(k));
+            duration = measures.max_time - behaviors.time(ind(k));
+            logmsg(['No end for ' behaviors.event(ind(k))])
         else
-            duration = duration + behaviors.time(ind(k)+1) - behaviors.time(ind(k));
-        end 
+            duration = behaviors.time(ind(k)+1) - behaviors.time(ind(k));
+        end
+        total_duration = total_duration + duration;
     end % behavior k
-    measures.behavior.session.(motif).count = count;
-    measures.behavior.session.(motif).duration_total = duration;
-    if count>0
-        measures.behavior.session.(motif).duration_average = duration/count;
-    else
-        measures.behavior.session.(motif).duration_average = NaN;
-    end
-    measures.behavior.session.(motif).count = count;
+
+    marked_period = events.time(end) - events.time(1);
     movie_duration = measures.max_time - measures.min_time;
-    measures.behavior.session.(motif).duration_fraction = duration / movie_duration; % this assumes whole movie is marked for behavior
+
+    res.n_occurrences_per_session = n_occurrences;
+    res.duration_per_session = total_duration;
+    if n_occurrences > 0 
+        res.duration_per_occurrence = total_duration / n_occurrences;
+    else
+        res.duration_per_occurrence = NaN;
+    end
+    res.interval = mean(diff(events.time(ind)));
+    res.duration_fraction = total_duration / marked_period;
+    res.rate = n_occurrences / marked_period; 
+    res.duration_fraction_of_movie = total_duration / movie_duration; 
+    res.rate_in_movie = n_occurrences / movie_duration;
+
+    measures.behavior.session.(motif) = res;
 end % motif i
 
 
