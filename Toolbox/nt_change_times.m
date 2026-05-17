@@ -17,6 +17,11 @@ function [to,offset,multiplier] = nt_change_times(from,triggers_from,triggers_to
 %
 % 2025, Alexander Heimel
 
+from_size = size(from);
+from = from(:);
+triggers_from = triggers_from(:);
+triggers_to = triggers_to(:);
+
 n_triggers_from = length(triggers_from);
 n_triggers_to = length(triggers_to);
 
@@ -100,4 +105,4 @@ if abs(multiplier-1)>0.01
     logmsg('Clocks are more than 1% different. There is a likely mismatch of triggers.')
 end
 
-to = from * multiplier + offset;
+to = reshape(from * multiplier + offset,from_size);
