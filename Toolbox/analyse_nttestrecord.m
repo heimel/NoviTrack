@@ -34,6 +34,9 @@ end
 logmsg(['Analyzing ' recordfilter(record)]);
 
 record.measures.event = [];
+if isfield(record.measures,'events')
+    record.measures = rmfield(record.measures,'events');
+end
 
 if isempty(nt_data) && params.automatically_track_mouse 
     time_range = [];
@@ -45,36 +48,10 @@ if nt_check_markers( record, params, verbose ) == false
     return
 end
 
-% make events table, used throughout analysis
-if isfield(record.measures,'markers') && ~isempty(record.measures.markers)
-    record.measures.events = table([record.measures.markers.time]',...
-        string({record.measures.markers.marker}'),'VariableNames',{'time','event'});
-else
+% events are derived from markers by nt_get_events when needed
+if ~isfield(record.measures,'markers') || isempty(record.measures.markers)
     record.measures.markers = [];
-    record.measures.events = table([],[],'VariableNames',{'time','event'});
 end
-
-if params.use_clean_baseline 
-    events = record.measures.events;
-    i = 1;
-    % remove all same events within pretime
-    while i<height(events)
-        events(events.time>events.time(i) & events.time<(events.time(i) + params.nt_pretime) & events.event == events.event(i),:) = [];
-        i = i + 1;
-    end
-    record.measures.events = events;
-end
-if params.use_ultraclean_baseline 
-    events = record.measures.events;
-    i = 1;
-    % remove all events within pretime
-    while i<height(events)
-        events(events.time>events.time(i) & events.time<(events.time(i) + params.nt_pretime) ,:) = [];
-        i = i + 1;
-    end
-    record.measures.events = events;
-end
-
 
 record.measures.snippets_tbins = (-params.nt_pretime + params.nt_photometry_bin_width/2):params.nt_photometry_bin_width:(params.nt_posttime-params.nt_photometry_bin_width/2);
 

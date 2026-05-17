@@ -49,7 +49,11 @@ if isempty(measures)
     return
 end
 
-events = measures.events;
+events = nt_get_events(measures,params);
+if isempty(events)
+    measures.event = [];
+    return
+end
 unique_events = unique(events.event);
 behaviors = get_behaviors(events,motif_list);
 

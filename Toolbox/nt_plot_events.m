@@ -22,8 +22,7 @@ else
     logmsg('No snippets file found. Run analysis.')
     snippets = [];
 end
-%events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
-events = measures.events;
+events = nt_get_events(measures,params);
 
 for event_type = event_types(:)'
     event = measures.event.(event_type);

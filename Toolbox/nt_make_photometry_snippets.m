@@ -20,8 +20,7 @@ if ~isfield(measures,'markers') || isempty(measures.markers)
     return
 end
 
-%events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
-events = measures.events;
+events = nt_get_events(measures,params);
 n_events = height(events);
 
 t_bins = measures.snippets_tbins;

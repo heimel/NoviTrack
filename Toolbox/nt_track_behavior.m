@@ -45,6 +45,8 @@ params = nt_load_parameters(record);
 
 if isempty(measures)
     measures = struct([]);
+elseif isfield(measures,'events')
+    measures = rmfield(measures,'events');
 end
 if ~isfield(measures,'markers')
     measures(1).markers = struct([]);

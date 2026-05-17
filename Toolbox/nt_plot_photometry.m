@@ -64,8 +64,7 @@ for c = 1:length(measures.channels)
     nt_show_markers(measures.markers,ax1,params,[],[])
 
     % Heat plot all snippets
-    %    events = table([measures.markers.time]',string({measures.markers.marker}'),'VariableNames',{'time','event'});
-        events = measures.events;
+    events = nt_get_events(measures,params);
 
     n_plots = length(channel.lights);
     if measures.photometry_isosbestic_correction

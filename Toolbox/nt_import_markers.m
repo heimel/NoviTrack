@@ -16,6 +16,8 @@ if isempty(record)
 end
 if ~isfield(record,'measures')
     record.measures = struct([]); % Initialize measures field in record
+elseif isfield(record.measures,'events')
+    record.measures = rmfield(record.measures,'events');
 end
 if ~isfield(record.measures,'markers')
     record.measures.markers = struct([]);
