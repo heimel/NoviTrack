@@ -145,13 +145,17 @@ if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
         for b = 1:num_behaviors
             behavior = params.nt_behaviors(b).behavior;
             shuffles = measures.(behavior).(['shuffles_' quantity]);
-            hshuf = plot( b + [-0.5 0.5],nanmean(shuffles)*[1 1],'-','color',[0.7 0.7 0.7],'linewidth',2);
-            plot( b + [-0.5 0.5],(nanmean(shuffles) - nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
-            plot( b + [-0.5 0.5],(nanmean(shuffles) + nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
-            y(b) = measures.(behavior).(quantity);
-            [~,p] = ttest2(shuffles , measures.(behavior).(quantity));
-            logmsg([behavior ' ' quantity ', p = ' num2str(p,2)]);
-            plot_significance(b,b,max([y(b) mean(shuffles,'omitnan')]),p,[],[],true);
+            if ~isempty(shuffles)
+                hshuf = plot( b + [-0.5 0.5],nanmean(shuffles)*[1 1],'-','color',[0.7 0.7 0.7],'linewidth',2);
+                plot( b + [-0.5 0.5],(nanmean(shuffles) - nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
+                plot( b + [-0.5 0.5],(nanmean(shuffles) + nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
+                y(b) = measures.(behavior).(quantity);
+                [~,p] = ttest2(shuffles , measures.(behavior).(quantity));
+                logmsg([behavior ' ' quantity ', p = ' num2str(p,2)]);
+                plot_significance(b,b,max([y(b) mean(shuffles,'omitnan')]),p,[],[],true);
+            else
+                hshuf = [];
+            end
         end % b
         htrue = bar(1:num_behaviors,y,0.5,'facealpha',0.5,'facecolor',clr);
         set(gca,'XTick',1:num_behaviors);
@@ -172,13 +176,17 @@ if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
 
 
         shuffles = measures.(index).shuffles;
-        hshuf = plot( i + [-0.5 0.5],mean(shuffles,'omitnan')*[1 1],'-','color',[0.7 0.7 0.7],'linewidth',2);
-        plot( i + [-0.5 0.5],(mean(shuffles,'omitnan') - nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
-        plot( i + [-0.5 0.5],(mean(shuffles,'omitnan') + nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
+        if ~isempty(shuffles)
+            hshuf = plot( i + [-0.5 0.5],mean(shuffles,'omitnan')*[1 1],'-','color',[0.7 0.7 0.7],'linewidth',2);
+            plot( i + [-0.5 0.5],(mean(shuffles,'omitnan') - nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
+            plot( i + [-0.5 0.5],(mean(shuffles,'omitnan') + nansem(shuffles))*[1 1],'-','color',[0.7 0.7 0.7]);
 
-        [~,p] = ttest2(shuffles , measures.(index).val);
-        logmsg([index  ', p = ' num2str(p,2)]);
-        plot_significance(i,i,max([y(i) mean(shuffles,'omitnan')]),p,[],[],true);
+            [~,p] = ttest2(shuffles , measures.(index).val);
+            logmsg([index  ', p = ' num2str(p,2)]);
+            plot_significance(i,i,max([y(i) mean(shuffles,'omitnan')]),p,[],[],true);
+        else
+            hshuf = [];
+        end
     end
     htrue = bar(1:length(params.nt_indices),y,0.5,'facealpha',0.5,'facecolor',clr);
     set(gca,'xtick',1:length(params.nt_indices));

@@ -105,13 +105,18 @@ measures.session_start_moving_backward_per_min = measures.session_count_start_mo
 
 record.measures = measures;
 
-record = nt_compute_locations(record,nt_data,verbose);
-
+if ~params.neurotar
+    record = nt_compute_locations(record,nt_data,verbose);
+else
+    logmsg('Compute locations is not yet implemented for neurotar.')
+end
 
 if ~params.neurotar
     return
     % Below this only works for one object
 end
+
+
 
 %% Object analysis
 [record,nt_data] = nt_object_analysis(record,nt_data,verbose);
@@ -139,6 +144,7 @@ if isfield(measures,'object_positions') && ~isempty(measures.object_positions)
     end % r
 
     % Shuffle object insertions
+    params.nt_shuffle_number = 0;
     for i = 1:params.nt_shuffle_number
         logmsg(['Shuffle ' num2str(i) ' of ' num2str(params.nt_shuffle_number)])
         shuffle_record = shuffle_object_insertions( record,nt_data,params );

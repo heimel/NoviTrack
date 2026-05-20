@@ -72,9 +72,14 @@ for event_type = unique_events(:)'
         n_responses = 0;
         total_stim_duration = 0; % s
         intervals = [];
+        if length(event_type_char)>1
+            stop_marker = string([ params.nt_stop_marker event_type_char(2)]);
+        else
+            stop_marker = string(params.nt_stop_marker);
+        end
         for j = 1:n_stimuli % stimuli
             stim_start = events.time(ind_stim(j));
-            ind_stop = find(events.time>stim_start & events.event == string([ params.nt_stop_marker event_type_char(2)]),1);
+            ind_stop = find(events.time>stim_start & events.event == stop_marker,1);
             if isempty(ind_stop)
                 logmsg(['Stop marker missing for event type ' event_type_char '. Temporarily taking to end of video, but should be added.'])
                 stim_stop = measures.max_time;
@@ -140,7 +145,13 @@ for i = 1:n_motifs
     end % behavior k
 
     marked_period = events.time(end) - events.time(1);
-    movie_duration = measures.max_time - measures.min_time;
+
+    if isfield(measures,'max_time')
+        movie_duration = measures.max_time - measures.min_time;
+    else
+        logmsg('Unknown movie duration. Run track_behavior to retrieve this.');
+        movie_duration = NaN;
+    end
 
     res.n_occurrences_per_session = n_occurrences;
     res.duration_per_session = total_duration;

@@ -29,6 +29,9 @@ observables = ["Speed","Abs_angular_velocity","Distance_to_center"];
 
 measures.correlation = [];
 for observable = observables(:)'
+    if ~isfield(nt_data,observable)
+        continue
+    end
     if all(isnan(nt_data.(observable)))
         continue
     end
