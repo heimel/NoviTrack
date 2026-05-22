@@ -71,7 +71,7 @@ trigger_names = {"Trigger1","Trigger2","Trigger3","Trigger4","Trigger5"};
 % Preallocate output
 out = struct('time', {}, 'code', {}, 'duration', {});
 
-for i = 1:2
+for i = 1:length(input_names)
     input_name = input_names{i};
     trigger_name = trigger_names{i};
     state = prev_state(i);
