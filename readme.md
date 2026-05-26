@@ -1,175 +1,294 @@
-﻿# NoviTrack README.md #
+# NoviTrack
 
-NoviTrack is a tool to track animal behavior. It can load Neurotar data files and track animal behavior 
-from video recordings. It also contains some tools for using Raspberry Pi's for video recording. The 
-video recording can be combined with visual stimulation. 
+NoviTrack is a toolkit for tracking animal behavior and analyzing related
+NoviTrack experiments, including behavior videos, Neurotar data, fiber
+photometry, events, snippets, and session summaries.
 
-NoviTrack is developed and maintained by Alexander Heimel, with help of Zhiting Ren.
+The Python implementation in `novitrack` is the primary development path. The
+MATLAB implementation remains available in `Toolbox` for existing users and for
+checking analyses against the original tools.
 
-## Installation ##
+NoviTrack is developed and maintained by Alexander Heimel, with help from
+Zhiting Ren.
 
-### Experiment control or analysis PC ###
+## Repository layout
 
-Install MATLAB.
-Download repositories [heimel/InVivoTools](https://github.com/heimel/InVivoTools), 
-[heimel/NoviTrack](https://github.com/heimel/NoviTrack).
-
-After downloading InVivoTools and adding the InVivoTools folder to the MATLAB path, run 'load_invivotools' 
-in MATLAB. This creates a file processparams_local.m, in which you can place local parameters overrides. 
-In this file, add a line like 
+```text
+NoviTrack/
+  novitrack/       Python NoviTrack package
+  test_data/       Example database and expected preview outputs
+  tests/           Python tests
+  Toolbox/         MATLAB NoviTrack toolbox
 ```
+
+Other files in the repository support acquisition computers, Raspberry Pi video
+recording, documentation, and setup-specific helper scripts.
+
+## Data paths
+
+Both implementations expect session data to be organized below a local or
+network data root. Configure this root locally:
+
+- Python: use `processparams_local.py` on your Python path, or pass an override
+  YAML file to `nt_load_parameters`.
+- MATLAB: use `processparams_local.m`, created by `load_invivotools`.
+
+The important parameter is:
+
+```text
+networkpathbase = YOUR_DATA_FOLDER
+```
+
+Session paths are then built from database fields such as `project`, `dataset`,
+`subject`, and `sessionid`.
+
+## Python
+
+### Installation
+
+Create a conda environment with Python 3.11 and PyQt6:
+
+```bash
+conda create -n pyqt6_env python=3.11 pyqt6 -y -c conda-forge
+conda activate pyqt6_env
+```
+
+Install the remaining dependencies:
+
+```bash
+conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv spyder-kernels pyyaml
+```
+
+NoviTrack depends on the reusable Python tools in the separate `InPythoTools`
+repository. Make sure that repository is importable, for example by adding its
+folder to `PYTHONPATH` or by opening Python from a workspace where both
+repositories are on the Python path.
+
+For one Python session:
+
+```python
+import sys
+sys.path.append(r"C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools")
+
+import novitrack as nt
+```
+
+For one PowerShell or conda terminal session:
+
+```powershell
+conda activate pyqt6_env
+$env:PYTHONPATH = "C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools;$env:PYTHONPATH"
+python
+```
+
+To make this persistent for the conda environment:
+
+```powershell
+conda activate pyqt6_env
+conda env config vars set PYTHONPATH="C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools"
+conda deactivate
+conda activate pyqt6_env
+```
+
+Test the path from the NoviTrack repository root:
+
+```powershell
+python -c "import novitrack as nt; from inpythotools import browse_database; print(nt.browse_nt_database, browse_database)"
+```
+
+### Usage
+
+From the NoviTrack repository root:
+
+```python
+import novitrack as nt
+
+browser = nt.browse_nt_database()
+```
+
+This opens the database browser using `test_data/nttestdb_examples.mat` when no
+filename is supplied.
+
+Basic analysis usage:
+
+```python
+import novitrack as nt
+
+db = nt.load_mat_database("test_data/nttestdb_examples.mat")
+record = db.iloc[-1]
+out = nt.analyse_nttestrecord(record)
+nt.results_nttestrecord(out)
+```
+
+When using Spyder, select the `pyqt6_env` interpreter/kernel after installing
+`spyder-kernels`.
+
+### Tests
+
+Run the focused Python tests from the repository root:
+
+```bash
+pytest tests
+```
+
+## MATLAB
+
+The MATLAB implementation is in `Toolbox`. Keep this folder name, since existing
+users and MATLAB conventions expect a toolbox folder.
+
+### Installation
+
+Install MATLAB and download these repositories:
+
+- [heimel/InVivoTools](https://github.com/heimel/InVivoTools)
+- [heimel/NoviTrack](https://github.com/heimel/NoviTrack)
+
+After downloading InVivoTools and adding the InVivoTools folder to the MATLAB
+path, run:
+
+```matlab
+load_invivotools
+```
+
+This creates `processparams_local.m`, where local parameter overrides can be
+placed. For example:
+
+```matlab
 params.networkpathbase = 'YOUR_DATA_FOLDER';
 ```
-where you replace YOUR_DATA_FOLDER with the root folder of your data. 
 
-Add the NoviTrack/Toolbox folder to your MATLAB path.
+Add `NoviTrack/Toolbox` to your MATLAB path.
 
-For creating FYD-session logs, install repository
-[Herseninstituut/FYD_Matlab](https://github.com/Herseninstituut/FYD_Matlab). For connecting 
-to the FYD-database, you need to obtain a group specific file 'nhi_fyd_XXXparms.m' with account information
-from a group member, and place in a subfolder 'par' in the folder containing getFYD.m. 
+For creating FYD session logs, install
+[Herseninstituut/FYD_Matlab](https://github.com/Herseninstituut/FYD_Matlab).
+For connecting to the FYD database, obtain the group-specific
+`nhi_fyd_XXXparms.m` account file from a group member and place it in a `par`
+subfolder in the folder containing `getFYD.m`.
 
-For visual stimulation also install repository [heimel/NewStim3](https://github.com/heimel/NewStim3)
-Check readme information on github for install information.
+For visual stimulation, also install
+[heimel/NewStim3](https://github.com/heimel/NewStim3).
 
-### Raspberry Pi for video recording ###
-In a shell:
+### Analyzing an experiment
+
+Create a NoviTrack database in MATLAB:
+
+```matlab
+experiment_db('nt')
 ```
+
+Then manually create records and save the database, or adapt
+`create_nttestdb_233505` to collect FYD JSON files and fill a MATLAB struct-array
+database.
+
+In the database browser:
+
+- Use `Track` to mark behaviors.
+- Type `h` or click the help button for tracking help.
+- Enter behavior starts by typing `m` followed by the behavior marker.
+- Mark idle periods with `i`.
+- Use `Analyse` to track the animal and analyze position/behavior data.
+
+## Running experiments
+
+### Raspberry Pi for video recording
+
+Clone NoviTrack on the Raspberry Pi:
+
+```bash
 git clone https://github.com/heimel/NoviTrack ~/NoviTrack
 ```
-The '~' is automatically interpreted as your home folder.
 
-The fileserver needs to be mounted on the raspberry pi to save the data. 
-A symbolic links needs to be made such that the folder can be accessed like //SERVER/FOLDER/. 
-This is done automatically when you use the shell script "mount_fileserver". 
-To make the script executable, type in a shell:
+Mount the fileserver:
+
+```bash
+~/NoviTrack/mount_fileserver
 ```
+
+Make the mount script executable if needed:
+
+```bash
 chmod +x ~/NoviTrack/mount_fileserver
 ```
 
-### Visual Stimulus PC ###
+Start video recording:
 
-It is optional to use visual stimulation. For this purpose, one can
-use NewStim3. Install repositories heimel/InVivoTools, heimel/NewStim3
-Check readme information on github for install information.
-In MATLAB:
-```
-NewStimInit
-``` 
-Edit in NewStimConfiguration
-```
-Remote_Comm_dir = ‘\\vs03.herseninstituut.knaw.nl\vs03-csf-1\Communication\SETUP’;
-```
-where SETUP should be changed to the name of the setup
-If stimulus and control PC refer to the data folder in a different way, then adapt
-```
-Remote_Comm_localprefix = ‘’; % prefix on control PC
-Remote_Comm_remoteprefix = ‘’; % prefix on stimulus PC
-```
-
-
-
-
-## Connecting the setup ##
-
-Multiple connection schemes are possible. 
-
-### Syncing pulses by recording device ###
-
-The recording device (e.g. fiber photometer or neurotar setup) can give two or more synchronization pulses via a TTL pulse. For the fiber photometer connect Out 1 to the receiving setup components, like the Raspberry Pi with cameras. The Raspberry Pi's should save at which frame and time they have received the TTL pulses.
-
-Ideally three TTL pulses are sent. One at the beginning of the session. One at the start of the experimental paradigm. One before the end of the session. Three pulses make it possible to align the start, synchronize the clock, and check for missing data.
-
-### Syncing pulse from Visual Stimulus PC ###
-
-One option is that the Visual Stimulus PC gives a synchronization TTL pulse at the start of the stimulus script. In this case, add a USB2UART (USB2RS232) port to the Visual Stimulus PC. Connect the DTR and GND pins of the serial port to the center pin (usually red wire) and shield pin (usually black wire) of a female pins to BNC cable.
-
-In Matlab, edit NewStimConfiguration, such that
-```
-StimSerialSerialPort = 1
-NSUseInitialSerialTrigger = 1;
-StimSerialScriptOut = 'COMX';  
-StimSerialScriptOutPin = 'dtr';      
-```
-where you replace COMX by the COM port created by the USB2UART device. This can be found in Windows device manager.
-
-On the Raspberry Pi, connect GPIO pin 17 (default setting in nt_picam_slave.py) and a GPIO GND pin to the center
-pin (usually red wire) and shield pin (usually black wire) of a female pins to BNC cable.
-
-Connect the BNC ends of the cables coming from the Visual Stimulus PC and the Raspberry Pi. If multiple 
-Raspberry Pi's need to be coupled the signal can be split by BNC three-way splitters.
-
-### Syncing pulse from third party ###
-
-A third party can also give a TTL trigger to start the visual stimulation. Refer to NewStim3 
-documentation for how to invoke NewStim3 for this purpose.
-
-
-
-## Running an experiment ##
-
-### Raspberry pi for video recording ###
-Mount fileserver in a shell:
-``` 
-~/NoviTrack/mount_fileserver
-``` 
-Start video recording by opening a shell:
-``` 
+```bash
 python ~/NoviTrack/nt_picam_slave.py Behavior_arena
-``` 
-The name of the setup, in this example 'Behavior_arena', determines the folder where the raspberry pi will look for the 
-acqReady file.
+```
 
-### Visual Stimulus PC ###
+The setup name, here `Behavior_arena`, determines the folder where the Raspberry
+Pi looks for the `acqReady` file.
 
-In MATLAB:
-``` 
+### Visual stimulus PC
+
+Visual stimulation is optional and uses NewStim3. In MATLAB:
+
+```matlab
+NewStimInit
 initstims
-``` 
-This should open a stimulus screen, and the stimulus PC will listen to changes in the file acqReady.
+```
 
+Configure the remote communication directory in `NewStimConfiguration`, for
+example:
 
-### Control PC ###
+```matlab
+Remote_Comm_dir = '\\vs03.herseninstituut.knaw.nl\vs03-csf-1\Communication\SETUP';
+```
+
+If the stimulus and control PCs refer to the data folder differently, adapt:
+
+```matlab
+Remote_Comm_localprefix = '';
+Remote_Comm_remoteprefix = '';
+```
+
+### Control PC
 
 In MATLAB:
-``` 
+
+```matlab
 runexperiment
-``` 
-In the RunExperiment window, load or create stimulus script with StimEditor and ScriptEditor.
-Click on RemoteScriptEditor, and transfer and load script to Visual stimulus PC.
-``` 
+```
+
+In the RunExperiment window, load or create a stimulus script with StimEditor
+and ScriptEditor. Use RemoteScriptEditor to transfer and load the script on the
+visual stimulus PC.
+
+Create a new NoviTrack session:
+
+```matlab
 nt_create_session()
-``` 
-Select and enter the session information in the Follow-Your-Data form and click Close. This will create a new session folder and save the associated json-file in FYD-format.
-
-In the RunExperiment window, make sure the 'From acqReady' and 'Acquisition' checkboxes are ticked. 
-Select stimulus scrip to show and click Show.
-
-
-## Analyzing an experiment ##
-
-Create a nt_database in MATLAB. This can be done by
 ```
-experiment_db('nt')
+
+Select and enter session information in the Follow-Your-Data form. This creates
+a new session folder and saves the associated FYD-format JSON file.
+
+## Synchronization
+
+Ideally, synchronization TTL pulses are recorded by the acquisition device and
+the Raspberry Pi cameras. Three pulses are recommended:
+
+1. At the beginning of the session.
+2. At the start of the experimental paradigm.
+3. Before the end of the session.
+
+These pulses make it possible to align the start, synchronize clocks, and check
+for missing data.
+
+A visual stimulus PC can also send a synchronization TTL pulse through a
+USB2UART/USB2RS232 port. In NewStim3, configure:
+
+```matlab
+StimSerialSerialPort = 1;
+NSUseInitialSerialTrigger = 1;
+StimSerialScriptOut = 'COMX';
+StimSerialScriptOutPin = 'dtr';
 ```
-and manually creating the records and saving the database. Alternatively, 
-adapt create_nttestdb_233505 to collect the FYD json files and fill a MATLAB 
-database (struct array) with matching record.
 
-Press Track to mark behaviors. Check out the help by clicking on the question mark, or typing 'h'.
-Markers indicating the start of a behavior are entered by typing 'm' followed by the behavior marker. 
-The end of a behavior is indicated by a marker for the start of a new behavior, or by inserting 
-the marker 'i' for idle. 
+Replace `COMX` with the serial port shown in Windows Device Manager.
 
-Press Analyse to track the animal, and subsequently run an analysis on the position and behavior
-tracking.
+## More information
 
-# More information #
-
-Information about the neurotar_data format can be found in 
-[neurotar_data_explanation.md](https://github.com/heimel/NoviTrack/neurotar_data_explanation.md).
-
-
-
-
-
+- [neurotar_data_explanation.md](neurotar_data_explanation.md)
+- [nt_data_structures.md](nt_data_structures.md)
+- [novitrack_coordinates.md](novitrack_coordinates.md)

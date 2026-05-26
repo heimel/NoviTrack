@@ -1,4 +1,7 @@
 *.asv
+__pycache__/
+*.py[cod]
+.pytest_cache/
 nt_db_examples.mat_copy
 nt_db_examples.mat_copy
 nt_db_examples.mat.lock
