@@ -21,6 +21,10 @@ end
 events = table([measures.markers.time]',...
     string({measures.markers.marker}'),'VariableNames',{'time','event'});
 
+% temporary fix for illegal field names 0 and 1
+events.event(events.event == "0") = "opto_off";
+events.event(events.event == "1") = "opto_on";
+
 if params.use_clean_baseline
     i = 1;
     % remove all same events within pretime

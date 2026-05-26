@@ -116,6 +116,8 @@ if isempty(events)
     return
 end
 params = nt_load_parameters(record);
+opto_on_marker = marker_for_marker_id(params,'opto_on','1');
+opto_off_marker = marker_for_marker_id(params,'opto_off','0');
 
 % change to master time
 [events.time,~,multiplier] = nt_change_times(events.time,rwd_triggers1,record.measures.trigger_times) ;
@@ -131,6 +133,15 @@ else
 end
 
 markers = record.measures.markers;
+
+opto_events = events(events.code=="Input3",:);
+for i = 1:height(opto_events)
+    time = opto_events.time(i);
+    duration = opto_events.duration(i);
+    markers = nt_insert_marker(markers,time,opto_on_marker,params);
+    markers = nt_insert_marker(markers,time + duration,opto_off_marker,params);
+end
+
 rwd_diff = diff(rwd_stim_events.time);
 newstim_diff = diff(newstim_triggers(:));
 if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.020 % using NewStim
@@ -143,6 +154,7 @@ if length(rwd_diff)==length(newstim_diff) && max(abs(rwd_diff-newstim_diff))<0.0
         markers = nt_insert_marker(markers,time+duration,['t' code(2)],params);
     end
 else
+    rwd_stim_events = rwd_stim_events(rwd_stim_events.code~="Input3",:);
     unique_events = unique(rwd_stim_events.code,'sorted');
     for i = 1:height(rwd_stim_events)
         time = rwd_stim_events.time(i);
@@ -152,6 +164,21 @@ else
 end
 
 record.measures.markers = markers;
+end
+
+function marker = marker_for_marker_id(params, marker_id, default_marker)
+marker = default_marker;
+if ~isfield(params.markers,'marker_id')
+    return
+end
+
+ind = find(strcmp({params.markers.marker_id},marker_id),1);
+if isempty(ind)
+    logmsg(['Cannot find marker motif ' marker_id '. Using marker ' default_marker '.'])
+    return
+end
+
+marker = params.markers(ind).marker;
 end
 
 

@@ -22,49 +22,22 @@ events = readtable(fullfile(folder, "Events.csv"));
 events.Name = categorical(events.Name);
 events.TimeStamp = events.TimeStamp/1000; % change to s
 
-triggers = events.TimeStamp(events.Name == "Input1" & events.State==0);
+prev_state = params.rwd_initial_input_state;
+events = convert_event_rwd(events, prev_state, params.rwd_slack_time);
+
+triggers = events.time(string(events.code) == "Trigger1");
 
 if isempty(triggers)
     logmsg('No triggers found on Input1')
     if ~isempty(events)
-        logmsg('But there are triggers on other inputs')
+        logmsg('But there are events on other inputs')
     end
     return
 end
 
-
-prev_state = params.rwd_initial_input_state;
-events = convert_event_rwd(events, prev_state);
-
-events = merge_simultaneous_triggers(events,params);
-
 end
 
-function events = merge_simultaneous_triggers(events,params)
-
-
-d = diff(events.time);
-ind = find(d<=params.rwd_slack_time);
-if isempty(ind) % no events to merge
-    return
-end
-if any(diff(ind)==1)
-    logmsg('NOT IMPLEMENTED SIMULTANEOUS EVENTS OF MORE THAN TWO TRIGGERS');
-end
-sim_events = events(ind,:);
-%sim_events.code = events.code(ind)+"+"+events.code(ind+1);
-tt = sort([events.code(ind),events.code(ind+1)],2);
-sim_events.code = tt(:,1) + "+" + tt(:,2);
-
-sim_events.duration = min([events.duration(ind) events.duration(ind+1)],[],2);
-events([ind ind+1],:) = []; % remove original events
-
-events = [events; sim_events];
-events = sortrows(events, 'time');
-end
-
-
-function out_table = convert_event_rwd(event_rwd, prev_state)
+function out_table = convert_event_rwd(event_rwd, prev_state, slack_time)
 input_names = {"Input1", "Input2","Input3","Input4","Input5"};
 trigger_names = {"Trigger1","Trigger2","Trigger3","Trigger4","Trigger5"};
 
@@ -81,29 +54,54 @@ for i = 1:length(input_names)
     times = event_rwd.TimeStamp(idx);
     states = event_rwd.State(idx);
 
-    % Append the starting state
-    %full_state = [state; states];
-    %full_time = [NaN; times];  % no timestamp for prev_state
+    j = 1;
+    while j <= length(states)
+        if ~isnan(state) && states(j) == state
+            j = j + 1; % duplicate line or unchanged initial state
+            continue
+        end
 
-    % Loop over transitions
-    for j = 1:length(states)
-        if states(j) ~= state
+        start_time = times(j);
+        changed_state = states(j);
+        if isnan(state)
+            previous_state = 1 - changed_state;
+        else
+            previous_state = state;
+        end
 
-            out(end+1).time = times(j);
-            out(end).code = trigger_name;
+        return_idx = find(states(j+1:end) == previous_state, 1, 'first');
+        if isempty(return_idx)
+            duration = 0;
+            state = changed_state;
+            j = j + 1;
+            code = input_name;
+        else
+            return_idx = j + return_idx;
+            duration = times(return_idx) - start_time;
+            state = previous_state;
+            j = return_idx + 1;
 
-            % Duration is time to next event in this input
-            if j < length(times)
-                out(end).duration = times(j+1) - times(j);
+            if duration <= slack_time
+                code = trigger_name;
+                duration = 0;
             else
-                out(end).duration = 0;
+                code = input_name;
             end
         end
+
+        out(end+1).time = start_time;
+        out(end).code = code;
+        out(end).duration = duration;
     end
 end
 
 % Convert to table
-out_table = struct2table(out);
+if isempty(out)
+    out_table = table([], strings(0,1), [], ...
+        'VariableNames', {'time','code','duration'});
+else
+    out_table = struct2table(out);
+end
 
 % Sort by time
 out_table = sortrows(out_table, 'time');

@@ -59,8 +59,9 @@ behaviors = get_behaviors(events,motif_list);
 
 for event_type = unique_events(:)'
     event_type_char= char(event_type);
-    if ~ismember(event_type_char(1),params.nt_stim_markers)
-        continue % if not a stimulus
+%    if ~ismember(event_type_char(1),params.nt_stim_markers)
+    if ismember(event_type_char(1),motif_list)
+        continue % for behaviors
     end
     ind_stim = find(events.event==event_type);
     n_stimuli = length(ind_stim);
@@ -123,7 +124,16 @@ for event_type = unique_events(:)'
         res.interval = mean(intervals);
         res.rate = n_occurrences / total_stim_duration;
 
-        measures.behavior.(event_type).(motif) = res;
+        % temporary fixes for illegal field names
+        event_field = event_type; % needed because event_type is looping variable, and should not be changed 
+        if strcmp(event_type,'0')
+            event_field = 'opto_off';
+        end
+        if strcmp(event_type,'1')
+            event_field = 'opto_on';
+        end
+
+        measures.behavior.(event_field).(motif) = res;
     end % motif i
 end % event_type
 
@@ -181,19 +191,29 @@ flds = fields(snippets.data);
 
 for event_type = unique_events(:)'
     ind = find(events.event==event_type);
+
+    % temporary fixes for illegal field names
+    event_field = event_type; % needed because event_type is looping variable, and should not be changed
+    if strcmp(event_type,'0')
+        event_field = 'opto_off';
+    end
+    if strcmp(event_type,'1')
+        event_field = 'opto_on';
+    end
+
     for i = 1:length(flds)
         field = flds{i};
         snippet_mean = mean(snippets.data.(field)(ind,:),1,'omitnan');
-        measures.event.(event_type).(field).snippet_mean = snippet_mean;
-        measures.event.(event_type).(field).snippet_first = snippets.data.(field)(ind(1),:);
-        measures.event.(event_type).(field).snippet_std = std(snippets.data.(field)(ind,:),1,'omitnan'); % over snippets
-        measures.event.(event_type).(field).snippet_sem = ivt_sem(snippets.data.(field)(ind,:),1);  % over snippets
-        measures.event.(event_type).(field).mean = mean(snippet_mean(mask_post));
-        measures.event.(event_type).(field).max = max(snippet_mean(mask_post));
-        measures.event.(event_type).(field).min = min(snippet_mean(mask_post));
-        measures.event.(event_type).(field).n = length(ind); % assume measured for all events
-        measures.event.(event_type).(field).event_mean = mean(snippets.data.(field)(ind,:),2); % mean response over time
-        measures.event.(event_type).(field).unit = snippets.unit.(field);
+        measures.event.(event_field).(field).snippet_mean = snippet_mean;
+        measures.event.(event_field).(field).snippet_first = snippets.data.(field)(ind(1),:);
+        measures.event.(event_field).(field).snippet_std = std(snippets.data.(field)(ind,:),1,'omitnan'); % over snippets
+        measures.event.(event_field).(field).snippet_sem = ivt_sem(snippets.data.(field)(ind,:),1);  % over snippets
+        measures.event.(event_field).(field).mean = mean(snippet_mean(mask_post));
+        measures.event.(event_field).(field).max = max(snippet_mean(mask_post));
+        measures.event.(event_field).(field).min = min(snippet_mean(mask_post));
+        measures.event.(event_field).(field).n = length(ind); % assume measured for all events
+        measures.event.(event_field).(field).event_mean = mean(snippets.data.(field)(ind,:),2); % mean response over time
+        measures.event.(event_field).(field).unit = snippets.unit.(field);
     end % field
 end % event_type
 
