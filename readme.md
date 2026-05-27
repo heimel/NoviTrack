@@ -8,8 +8,7 @@ The Python implementation in `novitrack` is the primary development path. The
 MATLAB implementation remains available in `Toolbox` for existing users and for
 checking analyses against the original tools.
 
-NoviTrack is developed and maintained by Alexander Heimel, with help from
-Zhiting Ren.
+NoviTrack is developed and maintained by Alexander Heimel.
 
 ## Repository layout
 
@@ -59,6 +58,10 @@ Install the remaining dependencies:
 conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv spyder-kernels jupyter ipykernel pyyaml
 ```
 
+Download the following repositories:
+- [heimel/InPythoTools](https://github.com/heimel/InPythoTools)
+- [heimel/NoviTrack](https://github.com/heimel/NoviTrack)
+
 NoviTrack depends on the reusable Python tools in the separate `InPythoTools`
 repository. Make sure that repository is importable, for example by adding its
 folder to `PYTHONPATH` or by opening Python from a workspace where both
@@ -77,7 +80,7 @@ For persistent use in the conda environment (replace ... by actual path):
 
 ```powershell
 conda activate pyqt6_env
-conda env config vars set PYTHONPATH="C:\Users\...\InPythoTools;C:\Users\...\NoviTrack\novitrack"
+conda env config vars set PYTHONPATH="C:\Users\...\InPythoTools;C:\Users\...\NoviTrack"
 conda deactivate
 conda activate pyqt6_env
 ```
