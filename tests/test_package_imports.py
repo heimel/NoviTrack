@@ -6,7 +6,8 @@ def test_novitrack_namespace_exports_core_functions() -> None:
 
     assert nt.analyse_nttestrecord.__name__ == "analyse_nttestrecord"
     assert nt.results_nttestrecord.__name__ == "results_nttestrecord"
-    assert nt.browse_database.__name__ == "browse_database"
+    assert nt.experiment_db.__name__ == "experiment_db"
+    assert not hasattr(nt, "browse_database")
 
 
 def test_inpythotools_exports_generic_browser() -> None:

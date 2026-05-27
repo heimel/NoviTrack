@@ -88,7 +88,7 @@ conda activate pyqt6_env
 Test the path from the NoviTrack repository root:
 
 ```powershell
-python -c "import novitrack as nt; from inpythotools import browse_database; print(nt.browse_database, browse_database)"
+python -c "import novitrack as nt; from inpythotools import browse_database; print(nt.experiment_db, browse_database)"
 ```
 
 ### Usage
@@ -98,7 +98,7 @@ From the NoviTrack repository root:
 ```python
 import novitrack as nt
 
-browser = nt.browse_database()
+browser = nt.experiment_db()
 ```
 
 This opens the database browser using `test_data/nttestdb_examples.mat` when no
@@ -115,7 +115,7 @@ or notebook kernel, enable Qt windows before importing `novitrack`:
 
 import novitrack as nt
 
-browser = nt.browse_database(block=False)
+browser = nt.experiment_db(block=False)
 ```
 
 This returns to the prompt while keeping the database browser responsive. The

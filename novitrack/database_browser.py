@@ -83,7 +83,7 @@ def _default_actions() -> dict[str, RecordAction]:
     }
 
 
-def browse_database(
+def experiment_db(
     db: pd.DataFrame | None = None,
     *,
     filename: str | Path | None = None,
@@ -93,7 +93,7 @@ def browse_database(
     yaml_file: str | Path | None = None,
     block: bool | None = None,
 ) -> DatabaseBrowser:
-    """Open a NoviTrack database browser and return the window instance."""
+    """Open a NoviTrack experiment database browser and return the window instance."""
     global _LAST_WINDOW
 
     if db is None and filename is None:
@@ -129,8 +129,8 @@ NTDatabaseBrowser = DatabaseBrowser
 __all__ = [
     "NTDatabaseBrowser",
     "analyse_nttestrecord_and_show_results",
-    "browse_database",
     "default_database_filename",
+    "experiment_db",
     "results_nttestrecord_from_gui",
     "track_behavior_record",
 ]
