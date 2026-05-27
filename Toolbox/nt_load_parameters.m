@@ -1,7 +1,7 @@
-function params = nt_load_parameters(record)
+function params = nt_load_parameters(record,filename)
 %nt_load_parameters Contains default parameters for neurotar analysis
 %
-%  PARAM = nt_load_parameters([RECORD])
+%  PARAM = nt_load_parameters([RECORD],[FILENAME])
 %
 %  Edit processparams_local for local and temporary edits to these default
 %  parameters.
@@ -14,8 +14,10 @@ if nargin<1 || isempty(record)
     record.stimulus = 'none';
     record.date = char(datetime('today','Format','yyyy-MM-dd'));
 end
+if nargin<2 || isempty(filename)
+    filename = fullfile(fileparts(mfilename('fullpath')),'..','nt_default_parameters.yaml');
+end
 
-filename = fullfile(fileparts(mfilename('fullpath')),'nt_default_parameters.yaml');
 if ~exist(filename,'file')
     errormsg(['Cannot find config file '''  filename ''''],true);
 end

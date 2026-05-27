@@ -119,6 +119,19 @@ This returns to the prompt while keeping the database browser responsive. The
 `%matplotlib qt` line makes result figures open as separate Qt windows when
 clicking buttons such as `Results`.
 
+To make this automatic for new VS Code Jupyter kernels, add the startup
+commands to VS Code User Settings, not workspace settings. The setting has
+application scope, so open `Preferences: Open User Settings (JSON)` and add:
+
+```json
+"jupyter.runStartupCommands": [
+  "%gui qt",
+  "%matplotlib qt"
+]
+```
+
+Restart the Jupyter kernel after changing this setting.
+
 Basic analysis usage:
 
 ```python

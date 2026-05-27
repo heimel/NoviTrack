@@ -179,7 +179,7 @@ def load_parameters(
         default Neurotar record for today's date is used.
     yaml_file:
         Path to ``nt_default_parameters.yaml``. By default, the function looks
-        next to this Python file.
+        in the NoviTrack repository root, one directory above this package.
     apply_local_overrides:
         If true, tries to import ``processparams_local.processparams_local`` and
         apply it as the last step, mimicking the MATLAB function.
@@ -194,7 +194,14 @@ def load_parameters(
     if record is None:
         record = Record()
 
-    yaml_path = Path(yaml_file) if yaml_file is not None else Path(__file__).resolve().parent / "nt_default_parameters.yaml"
+    if yaml_file is None:
+        package_folder = Path(__file__).resolve().parent
+        yaml_path = package_folder.parent / "nt_default_parameters.yaml"
+        legacy_yaml_path = package_folder / "nt_default_parameters.yaml"
+        if not yaml_path.exists() and legacy_yaml_path.exists():
+            yaml_path = legacy_yaml_path
+    else:
+        yaml_path = Path(yaml_file)
     if not yaml_path.exists():
         raise FileNotFoundError(f"Cannot find config file: {yaml_path}")
 
@@ -284,7 +291,7 @@ def load_parameters(
 
 
 if __name__ == "__main__":
-    # Small smoke test. Requires nt_default_parameters.yaml next to this file.
+    # Small smoke test. Requires nt_default_parameters.yaml in the repository root.
     p = load_parameters()
     print(f"Loaded {len(p)} top-level parameter fields")
     print(f"Selected marker set: {p.marker_set}")
