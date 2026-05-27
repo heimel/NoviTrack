@@ -47,7 +47,7 @@ def _prefer_tail_alignment(longer: np.ndarray, shorter: np.ndarray) -> bool:
     return cc_missing_first > cc_missing_last
 
 
-def nt_change_times(
+def change_times(
     from_times: Any,
     triggers_from: Any,
     triggers_to: Any,
@@ -56,7 +56,7 @@ def nt_change_times(
 ) -> tuple[np.ndarray, float, float]:
     """Change timestamps from one reference frame to another.
 
-    This mirrors MATLAB ``nt_change_times.m``:
+    This mirrors MATLAB ``change_times.m``:
 
     ``to = multiplier * from_times + offset``
 
@@ -73,7 +73,7 @@ def nt_change_times(
     n_triggers_to = triggers_to_vec.size
 
     if n_triggers_from == 0 or n_triggers_to == 0:
-        raise ValueError("nt_change_times requires at least one trigger in both reference frames.")
+        raise ValueError("change_times requires at least one trigger in both reference frames.")
 
     if n_triggers_from == 1 and n_triggers_to > 1:
         logmsg("Detected too many triggers TO. Using only the first! May be wrong trigger. If so edit trigger log.")
@@ -138,16 +138,16 @@ def nt_change_times(
     return changed, offset, multiplier
 
 
-def nt_change_video_to_neurotar_times(video_t: Any, trigger_times: Any, params: Any) -> np.ndarray:
+def change_video_to_neurotar_times(video_t: Any, trigger_times: Any, params: Any) -> np.ndarray:
     """Deprecated MATLAB-compatible wrapper for video-to-neurotar time conversion."""
-    logmsg("DEPRECATED: CHANGE CODE TO USE nt_change_times")
+    logmsg("DEPRECATED: CHANGE CODE TO USE change_times")
     trigger_times_vec = _as_vector(trigger_times)
     if trigger_times_vec.size == 0:
         raise ValueError("trigger_times must contain at least one value.")
     return (np.asarray(video_t, dtype=float) - trigger_times_vec[0]) / float(_get(params, "picamera_time_multiplier"))
 
 
-def nt_change_neurotar_to_video_times(neurotar_t: Any, trigger_times: Any, params: Any) -> np.ndarray:
+def change_neurotar_to_video_times(neurotar_t: Any, trigger_times: Any, params: Any) -> np.ndarray:
     """Deprecated MATLAB-compatible wrapper for neurotar-to-video time conversion."""
     trigger_times_vec = _as_vector(trigger_times)
     if trigger_times_vec.size == 0:
@@ -156,7 +156,7 @@ def nt_change_neurotar_to_video_times(neurotar_t: Any, trigger_times: Any, param
 
 
 __all__ = [
-    "nt_change_times",
-    "nt_change_video_to_neurotar_times",
-    "nt_change_neurotar_to_video_times",
+    "change_times",
+    "change_video_to_neurotar_times",
+    "change_neurotar_to_video_times",
 ]

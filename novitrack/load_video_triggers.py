@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 
 from inpythotools.logmsg import logmsg
-from .nt_load_parameters import nt_load_parameters
-from .nt_session_path import nt_session_path
+from .load_parameters import load_parameters
+from .session_path import session_path as resolve_session_path
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -70,7 +70,7 @@ def _read_trigger_csv(filename: str | Path) -> np.ndarray:
     return np.asarray([[value] for _is_multicolumn, value in rows], dtype=float)
 
 
-def nt_load_video_triggers(
+def load_video_triggers(
     record: Any,
     camera_name: str,
     framerate: float = 30.0,
@@ -80,14 +80,14 @@ def nt_load_video_triggers(
 ) -> tuple[np.ndarray, pd.DataFrame]:
     """Return camera trigger times and event rows.
 
-    The trigger format mirrors MATLAB ``nt_load_video_triggers.m``. Old one
+    The trigger format mirrors MATLAB ``load_video_triggers.m``. Old one
     column files are frame numbers, newer files contain timestamps in column 3
     after a header/start row.
     """
     if params is None:
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
     if session_path is None:
-        folder, _ = nt_session_path(record, params)
+        folder, _ = resolve_session_path(record, params)
     else:
         folder = Path(session_path)
 
@@ -124,4 +124,4 @@ def nt_load_video_triggers(
     return np.asarray(triggers, dtype=float).reshape(-1), events
 
 
-__all__ = ["nt_load_video_triggers"]
+__all__ = ["load_video_triggers"]

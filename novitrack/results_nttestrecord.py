@@ -11,16 +11,16 @@ from scipy.io import loadmat
 
 from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
-from .nt_analyse_photometry import nt_analyse_photometry
-from .nt_get_ethogram import nt_get_ethogram
-from .nt_load_parameters import nt_load_parameters
-from .nt_load_tracking_data import nt_load_tracking_data
-from .nt_photometry_folder import nt_photometry_folder
-from .nt_plot_events import nt_plot_events
-from .nt_plot_maps import nt_plot_maps
-from .nt_plot_photometry import nt_plot_photometry
-from .nt_plot_session_summary import nt_plot_session_summary
-from .nt_session_path import nt_session_path
+from .analyse_photometry import analyse_photometry
+from .get_ethogram import get_ethogram
+from .load_parameters import load_parameters
+from .load_tracking_data import load_tracking_data
+from .photometry_folder import photometry_folder
+from .plot_events import plot_events
+from .plot_maps import plot_maps
+from .plot_photometry import plot_photometry
+from .plot_session_summary import plot_session_summary
+from .session_path import session_path
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -40,7 +40,7 @@ def _load_mat_field(filename: Path, field_name: str) -> Any:
 
 def _load_snippets_from_disk(record: Mapping[str, Any], params: Any) -> Mapping[str, Any] | None:
     try:
-        folder, exists = nt_session_path(record, params)
+        folder, exists = session_path(record, params)
     except OSError as exc:
         logmsg(f"Could not resolve session path for snippets: {exc}")
         return None
@@ -68,7 +68,7 @@ def _resolve_snippets(
 
 
 def _load_photometry_from_disk(record: Mapping[str, Any], params: Any) -> Mapping[str, Any] | None:
-    folder, found = nt_photometry_folder(record, params)
+    folder, found = photometry_folder(record, params)
     if not found or folder is None:
         return None
     filename = folder / "nt_photometry.mat"
@@ -91,8 +91,8 @@ def _resolve_photometry(
     if photometry is not None:
         return photometry, out_record
 
-    nt_data, _ = nt_load_tracking_data(record, params)
-    analysed_record, photometry_dict, _ = nt_analyse_photometry(record, nt_data, params)
+    nt_data, _ = load_tracking_data(record, params)
+    analysed_record, photometry_dict, _ = analyse_photometry(record, nt_data, params)
     if photometry_dict:
         out_record = dict(analysed_record)
         return photometry_dict, out_record
@@ -123,7 +123,7 @@ def results_nttestrecord(
 ) -> list[plt.Figure]:
     """Create result figures for one analyzed NoviTrack record."""
     if params is None:
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     snippets = _resolve_snippets(record, params, snippets)
     photometry, record = _resolve_photometry(record, params, photometry)
@@ -133,21 +133,21 @@ def results_nttestrecord(
         return []
 
     figures: list[plt.Figure] = []
-    _ethogram, _t, _motifs, ethogram_ax = nt_get_ethogram(record, show=True, params=params)
+    _ethogram, _t, _motifs, ethogram_ax = get_ethogram(record, show=True, params=params)
     if ethogram_ax is not None:
         figures.append(ethogram_ax.figure)
 
     for figure in (
-        nt_plot_maps(record),
-        nt_plot_session_summary(record),
+        plot_maps(record),
+        plot_session_summary(record),
     ):
         if figure is not None:
             figures.append(figure)
 
     if photometry is not None:
-        figures.extend(nt_plot_photometry(record, photometry, snippets, params))
+        figures.extend(plot_photometry(record, photometry, snippets, params))
 
-    figures.extend(nt_plot_events(record, params, snippets))
+    figures.extend(plot_events(record, params, snippets))
 
     logmsg("Generated result figures.")
     return _save_or_show(figures, output_dir, show)

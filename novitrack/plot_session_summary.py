@@ -20,7 +20,7 @@ def _record_label(record: Mapping[str, Any]) -> str:
     return str(_get(record, "sessionid", _get(record, "subject", "record")))
 
 
-def nt_plot_session_summary(record: Mapping[str, Any]) -> plt.Figure | None:
+def plot_session_summary(record: Mapping[str, Any]) -> plt.Figure | None:
     """Plot simple session-level running/backward-motion summary bars."""
     measures = _get(record, "measures", {})
     required = (
@@ -57,4 +57,4 @@ def nt_plot_session_summary(record: Mapping[str, Any]) -> plt.Figure | None:
     return fig
 
 
-__all__ = ["nt_plot_session_summary"]
+__all__ = ["plot_session_summary"]

@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from novitrack.nt_change_times import (
-    nt_change_neurotar_to_video_times,
-    nt_change_times,
-    nt_change_video_to_neurotar_times,
+from novitrack.change_times import (
+    change_neurotar_to_video_times,
+    change_times,
+    change_video_to_neurotar_times,
 )
 
 
@@ -18,7 +18,7 @@ class TestNtChangeTimes(unittest.TestCase):
         triggers_from = np.array([[0.0, 10.0, 20.0]])
         triggers_to = np.array([[5.0], [17.0], [29.0]])
 
-        changed, offset, multiplier = nt_change_times(from_times, triggers_from, triggers_to)
+        changed, offset, multiplier = change_times(from_times, triggers_from, triggers_to)
 
         self.assertEqual(changed.shape, from_times.shape)
         np.testing.assert_allclose(changed, from_times * 1.2 + 5.0)
@@ -30,7 +30,7 @@ class TestNtChangeTimes(unittest.TestCase):
         triggers_from = np.array([0.0, 8.0, 20.0, 31.0])
         triggers_to = np.array([102.0, 222.0, 332.0])
 
-        changed, offset, multiplier = nt_change_times(from_times, triggers_from, triggers_to)
+        changed, offset, multiplier = change_times(from_times, triggers_from, triggers_to)
 
         np.testing.assert_allclose(changed, [222.0, 332.0])
         self.assertTrue(np.isclose(offset, 22.0))
@@ -41,14 +41,14 @@ class TestNtChangeTimes(unittest.TestCase):
         triggers_from = np.array([0.0, 10.0, 20.0])
         triggers_to = np.array([1.0, 21.0, 41.0, 501.0])
 
-        changed, offset, multiplier = nt_change_times(from_times, triggers_from, triggers_to)
+        changed, offset, multiplier = change_times(from_times, triggers_from, triggers_to)
 
         np.testing.assert_allclose(changed, [1.0, 21.0])
         self.assertTrue(np.isclose(offset, 1.0))
         self.assertTrue(np.isclose(multiplier, 2.0))
 
     def test_single_trigger_uses_supplied_multipliers(self) -> None:
-        changed, offset, multiplier = nt_change_times(
+        changed, offset, multiplier = change_times(
             np.array([1.0, 2.0]),
             np.array([10.0]),
             np.array([20.0]),
@@ -64,11 +64,11 @@ class TestNtChangeTimes(unittest.TestCase):
         params = SimpleNamespace(picamera_time_multiplier=2.0)
 
         np.testing.assert_allclose(
-            nt_change_video_to_neurotar_times(np.array([12.0, 14.0]), np.array([10.0]), params),
+            change_video_to_neurotar_times(np.array([12.0, 14.0]), np.array([10.0]), params),
             [1.0, 2.0],
         )
         np.testing.assert_allclose(
-            nt_change_neurotar_to_video_times(np.array([1.0, 2.0]), np.array([10.0]), params),
+            change_neurotar_to_video_times(np.array([1.0, 2.0]), np.array([10.0]), params),
             [12.0, 14.0],
         )
 

@@ -1,6 +1,6 @@
 """Preprocess NoviTrack fiber-photometry signals.
 
-Python translation of ``nt_preprocess_photometry.m``.
+Python translation of ``preprocess_photometry.m``.
 
 The expected data shape mirrors the MATLAB structure:
 
@@ -118,7 +118,7 @@ def filter_photometry(x: Any, fs: float, params: Any) -> np.ndarray:
     return x
 
 
-def nt_preprocess_photometry(
+def preprocess_photometry(
     photometry: Mapping[str, Any],
     measures: Mapping[str, Any],
     params: Any,
@@ -131,12 +131,12 @@ def nt_preprocess_photometry(
     ----------
     photometry:
         Nested photometry dictionary, usually loaded from ``nt_photometry.mat``
-        or produced by a future Python ``nt_load_photometry``.
+        or produced by a future Python ``load_photometry``.
     measures:
         Session measures dictionary containing ``channels``, ``markers`` and
         ``period_of_interest``.
     params:
-        Dict-like parameter object, for example from ``nt_load_parameters``.
+        Dict-like parameter object, for example from ``load_parameters``.
     copy:
         If true, deep-copy inputs before modifying them.
     """

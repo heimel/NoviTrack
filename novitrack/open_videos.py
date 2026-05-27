@@ -18,9 +18,9 @@ else:
     _CV2_IMPORT_ERROR = None
 
 from inpythotools.logmsg import logmsg
-from .nt_load_parameters import nt_load_parameters
-from .nt_load_video_triggers import nt_load_video_triggers
-from .nt_session_path import nt_session_path
+from .load_parameters import load_parameters
+from .load_video_triggers import load_video_triggers
+from .session_path import session_path as resolve_session_path
 
 
 VIDEO_EXTENSIONS = (".mp4", ".MP4", ".h264", ".avi", ".AVI", ".mov", ".MOV")
@@ -48,7 +48,7 @@ class OpenCVVideoReader:
     def __init__(self, info: VideoInfo) -> None:
         if cv2 is None:
             raise ImportError(
-                "nt_track_behavior needs OpenCV for smooth movie playback. "
+                "track_behavior needs OpenCV for smooth movie playback. "
                 "Install it in the GUI environment, for example: conda install -n gui_pyqt -c conda-forge opencv"
             ) from _CV2_IMPORT_ERROR
         self.info = info
@@ -114,7 +114,7 @@ def _find_movie(record: Any, session_path: Path, camera_name: str) -> Path | Non
 def _metadata(path: Path) -> tuple[float, int, float, int, int]:
     if cv2 is None:
         raise ImportError(
-            "nt_open_videos needs OpenCV. Install it with: conda install -n gui_pyqt -c conda-forge opencv"
+            "open_videos needs OpenCV. Install it with: conda install -n gui_pyqt -c conda-forge opencv"
         ) from _CV2_IMPORT_ERROR
 
     capture = cv2.VideoCapture(str(path))
@@ -129,7 +129,7 @@ def _metadata(path: Path) -> tuple[float, int, float, int, int]:
     return framerate, n_frames, duration, width, height
 
 
-def nt_open_videos(
+def open_videos(
     record: Any,
     params: Any | None = None,
     *,
@@ -141,9 +141,9 @@ def nt_open_videos(
     list therefore contains zero-based indices, unlike MATLAB.
     """
     if params is None:
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
     if session_path is None:
-        folder, _ = nt_session_path(record, params)
+        folder, _ = resolve_session_path(record, params)
     else:
         folder = Path(session_path)
 
@@ -161,7 +161,7 @@ def nt_open_videos(
         framerate, n_frames, duration, width, height = _metadata(movie)
         if abs(framerate - 30.0) > 0.05:
             logmsg(f"Framerate of {movie} is {framerate:g} fps, not 30 fps.")
-        triggers, _events = nt_load_video_triggers(
+        triggers, _events = load_video_triggers(
             record,
             str(camera_name),
             framerate,
@@ -188,4 +188,4 @@ def nt_open_videos(
     return readers, video_info, active_cameras
 
 
-__all__ = ["OpenCVVideoReader", "VideoInfo", "nt_open_videos"]
+__all__ = ["OpenCVVideoReader", "VideoInfo", "open_videos"]

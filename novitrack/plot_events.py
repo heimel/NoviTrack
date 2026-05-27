@@ -10,7 +10,7 @@ from matplotlib.gridspec import GridSpec
 import numpy as np
 import pandas as pd
 
-from .nt_get_events import nt_get_events
+from .get_events import get_events
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -53,7 +53,7 @@ def _event_description(params: Any, event_type: str) -> str:
     return f"{match.iloc[0].get('description', event_type)} {event_type}"
 
 
-def nt_plot_events(
+def plot_events(
     record: Mapping[str, Any],
     params: Any,
     snippets: Mapping[str, Any] | None = None,
@@ -64,7 +64,7 @@ def nt_plot_events(
     if _is_empty(event_measures):
         return []
 
-    events = nt_get_events(measures, params)
+    events = get_events(measures, params)
     t = _as_array(_get(measures, "snippets_tbins"))
     figures: list[plt.Figure] = []
     snippets_data = _get(snippets, "data", {}) if snippets else {}
@@ -121,4 +121,4 @@ def nt_plot_events(
     return figures
 
 
-__all__ = ["nt_plot_events"]
+__all__ = ["plot_events"]

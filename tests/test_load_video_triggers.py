@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from novitrack.nt_load_video_triggers import nt_load_video_triggers
+from novitrack.load_video_triggers import load_video_triggers
 
 
 def test_loads_malformed_three_column_trigger_csv(tmp_path) -> None:
@@ -17,7 +17,7 @@ def test_loads_malformed_three_column_trigger_csv(tmp_path) -> None:
     )
 
     record = {"sessionid": "0120360_20260519_001"}
-    triggers, events = nt_load_video_triggers(
+    triggers, events = load_video_triggers(
         record,
         "Overhead",
         params=SimpleNamespace(),
@@ -33,7 +33,7 @@ def test_loads_legacy_one_column_frame_trigger_csv(tmp_path) -> None:
     filename.write_text("frame\n30\n60\n")
 
     record = {"sessionid": "0120360_20260519_001"}
-    triggers, events = nt_load_video_triggers(
+    triggers, events = load_video_triggers(
         record,
         "Overhead",
         framerate=30.0,

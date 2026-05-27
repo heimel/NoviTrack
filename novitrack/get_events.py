@@ -16,10 +16,10 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
 
 
-def nt_get_events(measures: Any, params: Any | None = None) -> pd.DataFrame:
+def get_events(measures: Any, params: Any | None = None) -> pd.DataFrame:
     """Create an events DataFrame from ``measures["markers"]``.
 
-    This mirrors ``nt_get_events.m``. Events are derived on demand so saved
+    This mirrors ``get_events.m``. Events are derived on demand so saved
     databases do not need to store MATLAB table objects.
     """
     markers = _get(measures, "markers", None)

@@ -1,7 +1,7 @@
 """
 Load Neurotar/NoviTrack analysis parameters from ``nt_default_parameters.yaml``.
 
-Pythonic translation of ``nt_load_parameters.m``.
+Pythonic translation of ``load_parameters.m``.
 
 The function returns an ``AttrDict``: it behaves like a normal dictionary, but
 also allows attribute access, e.g. ``params.networkpathbase`` as well as
@@ -163,7 +163,7 @@ def _choose_marker_set(record: Any) -> str:
     return "default"
 
 
-def nt_load_parameters(
+def load_parameters(
     record: Any | None = None,
     *,
     yaml_file: str | Path | None = None,
@@ -285,6 +285,6 @@ def nt_load_parameters(
 
 if __name__ == "__main__":
     # Small smoke test. Requires nt_default_parameters.yaml next to this file.
-    p = nt_load_parameters()
+    p = load_parameters()
     print(f"Loaded {len(p)} top-level parameter fields")
     print(f"Selected marker set: {p.marker_set}")

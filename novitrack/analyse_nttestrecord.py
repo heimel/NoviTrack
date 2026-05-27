@@ -16,16 +16,16 @@ import numpy as np
 from scipy.io import savemat
 
 from inpythotools.logmsg import logmsg
-from .nt_add_surgery_info import nt_add_surgery_info
-from .nt_analyse_photometry import nt_analyse_photometry
-from .nt_check_markers import nt_check_markers
-from .nt_compute_event_measures import nt_compute_event_measures
-from .nt_compute_locations import nt_compute_locations
-from .nt_load_parameters import nt_load_parameters
-from .nt_load_tracking_data import nt_load_tracking_data
-from .nt_make_motion_snippets import nt_make_motion_snippets
-from .nt_make_photometry_snippets import nt_make_photometry_snippets
-from .nt_session_path import nt_session_path
+from .add_surgery_info import add_surgery_info
+from .analyse_photometry import analyse_photometry
+from .check_markers import check_markers
+from .compute_event_measures import compute_event_measures
+from .compute_locations import compute_locations
+from .load_parameters import load_parameters
+from .load_tracking_data import load_tracking_data
+from .make_motion_snippets import make_motion_snippets
+from .make_photometry_snippets import make_photometry_snippets
+from .session_path import session_path as resolve_session_path
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -110,7 +110,7 @@ def analyse_nttestrecord(
     out.setdefault("measures", {})
 
     if params is None:
-        params = nt_load_parameters(out, yaml_file=yaml_file)
+        params = load_parameters(out, yaml_file=yaml_file)
 
     if save_snippets is None:
         save_snippets = bool(_get(params, "nt_save_snippets", True))
@@ -118,9 +118,9 @@ def analyse_nttestrecord(
     if _get(params, "nt_seed", None):
         np.random.seed(int(_get(params, "nt_seed")))
 
-    out = nt_add_surgery_info(out, params)
+    out = add_surgery_info(out, params)
 
-    nt_data, trigger_times = nt_load_tracking_data(out, params, recompute=False, session_path=session_path)
+    nt_data, trigger_times = load_tracking_data(out, params, recompute=False, session_path=session_path)
     if not nt_data:
         logmsg(f"Could not find any position data for {_record_label(out)}")
 
@@ -137,7 +137,7 @@ def analyse_nttestrecord(
         measures["markers"] = []
 
     out["measures"] = measures
-    if not nt_check_markers(out, params, verbose=verbose):
+    if not check_markers(out, params, verbose=verbose):
         return out
 
     bin_width = float(_get(params, "nt_photometry_bin_width"))
@@ -150,19 +150,19 @@ def analyse_nttestrecord(
     )
     out["measures"] = measures
 
-    out, photometry, _ = nt_analyse_photometry(
+    out, photometry, _ = analyse_photometry(
         out, nt_data, params, photometry_folder=photometry_folder
     )
     measures = dict(out["measures"])
 
     snippets: dict[str, Any] = {}
     if photometry:
-        snippets = nt_make_photometry_snippets(photometry, measures, params)
+        snippets = make_photometry_snippets(photometry, measures, params)
 
-    snippets = nt_make_motion_snippets(nt_data, measures, snippets, params)
+    snippets = make_motion_snippets(nt_data, measures, snippets, params)
     if save_snippets:
         if session_path is None:
-            folder, exists = nt_session_path(out, params)
+            folder, exists = resolve_session_path(out, params)
         else:
             folder = Path(session_path)
             exists = folder.is_dir()
@@ -173,13 +173,13 @@ def analyse_nttestrecord(
             except (OSError, TypeError, ValueError) as exc:
                 logmsg(f"Could not save snippets to {filename}: {exc}")
 
-    measures = nt_compute_event_measures(snippets, measures, params)
+    measures = compute_event_measures(snippets, measures, params)
 
     if nt_data:
         measures = _session_measures(measures, nt_data, params)
         out["measures"] = measures
         if not bool(_get(params, "neurotar", False)):
-            out = nt_compute_locations(out, nt_data, params)
+            out = compute_locations(out, nt_data, params)
         else:
             logmsg("Compute locations is not yet implemented for neurotar.")
     else:

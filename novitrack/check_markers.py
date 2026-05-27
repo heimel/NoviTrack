@@ -22,12 +22,12 @@ def _record_label(record: Any) -> str:
     return str(_get(record, "sessionid", _get(record, "subject", "record")))
 
 
-def nt_check_markers(record: Any, params: Any | None = None, verbose: bool = True) -> bool:
+def check_markers(record: Any, params: Any | None = None, verbose: bool = True) -> bool:
     """Return True when marker starts/stops are self-consistent."""
     if params is None:
-        from .nt_load_parameters import nt_load_parameters
+        from .load_parameters import load_parameters
 
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     measures = _get(record, "measures", {})
     markers = _get(measures, "markers", None)
@@ -60,4 +60,4 @@ def nt_check_markers(record: Any, params: Any | None = None, verbose: bool = Tru
     return True
 
 
-__all__ = ["nt_check_markers"]
+__all__ = ["check_markers"]

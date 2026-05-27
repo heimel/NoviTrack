@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from inpythotools.logmsg import logmsg
-from .nt_get_events import nt_get_events
+from .get_events import get_events
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -48,7 +48,7 @@ def _interp_linear_extrap(x: np.ndarray, y: np.ndarray, x_new: np.ndarray) -> np
     return out
 
 
-def nt_make_photometry_snippets(
+def make_photometry_snippets(
     photometry: Mapping[str, Any],
     measures: Any,
     params: Any,
@@ -63,7 +63,7 @@ def nt_make_photometry_snippets(
     if markers is None or len(markers) == 0:
         return {}
 
-    events = nt_get_events(measures, params)
+    events = get_events(measures, params)
     n_events = len(events)
 
     t_bins = _as_array(_get(measures, "snippets_tbins"))

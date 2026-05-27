@@ -30,7 +30,7 @@ Both implementations expect session data to be organized below a local or
 network data root. Configure this root locally:
 
 - Python: use `processparams_local.py` on your Python path, or pass an override
-  YAML file to `nt_load_parameters`.
+  YAML file to `load_parameters`.
 - MATLAB: use `processparams_local.m`, created by `load_invivotools`.
 
 The important parameter is:
@@ -85,7 +85,7 @@ conda activate pyqt6_env
 Test the path from the NoviTrack repository root:
 
 ```powershell
-python -c "import novitrack as nt; from inpythotools import browse_database; print(nt.browse_nt_database, browse_database)"
+python -c "import novitrack as nt; from inpythotools import browse_database; print(nt.browse_database, browse_database)"
 ```
 
 ### Usage
@@ -95,7 +95,7 @@ From the NoviTrack repository root:
 ```python
 import novitrack as nt
 
-browser = nt.browse_nt_database()
+browser = nt.browse_database()
 ```
 
 This opens the database browser using `test_data/nttestdb_examples.mat` when no
@@ -112,7 +112,7 @@ or notebook kernel, enable Qt windows before importing `novitrack`:
 
 import novitrack as nt
 
-browser = nt.browse_nt_database(block=False)
+browser = nt.browse_database(block=False)
 ```
 
 This returns to the prompt while keeping the database browser responsive. The

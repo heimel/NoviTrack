@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 
 from inpythotools.logmsg import logmsg
-from .nt_load_parameters import nt_load_parameters
-from .nt_show_markers import nt_show_markers
+from .load_parameters import load_parameters
+from .show_markers import show_markers
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -33,7 +33,7 @@ def _record_label(record: Any) -> str:
     return str(_get(record, "sessionid", _get(record, "subject", "record")))
 
 
-def nt_get_ethogram(
+def get_ethogram(
     record: Any,
     show: bool = True,
     params: Any | None = None,
@@ -46,7 +46,7 @@ def nt_get_ethogram(
         return np.array([]), np.array([]), pd.DataFrame(), None
 
     if params is None:
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     marker_definitions = _marker_table(params)
     if marker_definitions.empty or "behavior" not in marker_definitions:
@@ -102,9 +102,9 @@ def nt_get_ethogram(
         ax.set_title(f"Ethogram - {_record_label(record)}")
         marker_params = dict(params)
         marker_params["nt_show_behavior_markers"] = False
-        nt_show_markers(markers, ax, marker_params)
+        show_markers(markers, ax, marker_params)
 
     return ethogram, t, motifs, ax
 
 
-__all__ = ["nt_get_ethogram"]
+__all__ = ["get_ethogram"]

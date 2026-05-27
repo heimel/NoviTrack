@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 
 from inpythotools.logmsg import logmsg
-from .nt_get_events import nt_get_events
-from .nt_make_photometry_snippets import _interp_linear_extrap
+from .get_events import get_events
+from .make_photometry_snippets import _interp_linear_extrap
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -36,7 +36,7 @@ def _is_empty(value: Any) -> bool:
         return False
 
 
-def nt_make_motion_snippets(
+def make_motion_snippets(
     nt_data: Any,
     measures: Any,
     snippets: Mapping[str, Any] | None,
@@ -44,7 +44,7 @@ def nt_make_motion_snippets(
 ) -> dict[str, Any]:
     """Cut motion snippets around all events.
 
-    This mirrors ``nt_make_motion_snippets.m`` and appends motion observables
+    This mirrors ``make_motion_snippets.m`` and appends motion observables
     to an existing snippets dictionary when one is supplied.
     """
     if snippets is None or _is_empty(snippets):
@@ -58,7 +58,7 @@ def nt_make_motion_snippets(
     if markers is None or len(markers) == 0 or _is_empty(nt_data):
         return out
 
-    events = nt_get_events(measures, params)
+    events = get_events(measures, params)
     t_bins = _as_array(_get(measures, "snippets_tbins"))
     time = _as_array(_get(nt_data, "Time"))
 

@@ -10,8 +10,8 @@ import numpy as np
 from scipy import stats
 
 from inpythotools.logmsg import logmsg
-from .nt_load_photometry import nt_load_photometry
-from .nt_preprocess_photometry import nt_preprocess_photometry
+from .load_photometry import load_photometry
+from .preprocess_photometry import preprocess_photometry
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -149,7 +149,7 @@ def compute_correlations(
     return measures
 
 
-def nt_analyse_photometry(
+def analyse_photometry(
     record: Mapping[str, Any],
     nt_data: Mapping[str, Any] | None,
     params: Any,
@@ -162,7 +162,7 @@ def nt_analyse_photometry(
         logmsg("No data in measures. Track first.")
         return dict(record), {}, {}
 
-    photometry, measures = nt_load_photometry(
+    photometry, measures = load_photometry(
         record, params, photometry_folder=photometry_folder
     )
     out_record = dict(record)
@@ -170,7 +170,7 @@ def nt_analyse_photometry(
         out_record["measures"] = measures
         return out_record, {}, {}
 
-    photometry, measures = nt_preprocess_photometry(photometry, measures, params)
+    photometry, measures = preprocess_photometry(photometry, measures, params)
     if nt_data:
         measures = compute_maps(nt_data, photometry, measures, params)
         measures = compute_correlations(nt_data, photometry, measures)

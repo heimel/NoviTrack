@@ -17,7 +17,7 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
 
 
-def nt_plot_maps(record: Mapping[str, Any]) -> plt.Figure | None:
+def plot_maps(record: Mapping[str, Any]) -> plt.Figure | None:
     """Plot spatial occupancy and photometry maps for one record."""
     measures = _get(record, "measures", {})
     maps = _get(measures, "maps", {})
@@ -48,4 +48,4 @@ def nt_plot_maps(record: Mapping[str, Any]) -> plt.Figure | None:
     return fig
 
 
-__all__ = ["nt_plot_maps"]
+__all__ = ["plot_maps"]

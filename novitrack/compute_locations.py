@@ -30,7 +30,7 @@ def _pol2cart(theta: np.ndarray, radius: np.ndarray) -> tuple[np.ndarray, np.nda
     return radius * np.cos(theta), radius * np.sin(theta)
 
 
-def nt_change_overhead_to_camera_coordinates(
+def change_overhead_to_camera_coordinates(
     overhead_x: Any, overhead_y: Any, params: Any
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert overhead image coordinates in pixels to camera-centered coordinates."""
@@ -71,7 +71,7 @@ def nt_change_overhead_to_camera_coordinates(
     raise ValueError(f"Unknown overhead_camera_distortion_method: {method}")
 
 
-def nt_change_camera_to_arena_coordinates(
+def change_camera_to_arena_coordinates(
     camera_x: Any, camera_y: Any, params: Any
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert camera-centered coordinates to arena coordinates."""
@@ -79,7 +79,7 @@ def nt_change_camera_to_arena_coordinates(
         raise NotImplementedError("Neurotar camera-to-arena coordinates are not ported yet.")
 
     center = _as_array(_get(params, "overhead_arena_center"))
-    center_x, center_y = nt_change_overhead_to_camera_coordinates(center[0], center[1], params)
+    center_x, center_y = change_overhead_to_camera_coordinates(center[0], center[1], params)
 
     x = _as_array(camera_x) - center_x[0]
     y = _as_array(camera_y) - center_y[0]
@@ -90,17 +90,17 @@ def nt_change_camera_to_arena_coordinates(
     return arena_x, arena_y
 
 
-def nt_change_overhead_to_arena_coordinates(
+def change_overhead_to_arena_coordinates(
     overhead_x: Any, overhead_y: Any, params: Any
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert overhead coordinates to arena coordinates."""
     if bool(_get(params, "neurotar", False)):
         raise NotImplementedError("Neurotar overhead-to-arena coordinates are not ported yet.")
-    camera_x, camera_y = nt_change_overhead_to_camera_coordinates(overhead_x, overhead_y, params)
-    return nt_change_camera_to_arena_coordinates(camera_x, camera_y, params)
+    camera_x, camera_y = change_overhead_to_camera_coordinates(overhead_x, overhead_y, params)
+    return change_camera_to_arena_coordinates(camera_x, camera_y, params)
 
 
-def nt_arena_walls(params: Any) -> tuple[np.ndarray, np.ndarray]:
+def arena_walls(params: Any) -> tuple[np.ndarray, np.ndarray]:
     """Return arena wall coordinates."""
     shape = str(_get(params, "arena_shape"))
     if shape == "circular":
@@ -135,7 +135,7 @@ def _inpolygon(x: np.ndarray, y: np.ndarray, polygon_x: np.ndarray, polygon_y: n
     return inside
 
 
-def nt_compute_locations(
+def compute_locations(
     record: Mapping[str, Any],
     nt_data: Mapping[str, Any],
     params: Any,
@@ -146,8 +146,8 @@ def nt_compute_locations(
     out = deepcopy(dict(record)) if copy else dict(record)
     measures = deepcopy(dict(_get(out, "measures", {})))
 
-    arena_x, arena_y = nt_change_overhead_to_arena_coordinates(nt_data["CoM_X"], nt_data["CoM_Y"], params)
-    arena_walls_x, arena_walls_y = nt_arena_walls(params)
+    arena_x, arena_y = change_overhead_to_arena_coordinates(nt_data["CoM_X"], nt_data["CoM_Y"], params)
+    arena_walls_x, arena_walls_y = arena_walls(params)
 
     center_scale = (float(_get(params, "arena_radius_mm")) - float(_get(params, "nt_max_distance_to_wall"))) / float(
         _get(params, "arena_radius_mm")

@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 
 from inpythotools.logmsg import logmsg
-from .nt_session_path import nt_session_path
+from .session_path import session_path
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -51,12 +51,12 @@ def _fiber_info(row: pd.Series, fiber: str) -> dict[str, str] | None:
     }
 
 
-def nt_add_surgery_info(record: Any, params: Any | None = None) -> dict[str, Any]:
+def add_surgery_info(record: Any, params: Any | None = None) -> dict[str, Any]:
     """Add surgery sheet metadata to ``record["measures"]`` when available."""
     out = deepcopy(dict(record))
     out.setdefault("measures", {})
 
-    session_folder, exists = nt_session_path(out, params)
+    session_folder, exists = session_path(out, params)
     if not exists:
         logmsg(f"Cannot find session folder for {_get(out, 'sessionid', 'record')}")
         return out
@@ -104,4 +104,4 @@ def nt_add_surgery_info(record: Any, params: Any | None = None) -> dict[str, Any
     return out
 
 
-__all__ = ["nt_add_surgery_info"]
+__all__ = ["add_surgery_info"]

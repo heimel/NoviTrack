@@ -1,7 +1,7 @@
 """Load NoviTrack/RWD fiber-photometry data.
 
-Python translation of the data-loading part of ``nt_load_photometry.m``.
-The preprocessing step lives in ``nt_preprocess_photometry.py``.
+Python translation of the data-loading part of ``load_photometry.m``.
+The preprocessing step lives in ``preprocess_photometry.py``.
 """
 
 from __future__ import annotations
@@ -16,9 +16,9 @@ import numpy as np
 import pandas as pd
 
 from inpythotools.logmsg import logmsg
-from .nt_change_times import nt_change_times
-from .nt_load_parameters import nt_load_parameters
-from .nt_photometry_folder import nt_photometry_folder
+from .change_times import change_times
+from .load_parameters import load_parameters
+from .photometry_folder import photometry_folder as resolve_photometry_folder
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -106,7 +106,7 @@ def _convert_event_rwd(
     return pd.DataFrame(rows, columns=["time", "code", "duration"]).sort_values("time").reset_index(drop=True)
 
 
-def nt_load_rwd_triggers(
+def load_rwd_triggers(
     photometry_folder: str | Path,
     params: Any | None = None,
 ) -> tuple[np.ndarray, pd.DataFrame]:
@@ -156,7 +156,7 @@ def _import_rwd_markers(
         return
 
     events = rwd_events.copy()
-    events["time"], _, multiplier = nt_change_times(events["time"].to_numpy(), rwd_triggers, trigger_times)
+    events["time"], _, multiplier = change_times(events["time"].to_numpy(), rwd_triggers, trigger_times)
     events["duration"] = events["duration"].to_numpy(dtype=float) * multiplier
 
     markers = list(_get(measures, "markers", []) or [])
@@ -211,7 +211,7 @@ def _fiber_info(measures: Mapping[str, Any], fiber: str) -> dict[str, Any]:
     }
 
 
-def nt_load_photometry(
+def load_photometry(
     record: Any,
     params: Any | None = None,
     *,
@@ -220,7 +220,7 @@ def nt_load_photometry(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load raw photometry data and update the session measures dictionary."""
     if params is None:
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     measures = deepcopy(_get(record, "measures", {})) if copy else dict(_get(record, "measures", {}))
     photometry: dict[str, Any] = {}
@@ -229,7 +229,7 @@ def nt_load_photometry(
         measures.pop("channels")
 
     if photometry_folder is None:
-        folder, found = nt_photometry_folder(record, params)
+        folder, found = resolve_photometry_folder(record, params)
         if not found or folder is None:
             return photometry, measures
     else:
@@ -266,7 +266,7 @@ def nt_load_photometry(
 
     fluorescence["TimeStamp"] = fluorescence["TimeStamp"] / 1000
 
-    triggers_fp, rwd_events = nt_load_rwd_triggers(folder, params)
+    triggers_fp, rwd_events = load_rwd_triggers(folder, params)
     if triggers_fp.size == 0:
         logmsg("No recorded RWD triggers. Assuming 0.")
         triggers_fp = np.array([0.0])
@@ -277,7 +277,7 @@ def nt_load_photometry(
         trigger_times = triggers_fp.copy()
         measures["trigger_times"] = trigger_times
 
-    fluorescence_time, _, _ = nt_change_times(fluorescence["TimeStamp"].to_numpy(), triggers_fp, trigger_times)
+    fluorescence_time, _, _ = change_times(fluorescence["TimeStamp"].to_numpy(), triggers_fp, trigger_times)
     fluorescence["time"] = fluorescence_time
 
     if not _has_markers(measures):

@@ -17,12 +17,12 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
 
 
-def nt_photometry_folder(record: Any, params: Any | None = None) -> tuple[Path | None, bool]:
+def photometry_folder(record: Any, params: Any | None = None) -> tuple[Path | None, bool]:
     """Return the folder containing RWD photometry data, if found."""
     if params is None:
-        from .nt_load_parameters import nt_load_parameters
+        from .load_parameters import load_parameters
 
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     network_path = _get(params, "networkpathbase")
     project = _get(record, "project")
@@ -54,4 +54,4 @@ def nt_photometry_folder(record: Any, params: Any | None = None) -> tuple[Path |
     return folder, True
 
 
-__all__ = ["nt_photometry_folder"]
+__all__ = ["photometry_folder"]

@@ -11,7 +11,7 @@ import pandas as pd
 
 from inpythotools.ivt_sem import ivt_sem
 from inpythotools.logmsg import logmsg
-from .nt_get_events import nt_get_events
+from .get_events import get_events
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -69,7 +69,7 @@ def _event_field(event_type: str) -> str:
     return event_type
 
 
-def nt_compute_event_measures(
+def compute_event_measures(
     snippets: Mapping[str, Any] | None,
     measures: Mapping[str, Any],
     params: Any,
@@ -78,7 +78,7 @@ def nt_compute_event_measures(
 ) -> dict[str, Any]:
     """Compute event and behavior measures from snippets and markers."""
     out = deepcopy(dict(measures)) if copy else dict(measures)
-    events = nt_get_events(out, params)
+    events = get_events(out, params)
     if events.empty:
         out["event"] = {}
         return out

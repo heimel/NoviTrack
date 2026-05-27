@@ -188,12 +188,12 @@ def _trim_after_end_marker(neurotar_data: dict[str, Any], record: Any) -> dict[s
     return neurotar_data
 
 
-def nt_load_neurotar_data(record: Any, params: Any | None = None) -> tuple[dict[str, Any], Path | None]:
+def load_neurotar_data(record: Any, params: Any | None = None) -> tuple[dict[str, Any], Path | None]:
     """Load Neurotar data from Python cache, MATLAB cache, or TDMS."""
     if params is None:
-        from .nt_load_parameters import nt_load_parameters
+        from .load_parameters import load_parameters
 
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     folder = _find_neurotar_folder(record, params)
     if folder is None:
@@ -294,4 +294,4 @@ def nt_load_neurotar_data(record: Any, params: Any | None = None) -> tuple[dict[
     return neurotar_data, source_filename
 
 
-__all__ = ["nt_load_neurotar_data"]
+__all__ = ["load_neurotar_data"]

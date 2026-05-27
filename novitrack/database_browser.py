@@ -12,13 +12,13 @@ from inpythotools.database_browser import (
     DatabaseBrowser,
     RecordAction,
     _normalize_action_result,
-    browse_database,
+    browse_database as _browse_database,
 )
 
 from .analyse_nttestrecord import analyse_nttestrecord
 from inpythotools.mat_database import load_mat_database
-from .nt_load_parameters import nt_load_parameters
-from .nt_session_path import nt_session_path
+from .load_parameters import load_parameters
+from .session_path import session_path
 from .results_nttestrecord import results_nttestrecord
 
 
@@ -34,7 +34,7 @@ def default_database_filename() -> Path:
 
 def track_behavior_record(record: pd.Series) -> Any:
     """Launch the behavior tracker lazily so normal database browsing stays light."""
-    from .nt_track_behavior import track_record
+    from .track_behavior import track_record
 
     return track_record(record)
 
@@ -66,7 +66,7 @@ def _as_int(value: Any) -> int | None:
 
 def _load_gui_params(yaml_file: str | Path | None = None) -> tuple[int | None, int | None]:
     try:
-        params = nt_load_parameters(yaml_file=yaml_file)
+        params = load_parameters(yaml_file=yaml_file)
     except Exception:
         return None, None
 
@@ -83,7 +83,7 @@ def _default_actions() -> dict[str, RecordAction]:
     }
 
 
-def browse_nt_database(
+def browse_database(
     db: pd.DataFrame | None = None,
     *,
     filename: str | Path | None = None,
@@ -108,11 +108,11 @@ def browse_nt_database(
     if spacing is None:
         spacing = yaml_spacing
 
-    window = browse_database(
+    window = _browse_database(
         db,
         filename=filename,
         actions=actions if actions is not None else _default_actions(),
-        session_folder_resolver=nt_session_path,
+        session_folder_resolver=session_path,
         window_title_prefix="NoviTrack database browser",
         font_size=font_size,
         spacing=spacing,
@@ -124,15 +124,13 @@ def browse_nt_database(
 
 
 NTDatabaseBrowser = DatabaseBrowser
-nt_browse_database = browse_nt_database
 
 
 __all__ = [
     "NTDatabaseBrowser",
     "analyse_nttestrecord_and_show_results",
-    "browse_nt_database",
+    "browse_database",
     "default_database_filename",
-    "nt_browse_database",
     "results_nttestrecord_from_gui",
     "track_behavior_record",
 ]

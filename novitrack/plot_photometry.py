@@ -8,8 +8,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .nt_get_events import nt_get_events
-from .nt_show_markers import nt_show_markers
+from .get_events import get_events
+from .show_markers import show_markers
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -43,7 +43,7 @@ def _channel_label(channel: Mapping[str, Any]) -> str:
     return label or str(_get(channel, "channel", "Channel"))
 
 
-def nt_plot_channel_correlation(
+def plot_channel_correlation(
     record: Mapping[str, Any],
     photometry: Mapping[str, Any],
     measures: Mapping[str, Any],
@@ -116,7 +116,7 @@ def nt_plot_channel_correlation(
     return fig
 
 
-def nt_plot_photometry(
+def plot_photometry(
     record: Mapping[str, Any],
     photometry: Mapping[str, Any],
     snippets: Mapping[str, Any] | None,
@@ -127,7 +127,7 @@ def nt_plot_photometry(
     if not photometry or "channels" not in measures:
         return []
 
-    events = nt_get_events(measures, params)
+    events = get_events(measures, params)
     figures: list[plt.Figure] = []
     period = _as_array(_get(measures, "period_of_interest", [-np.inf, np.inf]))
     t_bins = _as_array(_get(measures, "snippets_tbins", []))
@@ -151,7 +151,7 @@ def nt_plot_photometry(
             ax.plot(time[mask], signal[mask], linewidth=0.8, label=light_type)
         ax.axvline(period[0], color="black", linewidth=0.8)
         ax.axvline(period[1], color="black", linewidth=0.8)
-        nt_show_markers(_get(measures, "markers", []), ax, params, bounds=period)
+        show_markers(_get(measures, "markers", []), ax, params, bounds=period)
         ax.set_ylabel("Fluorescence (a.u.)")
         ax.set_xlabel("Time (s)")
         ax.legend(loc="upper right")
@@ -177,11 +177,11 @@ def nt_plot_photometry(
                 fig.colorbar(image, ax=heat_ax, fraction=0.025, pad=0.02)
         figures.append(fig)
 
-    correlation_figure = nt_plot_channel_correlation(record, photometry, measures)
+    correlation_figure = plot_channel_correlation(record, photometry, measures)
     if correlation_figure is not None:
         figures.append(correlation_figure)
 
     return figures
 
 
-__all__ = ["nt_plot_photometry", "nt_plot_channel_correlation"]
+__all__ = ["plot_photometry", "plot_channel_correlation"]

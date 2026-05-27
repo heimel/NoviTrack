@@ -15,12 +15,12 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
 
 
-def nt_session_path(record: Any, params: Any | None = None) -> tuple[Path, bool]:
+def session_path(record: Any, params: Any | None = None) -> tuple[Path, bool]:
     """Return the session folder used by NoviTrack."""
     if params is None:
-        from .nt_load_parameters import nt_load_parameters
+        from .load_parameters import load_parameters
 
-        params = nt_load_parameters(record)
+        params = load_parameters(record)
 
     path = (
         Path(str(_get(params, "networkpathbase")))
@@ -33,4 +33,4 @@ def nt_session_path(record: Any, params: Any | None = None) -> tuple[Path, bool]
     return path, path.is_dir()
 
 
-__all__ = ["nt_session_path"]
+__all__ = ["session_path"]

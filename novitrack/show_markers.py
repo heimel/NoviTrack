@@ -46,7 +46,7 @@ def _as_color(value: Any) -> Any:
     return value
 
 
-def nt_show_markers(
+def show_markers(
     markers: Any,
     ax: matplotlib.axes.Axes,
     params: Any,
@@ -55,11 +55,11 @@ def nt_show_markers(
 ) -> None:
     """Show marker times on a matplotlib timeline.
 
-    This mirrors MATLAB ``nt_show_markers.m``: marker colors come from
+    This mirrors MATLAB ``show_markers.m``: marker colors come from
     ``params.markers``, and behavior markers can be hidden with
     ``params.nt_show_behavior_markers``.
     """
-    if not bool(_get(params, "nt_show_markers", True)):
+    if not bool(_get(params, "show_markers", True)):
         return
     if markers is None or len(markers) == 0:
         return
@@ -103,4 +103,4 @@ def nt_show_markers(
         line.set_gid("Marker")
 
 
-__all__ = ["nt_show_markers"]
+__all__ = ["show_markers"]

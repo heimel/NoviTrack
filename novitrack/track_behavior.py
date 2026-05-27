@@ -33,10 +33,10 @@ else:
     _PYQTGRAPH_IMPORT_ERROR = None
 
 from inpythotools.logmsg import logmsg
-from .nt_change_times import nt_change_times
-from .nt_load_parameters import nt_load_parameters
-from .nt_load_tracking_data import nt_load_tracking_data
-from .nt_open_videos import OpenCVVideoReader, VideoInfo, nt_open_videos
+from .change_times import change_times
+from .load_parameters import load_parameters
+from .load_tracking_data import load_tracking_data
+from .open_videos import OpenCVVideoReader, VideoInfo, open_videos
 
 
 _OPEN_WINDOWS: list["NTTrackBehaviorWindow"] = []
@@ -128,19 +128,19 @@ def _record_title(record: Any) -> str:
 
 
 class NTTrackBehaviorWindow(QMainWindow):
-    """First usable PyQt6 port of MATLAB ``nt_track_behavior``."""
+    """First usable PyQt6 port of MATLAB ``track_behavior``."""
 
     def __init__(self, record: Any, parent: QWidget | None = None) -> None:
         if pg is None:
             raise ImportError(
-                "nt_track_behavior needs pyqtgraph. Install it in the GUI environment, "
+                "track_behavior needs pyqtgraph. Install it in the GUI environment, "
                 "for example: conda install -n gui_pyqt -c conda-forge pyqtgraph"
             ) from _PYQTGRAPH_IMPORT_ERROR
         super().__init__(parent)
 
         pg.setConfigOptions(antialias=False, imageAxisOrder="row-major")
         self.record = record
-        self.params = nt_load_parameters(record)
+        self.params = load_parameters(record)
         self.measures = _ensure_measures(record, self.params)
         self.changed = False
         self.playing = True
@@ -152,11 +152,11 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._video_to_master: dict[int, tuple[float, float]] = {}
         self._master_to_video: dict[int, tuple[float, float]] = {}
 
-        self.readers, self.video_info, self.active_cameras = nt_open_videos(self.record, self.params)
+        self.readers, self.video_info, self.active_cameras = open_videos(self.record, self.params)
         if not self.active_cameras:
             raise FileNotFoundError("No NoviTrack movies were found for this record.")
 
-        self.nt_data, trigger_times = nt_load_tracking_data(self.record, self.params, recompute=False)
+        self.nt_data, trigger_times = load_tracking_data(self.record, self.params, recompute=False)
         if not self.nt_data:
             raise FileNotFoundError("No Neurotar/tracking data were found for this record.")
         self.measures["trigger_times"] = _as_array(trigger_times, [0.0])
@@ -186,12 +186,12 @@ class NTTrackBehaviorWindow(QMainWindow):
             video_triggers = _as_array(info.trigger_times, [0.0])
             if video_triggers.size == 0:
                 video_triggers = np.array([0.0], dtype=float)
-            _, offset, multiplier = nt_change_times(0.0, video_triggers, trigger_times)
+            _, offset, multiplier = change_times(0.0, video_triggers, trigger_times)
             self._video_to_master[camera_index] = (offset, multiplier)
-            _, offset, multiplier = nt_change_times(0.0, trigger_times, video_triggers)
+            _, offset, multiplier = change_times(0.0, trigger_times, video_triggers)
             self._master_to_video[camera_index] = (offset, multiplier)
-            video_end, _, _ = nt_change_times(info.duration, video_triggers, trigger_times)
-            video_start, _, _ = nt_change_times(0.0, video_triggers, trigger_times)
+            video_end, _, _ = change_times(info.duration, video_triggers, trigger_times)
+            video_start, _, _ = change_times(0.0, video_triggers, trigger_times)
             max_time = max(max_time, float(np.asarray(video_end)))
             min_time = min(min_time, float(np.asarray(video_start)))
 
@@ -667,7 +667,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         super().closeEvent(event)
 
 
-def nt_track_behavior(record: Any, *, block: bool | None = None) -> Any:
+def track_behavior(record: Any, *, block: bool | None = None) -> Any:
     """Open the behavior tracking GUI for one NoviTrack record.
 
     If ``block`` is true, this function returns ``(record, changed)`` after the
@@ -700,18 +700,18 @@ def nt_track_behavior(record: Any, *, block: bool | None = None) -> Any:
 
 def track_record(record: Any) -> Any:
     """Database-browser friendly wrapper that returns an updated record."""
-    updated_record, _changed = nt_track_behavior(record, block=True)
+    updated_record, _changed = track_behavior(record, block=True)
     return updated_record
 
 
-__all__ = ["NTTrackBehaviorWindow", "nt_track_behavior", "track_record"]
+__all__ = ["NTTrackBehaviorWindow", "track_behavior", "track_record"]
 
 
 if __name__ == "__main__":
     from inpythotools.mat_database import load_mat_database
 
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python nt_track_behavior.py database.mat [row_index]")
+        raise SystemExit("Usage: python track_behavior.py database.mat [row_index]")
     db = load_mat_database(Path(sys.argv[1]))
     row = int(sys.argv[2]) if len(sys.argv) > 2 else 0
-    nt_track_behavior(db.iloc[row], block=True)
+    track_behavior(db.iloc[row], block=True)

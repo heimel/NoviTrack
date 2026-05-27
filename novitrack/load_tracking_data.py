@@ -12,8 +12,8 @@ from scipy.io import loadmat
 
 from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
-from .nt_load_neurotar_data import nt_load_neurotar_data
-from .nt_session_path import nt_session_path
+from .load_neurotar_data import load_neurotar_data
+from .session_path import session_path as resolve_session_path
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -119,7 +119,7 @@ def _complete_tracking_fields(nt_data: dict[str, Any], params: Any) -> dict[str,
     return nt_data
 
 
-def nt_load_tracking_data(
+def load_tracking_data(
     record: Any,
     params: Any,
     *,
@@ -131,7 +131,7 @@ def nt_load_tracking_data(
         recompute = bool(_get(params, "nt_recompute_tracking_data", False))
 
     if session_path is None:
-        folder, exists = nt_session_path(record, params)
+        folder, exists = resolve_session_path(record, params)
     else:
         folder = Path(session_path)
         exists = folder.is_dir()
@@ -148,7 +148,7 @@ def nt_load_tracking_data(
         trigger_times = _as_array(_get(_get(record, "measures", {}), "trigger_times", []))
         return nt_data, trigger_times
 
-    nt_data, _ = nt_load_neurotar_data(record, params)
+    nt_data, _ = load_neurotar_data(record, params)
     if nt_data:
         logmsg("Not yet reading in all triggers. Assuming one trigger broadcast by Neurotar at time 0.")
         return nt_data, np.array([0.0])
