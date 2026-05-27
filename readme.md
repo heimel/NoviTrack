@@ -71,7 +71,7 @@ For one Python session (replace ... by actual path):
 
 ```python
 import sys
-sys.path.append(r"C:\Users\...\InPythoTools;C:\Users\...\NoviTrack\novitrack")
+sys.path.append(r"C:\Users\...\InPythoTools;C:\Users\...\NoviTrack")
 
 import novitrack as nt
 ```
