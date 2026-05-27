@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
 import pandas as pd
 
@@ -31,6 +32,14 @@ def _marker_table(params: Any) -> pd.DataFrame:
 
 def _record_label(record: Any) -> str:
     return str(_get(record, "sessionid", _get(record, "subject", "record")))
+
+
+def _as_color(value: Any) -> tuple[float, float, float]:
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1).tolist()
+    if isinstance(value, (list, tuple)) and len(value) >= 3:
+        return tuple(float(v) for v in value[:3])
+    return (0.0, 0.0, 0.0)
 
 
 def get_ethogram(
@@ -90,10 +99,15 @@ def get_ethogram(
     if show and np.any(ethogram):
         fig, ax = plt.subplots(figsize=(11, 3), num="Ethogram")
         fig.set_label("ethogram")
+        colors = [(1.0, 1.0, 1.0)] + [_as_color(value) for value in motifs["color"]]
+        cmap = ListedColormap(colors)
+        norm = BoundaryNorm(np.arange(len(colors) + 1) - 0.5, cmap.N)
         ax.imshow(
             ethogram.T,
             aspect="auto",
             interpolation="nearest",
+            cmap=cmap,
+            norm=norm,
             extent=[t[0], t[-1], len(motifs) + 0.5, 0.5],
         )
         ax.set_yticks(np.arange(1, len(motifs) + 1))
