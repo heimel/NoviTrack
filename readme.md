@@ -105,9 +105,11 @@ This opens the database browser using `test_data/nttestdb_examples.mat` when no
 filename is supplied.
 
 To use a MATLAB-like interactive workflow in VS Code, install the Python and
-Jupyter extensions, use Ctrl-Shift-P to select the `pyqt6_env` interpreter, and open the Interactive
-Window with `Jupyter: Create Interactive Window`. In a fresh Interactive Window
-or notebook kernel, enable Qt windows before importing `novitrack`:
+Jupyter extensions. First select the conda environment with Ctrl-Shift-P,
+`Python: Select Interpreter`, and choose `pyqt6_env`. Then create a Jupyter
+terminal with `Jupyter: Create Interactive Window`. In a fresh Interactive
+Window or notebook kernel, enable Qt windows before importing `novitrack`, then
+start the database browser with `experiment_db`:
 
 ```python
 %matplotlib qt
