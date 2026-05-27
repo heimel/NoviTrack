@@ -36,11 +36,29 @@ def _zscore(values: np.ndarray) -> np.ndarray:
     return (values - np.nanmean(values)) / std
 
 
+def _as_label_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        if value.size == 1:
+            return _as_label_text(value.item())
+        squeezed = np.squeeze(value)
+        if squeezed.dtype.kind in {"U", "S"} and squeezed.ndim == 1:
+            return "".join(_as_label_text(item) for item in squeezed.tolist())
+    if isinstance(value, np.generic):
+        return _as_label_text(value.item())
+    return str(value)
+
+
 def _channel_label(channel: Mapping[str, Any]) -> str:
-    location = str(_get(channel, "location", "") or "")
-    sensor = str(_get(channel, "green_sensor", "") or "")
+    location = _as_label_text(_get(channel, "location", ""))
+    sensor = _as_label_text(_get(channel, "green_sensor", ""))
     label = f"{location} - {sensor}".strip(" -")
-    return label or str(_get(channel, "channel", "Channel"))
+    return label or _as_label_text(_get(channel, "channel", "Channel"))
 
 
 def plot_channel_correlation(
