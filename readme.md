@@ -64,7 +64,7 @@ repository. Make sure that repository is importable, for example by adding its
 folder to `PYTHONPATH` or by opening Python from a workspace where both
 repositories are on the Python path.
 
-For one Python session:
+For one Python session (replace ... by actual path):
 
 ```python
 import sys
@@ -73,7 +73,7 @@ sys.path.append(r"C:\Users\...\InPythoTools;C:\Users\...\NoviTrack\novitrack")
 import novitrack as nt
 ```
 
-For persistent use in the conda environment:
+For persistent use in the conda environment (replace ... by actual path):
 
 ```powershell
 conda activate pyqt6_env
