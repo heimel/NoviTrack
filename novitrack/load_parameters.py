@@ -7,6 +7,15 @@ The function returns an ``AttrDict``: it behaves like a normal dictionary, but
 also allows attribute access, e.g. ``params.networkpathbase`` as well as
 ``params["networkpathbase"]``.
 
+Local machine-specific overrides are read from the InPythoTools user config
+file ``processparams_local.py``. Create or edit that file with:
+
+    from inpythotools import edit_local_config
+    edit_local_config()
+
+For VS Code, use ``edit_local_config(editor="code")`` if the ``code`` command
+is available in your Python session.
+
 Expected YAML layout
 --------------------
 The MATLAB version expects sections such as ``nt_behaviors``, ``nt_indices``,
@@ -16,6 +25,7 @@ The MATLAB version expects sections such as ``nt_behaviors``, ``nt_indices``,
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -163,13 +173,50 @@ def _choose_marker_set(record: Any) -> str:
     return "default"
 
 
+def _processparams_local_from_file(path: Path):
+    """Load ``processparams_local`` from a Python file."""
+    if not path.exists():
+        return None
+
+    spec = importlib.util.spec_from_file_location("_inpythotools_processparams_local", path)
+    if spec is None or spec.loader is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, "processparams_local", None)
+
+
+def _load_processparams_local(local_config_file: str | Path | None = None):
+    """Return the user-local ``processparams_local`` function if available."""
+    if local_config_file is not None:
+        return _processparams_local_from_file(Path(local_config_file))
+
+    try:
+        from inpythotools import ensure_local_config
+    except ImportError:
+        try:
+            from processparams_local import processparams_local  # type: ignore
+        except ImportError:
+            return None
+        return processparams_local
+
+    return _processparams_local_from_file(ensure_local_config())
+
+
 def load_parameters(
     record: Any | None = None,
     *,
     yaml_file: str | Path | None = None,
     apply_local_overrides: bool = True,
+    local_config_file: str | Path | None = None,
 ) -> AttrDict:
     """Load and adapt Neurotar/NoviTrack parameters for one record.
+
+    To change machine-specific settings such as ``networkpathbase``, edit the
+    local config file from Python or Spyder:
+
+    ``from inpythotools import edit_local_config; edit_local_config()``
 
     Parameters
     ----------
@@ -181,8 +228,12 @@ def load_parameters(
         Path to ``nt_default_parameters.yaml``. By default, the function looks
         in the NoviTrack repository root, one directory above this package.
     apply_local_overrides:
-        If true, tries to import ``processparams_local.processparams_local`` and
-        apply it as the last step, mimicking the MATLAB function.
+        If true, creates/loads the InPythoTools user-local
+        ``processparams_local.py`` and applies it as the last step, mimicking
+        the MATLAB function.
+    local_config_file:
+        Optional explicit ``processparams_local.py`` path. Mostly useful for
+        tests or temporary analysis configurations.
 
     Returns
     -------
@@ -280,11 +331,8 @@ def load_parameters(
 
     # Optional user-local override, mirroring processparams_local.m.
     if apply_local_overrides:
-        try:
-            from processparams_local import processparams_local  # type: ignore
-        except ImportError:
-            pass
-        else:
+        processparams_local = _load_processparams_local(local_config_file)
+        if processparams_local is not None:
             params = processparams_local(params)
 
     return params
