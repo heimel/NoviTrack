@@ -91,6 +91,7 @@ def browse_nt_database(
     font_size: int | None = None,
     spacing: int | None = None,
     yaml_file: str | Path | None = None,
+    block: bool | None = None,
 ) -> DatabaseBrowser:
     """Open a NoviTrack database browser and return the window instance."""
     global _LAST_WINDOW
@@ -115,6 +116,7 @@ def browse_nt_database(
         window_title_prefix="NoviTrack database browser",
         font_size=font_size,
         spacing=spacing,
+        block=block,
     )
     _OPEN_WINDOWS.append(window)
     _LAST_WINDOW = window

@@ -56,7 +56,7 @@ conda activate pyqt6_env
 Install the remaining dependencies:
 
 ```bash
-conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv spyder-kernels pyyaml
+conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv spyder-kernels jupyter ipykernel pyyaml
 ```
 
 NoviTrack depends on the reusable Python tools in the separate `InPythoTools`
@@ -68,24 +68,16 @@ For one Python session:
 
 ```python
 import sys
-sys.path.append(r"C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools")
+sys.path.append(r"C:\Users\...\InPythoTools;C:\Users\...\NoviTrack\novitrack")
 
 import novitrack as nt
 ```
 
-For one PowerShell or conda terminal session:
+For persistent use in the conda environment:
 
 ```powershell
 conda activate pyqt6_env
-$env:PYTHONPATH = "C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools;$env:PYTHONPATH"
-python
-```
-
-To make this persistent for the conda environment:
-
-```powershell
-conda activate pyqt6_env
-conda env config vars set PYTHONPATH="C:\Users\alexa\Documents\Porting NoviTrack\InPythoTools"
+conda env config vars set PYTHONPATH="C:\Users\...\InPythoTools;C:\Users\...\NoviTrack\novitrack"
 conda deactivate
 conda activate pyqt6_env
 ```
@@ -108,6 +100,24 @@ browser = nt.browse_nt_database()
 
 This opens the database browser using `test_data/nttestdb_examples.mat` when no
 filename is supplied.
+
+To use a MATLAB-like interactive workflow in VS Code, install the Python and
+Jupyter extensions, use Ctrl-Shift-P to select the `pyqt6_env` interpreter, and open the Interactive
+Window with `Jupyter: Create Interactive Window`. In a fresh Interactive Window
+or notebook kernel, enable Qt windows before importing `novitrack`:
+
+```python
+%matplotlib qt
+%gui qt
+
+import novitrack as nt
+
+browser = nt.browse_nt_database(block=False)
+```
+
+This returns to the prompt while keeping the database browser responsive. The
+`%matplotlib qt` line makes result figures open as separate Qt windows when
+clicking buttons such as `Results`.
 
 Basic analysis usage:
 
