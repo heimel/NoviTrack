@@ -188,6 +188,4 @@ def analyse_nttestrecord(
     if bool(_get(params, "neurotar", False)):
         logmsg("Neurotar object analysis and shuffling are not ported yet.")
 
-    # Keep snippets available to callers without storing them inside measures.
-    out["snippets"] = snippets
     return out

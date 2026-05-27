@@ -8,7 +8,7 @@ def test_analysis():
 #    record = db.iloc[-1].to_dict()
     record = db.iloc[1]
     out = analyse_nttestrecord(record, verbose=False)
-    results = results_nttestrecord(out)
+    results = results_nttestrecord(out, show=False)
     return results
 
 
