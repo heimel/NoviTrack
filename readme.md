@@ -102,7 +102,9 @@ browser = nt.experiment_db()
 ```
 
 This opens the database browser using `test_data/nttestdb_examples.mat` when no
-filename is supplied.
+filename is supplied. 
+
+The current record can be accessed by `record = browser.current_record()`.
 
 To use a MATLAB-like interactive workflow in VS Code, install the Python and
 Jupyter extensions. First select the conda environment with Ctrl-Shift-P,
