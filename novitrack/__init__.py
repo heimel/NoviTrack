@@ -9,6 +9,7 @@ from .database_browser import (
 )
 from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
+from .session_path import session_path
 
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "load_parameters",
     "results_nttestrecord",
     "save_mat_database",
+    "session_path",
 ]

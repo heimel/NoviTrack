@@ -4,6 +4,9 @@ from novitrack.get_ethogram import get_ethogram
 from novitrack.plot_photometry import _channel_label
 import numpy as np
 from pathlib import Path
+import importlib
+
+analyse_module = importlib.import_module("novitrack.analyse_nttestrecord")
 
 
 def test_ethogram_uses_white_background():
@@ -38,6 +41,25 @@ def test_photometry_channel_label_accepts_matlab_empty_arrays():
     }
 
     assert _channel_label(channel) == "GCaMP"
+
+
+def test_missing_session_path_warning_points_to_local_config(monkeypatch, tmp_path):
+    errors = []
+    logs = []
+    monkeypatch.setattr(analyse_module, "errormsg", errors.append)
+    monkeypatch.setattr(analyse_module, "logmsg", logs.append)
+    monkeypatch.setattr(analyse_module, "_MISSING_SESSION_PATH_DIALOG_SHOWN", False)
+
+    analyse_module._warn_missing_session_path(tmp_path / "missing-session")
+    analyse_module._warn_missing_session_path(tmp_path / "missing-session")
+
+    assert len(errors) == 1
+    assert len(logs) == 1
+    assert "Session path" in errors[0]
+    assert "does not exist" in errors[0]
+    assert "networkpath" in errors[0]
+    assert "from inpythotools import edit_local_config" in errors[0]
+    assert "edit_local_config()" in errors[0]
 
 
 def test_analysis():

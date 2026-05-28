@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 from scipy.io import savemat
 
+from inpythotools.errormsg import errormsg
 from inpythotools.logmsg import logmsg
 from .add_surgery_info import add_surgery_info
 from .analyse_photometry import analyse_photometry
@@ -26,6 +27,8 @@ from .load_tracking_data import load_tracking_data
 from .make_motion_snippets import make_motion_snippets
 from .make_photometry_snippets import make_photometry_snippets
 from .session_path import session_path as resolve_session_path
+
+_MISSING_SESSION_PATH_DIALOG_SHOWN = False
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -42,6 +45,21 @@ def _as_array(value: Any) -> np.ndarray:
 
 def _record_label(record: Mapping[str, Any]) -> str:
     return str(_get(record, "sessionid", _get(record, "subject", "record")))
+
+
+def _warn_missing_session_path(folder: Path) -> None:
+    global _MISSING_SESSION_PATH_DIALOG_SHOWN
+
+    message = (
+        f"Session path {folder} does not exist. "
+        "Check the networkpath setting; if it is incorrect, run "
+        "'from inpythotools import edit_local_config' and then 'edit_local_config()'."
+    )
+    if _MISSING_SESSION_PATH_DIALOG_SHOWN:
+        logmsg(message)
+    else:
+        _MISSING_SESSION_PATH_DIALOG_SHOWN = True
+        errormsg(message)
 
 
 def _session_measures(measures: dict[str, Any], nt_data: Mapping[str, Any], params: Any) -> dict[str, Any]:
@@ -120,7 +138,15 @@ def analyse_nttestrecord(
 
     out = add_surgery_info(out, params)
 
-    nt_data, trigger_times = load_tracking_data(out, params, recompute=False, session_path=session_path)
+    if session_path is None:
+        session_folder, session_exists = resolve_session_path(out, params)
+        if not session_exists:
+            _warn_missing_session_path(session_folder)
+    else:
+        session_folder = Path(session_path)
+        session_exists = session_folder.is_dir()
+
+    nt_data, trigger_times = load_tracking_data(out, params, recompute=False, session_path=session_folder)
     if not nt_data:
         logmsg(f"Could not find any position data for {_record_label(out)}")
 
@@ -161,13 +187,8 @@ def analyse_nttestrecord(
 
     snippets = make_motion_snippets(nt_data, measures, snippets, params)
     if save_snippets:
-        if session_path is None:
-            folder, exists = resolve_session_path(out, params)
-        else:
-            folder = Path(session_path)
-            exists = folder.is_dir()
-        if exists:
-            filename = folder / "nt_snippets.mat"
+        if session_exists:
+            filename = session_folder / "nt_snippets.mat"
             try:
                 savemat(str(filename), {"snippets": snippets}, do_compression=True, long_field_names=True)
             except (OSError, TypeError, ValueError) as exc:
