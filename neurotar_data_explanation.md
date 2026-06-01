@@ -2,7 +2,7 @@
 
 Compiled by Alexander Heimel.
 
-The data is a tdmsDatastore. It contains the following channels.
+The data is a tdmsDatastore. It contains the following channels:
 
 - Dmaps_index - compression information?
 - Histogram_running_bouts - ?
@@ -20,13 +20,16 @@ The data is a tdmsDatastore. It contains the following channels.
 
 Frame_N, HW_Timestamp, SW_timestamp, X1_raw, Y1_raw, X2_raw, Y2_raw, TTL_inputs, TTL_outputs
 Magnet 1 and 2 are on the arena Y-axis, M1 is 50 mm in front of the center, M2 is 50 mm behind
+
+```matlab
    [raw_alpha,~] = cart2pol(X2-X1,-Y2+Y1);
    raw_alpha = raw_alpha/pi*180 + 90;
-   X = cos(alpha/180*pi).*(-X1) - sin(alpha/180*pi).*(-Y1+shift)
+   X = cos(alpha/180*pi).*(-X1) - sin(alpha/180*pi).*(-Y1+shift);
    Y = -50 + sin(alpha/180*pi).*(-X1) +cos(alpha/180*pi).*(-Y1+shift);
 
-   X = cos(alpha/180*pi).*(-X2) - sin(alpha/180*pi).*(-Y2+shift)
+   X = cos(alpha/180*pi).*(-X2) - sin(alpha/180*pi).*(-Y2+shift);
    Y = 50 + sin(alpha/180*pi).*(-X2) +cos(alpha/180*pi).*(-Y2+shift);
+```
 
 with shift the snout-neurotar-center distance? 
 
@@ -52,12 +55,15 @@ Pp_Data contains the following fields:
 - TTL_inputs, TTL_outputs - status of IO   
 - Key - status of the directional keys (Up, Down, Left, or Right)
 
-[X, Y] = pol2cart( (phi-90)/180*pi, R) 
-
+```matlab
+[X, Y] = pol2cart( (phi-90)/180*pi, R);
+```
 
 # Example of loading in Matlab
 
+```matlab
 tdmsdata = tdmsDatastore([neurotar_filename '.tdms']);
 tdmsdata.SelectedChannelGroup = "Pp_Data";
 neurotar_data = readall(tdmsdata);
 neurotar_data = neurotar_data{1};
+```
