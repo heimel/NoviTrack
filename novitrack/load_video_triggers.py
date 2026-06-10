@@ -48,6 +48,7 @@ def _parse_float(text: str) -> float | None:
 
 def _read_trigger_csv(filename: str | Path) -> np.ndarray:
     rows: list[tuple[bool, float]] = []
+    
     with Path(filename).open(newline="") as csvfile:
         for row in csv.reader(csvfile):
             values = [item.strip() for item in row if item.strip()]
@@ -60,7 +61,7 @@ def _read_trigger_csv(filename: str | Path) -> np.ndarray:
                     rows.append((False, value))
                 continue
 
-            time_seconds = _parse_float(values[-1])
+            time_seconds = _parse_float(values[2])
             if time_seconds is None:
                 continue
             rows.append((True, time_seconds))
