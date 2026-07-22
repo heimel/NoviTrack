@@ -52,7 +52,7 @@ def _warn_missing_session_path(folder: Path) -> None:
 
     message = (
         f"Session path {folder} does not exist. "
-        "Check the networkpath setting; if it is incorrect, run "
+        "Check params.networkpathbase in processparams_local.py; to change it, run "
         "'from inpythotools import edit_local_config' and then 'edit_local_config()'."
     )
     if _MISSING_SESSION_PATH_DIALOG_SHOWN:

@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from inpythotools.logmsg import logmsg
+
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
     if obj is None:
@@ -22,8 +24,17 @@ def session_path(record: Any, params: Any | None = None) -> tuple[Path, bool]:
 
         params = load_parameters(record)
 
+    networkpathbase = Path(str(_get(params, "networkpathbase")))
+    if not networkpathbase.is_dir():
+        logmsg(
+            f"Configured networkpathbase {networkpathbase} does not exist. "
+            "Change params.networkpathbase in processparams_local.py; run "
+            "'from inpythotools import edit_local_config' followed by "
+            "'edit_local_config()' to open that file."
+        )
+
     path = (
-        Path(str(_get(params, "networkpathbase")))
+        networkpathbase
         / str(_get(record, "project"))
         / "Data_collection"
         / str(_get(record, "dataset"))

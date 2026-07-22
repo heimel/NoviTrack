@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from PyQt6.QtCore import QEventLoop
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from inpythotools.database_browser import (
     DatabaseBrowser,
@@ -25,6 +27,33 @@ from .results_nttestrecord import results_nttestrecord
 _OPEN_WINDOWS: list[DatabaseBrowser] = []
 _LAST_WINDOW: DatabaseBrowser | None = None
 _DEFAULT_TEST_DATABASE = Path(__file__).parent.parent / "test_data" / "nttestdb_examples.mat"
+
+
+def _install_filter_error_help(window: DatabaseBrowser) -> None:
+    """Replace traceback-heavy filter errors with concise syntax guidance."""
+    original_show_error = window._show_error
+
+    def show_error(title: str, exc: Exception) -> None:
+        if title != "Filter failed":
+            original_show_error(title, exc)
+            return
+
+        expression = window.filter_box.text().strip()
+        QMessageBox.warning(
+            window,
+            "Invalid filter",
+            f"The filter could not be understood:\n\n{expression}\n\n"
+            "Use a column name, a comparison operator, and a value. Text values "
+            "must be enclosed in quotes, and equality uses == rather than =.\n\n"
+            "Examples:\n"
+            "  subject == '123456'\n"
+            "  project == 'NoviTrack_example_data'\n"
+            "  sessnr == 2\n"
+            "  subject == '123456' and sessnr >= 2\n\n"
+            "Column names must match the fields shown in the database.",
+        )
+
+    window._show_error = show_error
 
 
 def default_database_filename() -> Path:
@@ -96,6 +125,9 @@ def experiment_db(
     """Open a NoviTrack experiment database browser and return the window instance."""
     global _LAST_WINDOW
 
+    existing_app = QApplication.instance()
+    should_block = block if block is not None else existing_app is None
+
     if db is None and filename is None:
         filename = default_database_filename()
 
@@ -116,10 +148,21 @@ def experiment_db(
         window_title_prefix="NoviTrack database browser",
         font_size=font_size,
         spacing=spacing,
-        block=block,
+        block=False,
     )
+    window.filter_box.setPlaceholderText("subject == '123456'")
+    _install_filter_error_help(window)
     _OPEN_WINDOWS.append(window)
     _LAST_WINDOW = window
+
+    if should_block:
+        app = QApplication.instance()
+        if existing_app is None:
+            app.exec()
+        else:
+            loop = QEventLoop()
+            window.destroyed.connect(loop.quit)
+            loop.exec()
     return window
 
 
