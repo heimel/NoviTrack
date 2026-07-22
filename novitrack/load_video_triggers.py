@@ -48,7 +48,7 @@ def _parse_float(text: str) -> float | None:
 
 def _read_trigger_csv(filename: str | Path) -> np.ndarray:
     rows: list[tuple[bool, float]] = []
-    
+
     with Path(filename).open(newline="") as csvfile:
         for row in csv.reader(csvfile):
             values = [item.strip() for item in row if item.strip()]
@@ -59,6 +59,13 @@ def _read_trigger_csv(filename: str | Path) -> np.ndarray:
                 value = _parse_float(values[0])
                 if value is not None:
                     rows.append((False, value))
+                continue
+
+            if len(values) < 3:
+                logmsg(
+                    f"Trigger file {filename} has an erroneous two-column header "
+                    "for three-column data. Reading trigger times from column 3."
+                )
                 continue
 
             time_seconds = _parse_float(values[2])
