@@ -162,6 +162,8 @@ nt_marker_sets:
         dig:       ['d', 'Dig',                          [0.6, 0.3, 0], true, false]
         bury:      ['y', 'burYing',                      [0.3, 0.6, 0], true, false]
         overhead:  ['h', 'start overHead stimulus',      [0.4, 0.2, 1], false, true]
+        opto_on:   ['1', 'optolaser on',                 [0, 0, 1],    false, false]
+        opto_off:  ['0', 'optolaser off',                [0, 0, 0],    false, false]
     prey_capture:
         stop:      ['t', 'stop stimulus',                   [1, 0, 0],    false, true]
         start:     ['o', 'start physical stimulus',         [0, 0, 1],    false, true]
@@ -188,7 +190,9 @@ nt_marker_sets:
         climb:       ['l', 'cLimb',                  [0.8, 0.2, 0.9],    true, false]
         defense:     ['d', 'Defense',                [0.8, 0.2, 0.9],    true, false]
         approached:  ['n', 'iNtruder approach',      [0.8, 0.2, 0.9],    true, false]
-        defensed:    ['z', 'intruder defenZe',       [0.8, 0.2, 0.9],    true, false]
+        defended:    ['z', 'intruder defenZe',       [0.8, 0.2, 0.9],    true, false]
+        opto_on:   ['1', 'optolaser on',                    [0, 0, 1],    false, false]
+        opto_off:  ['0', 'optolaser off',                   [0, 0, 0],    false, false]
     looming:
         stop:        ['t', 'sTop stimulus',            [1, 0, 0],    false, true]
         overhead:    ['h', 'start overHead stimulus',  [0.4, 0.4, 0.8], false, true]
@@ -212,6 +216,8 @@ nt_marker_sets:
         open:        ['o', 'enter open arm',   [0, 0, 1], true, false]
         closed:      ['c', 'enter closed arm', [1, 0, 0], true, false]
         middle:      ['m', 'enter middle',     [0, 0, 0], true, false]
+        opto_on:   ['1', 'optolaser on',                    [0, 0, 1],    false, false]
+        opto_off:  ['0', 'optolaser off',                   [0, 0, 0],    false, false]
 
 nt_stop_marker: 't'
 
