@@ -242,6 +242,7 @@ class NTTrackBehaviorWindow(QMainWindow):
             ("+", "+", self.speed_increase),
             ("Add marker", "Shift+M", self.add_marker_dialog),
             ("Delete next", "Del", self.delete_next_marker),
+            ("Delete all", "Shift+D", self.delete_all_markers),
             ("Go to", "Shift+G", self.goto_dialog),
             ("Help", "Shift+H", self.show_help),
             ("Stop", "Shift+Q", self.close),
@@ -580,6 +581,25 @@ class NTTrackBehaviorWindow(QMainWindow):
         _set_record_field(self.record, "measures", self.measures)
         self._report_status(f"Deleted marker {marker.get('marker')} at {float(marker.get('time')):.2f} s")
 
+    def delete_all_markers(self) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Delete all markers",
+            "Do you want to delete all markers?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            self._report_status("Marker deletion cancelled")
+            return
+
+        logmsg("Deleting all markers")
+        self.measures["markers"] = []
+        self.changed = True
+        self._refresh_marker_items()
+        _set_record_field(self.record, "measures", self.measures)
+        self._report_status("Deleted all markers")
+
     def speed_increase(self) -> None:
         index = min(_SPEEDS.index(self.playback_speed) + 1, len(_SPEEDS) - 1)
         self.playback_speed = _SPEEDS[index]
@@ -614,6 +634,7 @@ class NTTrackBehaviorWindow(QMainWindow):
                     "Shift+M: add marker",
                     "Shift+G: go to time",
                     "Delete: delete next marker",
+                    "Shift+D: delete all markers",
                     "Shift+H: show help",
                     "Shift+Q/Esc: stop tracking",
                     "",
@@ -629,6 +650,8 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.add_marker_dialog()
         elif key == Qt.Key.Key_Delete:
             self.delete_next_marker()
+        elif key == Qt.Key.Key_D and modifiers == Qt.KeyboardModifier.ShiftModifier:
+            self.delete_all_markers()
         elif key == Qt.Key.Key_G and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.goto_dialog()
         elif key == Qt.Key.Key_Q and modifiers == Qt.KeyboardModifier.ShiftModifier:
