@@ -31,6 +31,21 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
 
 
+def _is_empty_measures(measures: Any) -> bool:
+    if measures is None:
+        return True
+    if isinstance(measures, Mapping):
+        return len(measures) == 0
+    if isinstance(measures, (list, tuple, set)):
+        return len(measures) == 0
+    if hasattr(measures, "size"):
+        try:
+            return measures.size == 0
+        except TypeError:
+            return False
+    return False
+
+
 def _load_mat_field(filename: Path, field_name: str) -> Any:
     mat = loadmat(str(filename), squeeze_me=True, struct_as_record=False)
     if field_name not in mat:
@@ -128,7 +143,7 @@ def results_nttestrecord(
     snippets = _resolve_snippets(record, params, snippets)
     photometry, record = _resolve_photometry(record, params, photometry)
     measures = _get(record, "measures", {})
-    if not measures:
+    if _is_empty_measures(measures):
         logmsg("No measures. Run analysis first.")
         return []
 

@@ -1,3 +1,5 @@
+import numpy as np
+
 from novitrack.load_parameters import load_parameters
 
 
@@ -19,3 +21,16 @@ def test_load_parameters_applies_explicit_local_config(tmp_path):
 
     assert params.networkpathbase == r"C:\\local-test-root"
     assert params.local_config_was_used is True
+
+
+def test_load_parameters_allows_empty_measures_array():
+    record = {
+        "setup": "neurotar",
+        "date": "2024-01-01",
+        "stimulus": "none",
+        "measures": np.array([], dtype=object),
+    }
+
+    params = load_parameters(record=record)
+
+    assert params is not None

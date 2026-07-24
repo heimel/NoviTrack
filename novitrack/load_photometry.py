@@ -44,7 +44,7 @@ def _as_array(value: Any) -> np.ndarray:
 
 def parse_channels(comment: str | None) -> dict[str, str]:
     """Parse channel-to-fiber mappings from a record comment."""
-    if not comment:
+    if comment is None or comment.size == 0:
         return {}
 
     result: dict[str, str] = {}

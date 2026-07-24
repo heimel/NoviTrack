@@ -10,6 +10,11 @@ import pandas as pd
 from PyQt6.QtCore import QEventLoop
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+try:
+    from IPython import get_ipython
+except ImportError:  # pragma: no cover - unavailable outside IPython
+    get_ipython = None
+
 from inpythotools.database_browser import (
     DatabaseBrowser,
     RecordAction,
@@ -93,6 +98,13 @@ def _as_int(value: Any) -> int | None:
         return None
 
 
+def _running_in_ipython() -> bool:
+    """Return True when the browser is launched from an IPython/Jupyter kernel."""
+    if get_ipython is None:
+        return False
+    return get_ipython() is not None
+
+
 def _load_gui_params(yaml_file: str | Path | None = None) -> tuple[int | None, int | None]:
     try:
         params = load_parameters(yaml_file=yaml_file)
@@ -126,7 +138,11 @@ def experiment_db(
     global _LAST_WINDOW
 
     existing_app = QApplication.instance()
-    should_block = block if block is not None else existing_app is None
+    should_block = (
+        block
+        if block is not None
+        else (existing_app is None and not _running_in_ipython())
+    )
 
     if db is None and filename is None:
         filename = default_database_filename()

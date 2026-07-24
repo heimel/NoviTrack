@@ -307,7 +307,7 @@ def load_parameters(
         "overhead_camera_angle",
         "picamera_time_multiplier",
     )
-    if measures:
+    if measures is not None:
         for name in measure_fields:
             if _has(measures, name):
                 params[name] = _get(measures, name)
