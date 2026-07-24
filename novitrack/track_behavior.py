@@ -14,6 +14,9 @@ from PyQt6.QtCore import QEventLoop, QTimer, Qt
 from PyQt6.QtGui import QAction, QCloseEvent, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -34,9 +37,10 @@ else:
 
 from inpythotools.logmsg import logmsg
 from .change_times import change_times
+from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
 from .load_tracking_data import load_tracking_data
-from .open_videos import OpenCVVideoReader, VideoInfo, open_videos
+from .open_videos import OpenCVVideoReader, VideoInfo, movie_search_locations, open_videos
 
 
 _OPEN_WINDOWS: list["NTTrackBehaviorWindow"] = []
@@ -127,6 +131,20 @@ def _record_title(record: Any) -> str:
     return f"{sessionid} {subject}".strip()
 
 
+def _missing_movies_message(record: Any, params: Any) -> str:
+    folder, locations = movie_search_locations(record, params)
+    lines = [
+        "No NoviTrack movies were found for this record.",
+        "",
+        f"Searched in: {folder}",
+    ]
+    if locations:
+        lines.extend(("", f"Configured cameras: {', '.join(locations)}"))
+    else:
+        lines.extend(("", "No camera names are configured in nt_camera_names."))
+    return "\n".join(lines)
+
+
 class NTTrackBehaviorWindow(QMainWindow):
     """First usable PyQt6 port of MATLAB ``track_behavior``."""
 
@@ -154,7 +172,7 @@ class NTTrackBehaviorWindow(QMainWindow):
 
         self.readers, self.video_info, self.active_cameras = open_videos(self.record, self.params)
         if not self.active_cameras:
-            raise FileNotFoundError("No NoviTrack movies were found for this record.")
+            raise FileNotFoundError(_missing_movies_message(self.record, self.params))
 
         self.nt_data, trigger_times = load_tracking_data(self.record, self.params, recompute=False)
         if not self.nt_data:
@@ -241,6 +259,7 @@ class NTTrackBehaviorWindow(QMainWindow):
             ("1x", "=", self.speed_original),
             ("+", "+", self.speed_increase),
             ("Add marker", "Shift+M", self.add_marker_dialog),
+            ("Import markers", "Shift+I", self.import_markers_dialog),
             ("Delete next", "Del", self.delete_next_marker),
             ("Delete all", "Shift+D", self.delete_all_markers),
             ("Go to", "Shift+G", self.goto_dialog),
@@ -530,6 +549,75 @@ class NTTrackBehaviorWindow(QMainWindow):
         if ok and key:
             self.add_marker(key)
 
+    def import_markers_dialog(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Import Options")
+        layout = QVBoxLayout(dialog)
+        checkboxes = []
+        for name in IMPORT_OPTIONS:
+            checkbox = QCheckBox(name, dialog)
+            checkbox.setChecked(True)
+            layout.addWidget(checkbox)
+            checkboxes.append(checkbox)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            parent=dialog,
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            self._report_status("Marker import cancelled")
+            return
+
+        selections = [name for name, checkbox in zip(IMPORT_OPTIONS, checkboxes) if checkbox.isChecked()]
+        if not selections:
+            self._report_status("No marker sources selected")
+            return
+
+        before = _markers_as_records(self.measures.get("markers"))
+
+        def ask_stim_id(marker: str) -> int | None:
+            value, ok = QInputDialog.getInt(
+                self,
+                "Stimulus",
+                f"Stimulus id for marker {marker}:",
+                1,
+                1,
+                9,
+            )
+            return value if ok else None
+
+        def ask_trigger_shift() -> float | None:
+            value, ok = QInputDialog.getDouble(
+                self,
+                "Trigger Time Shift",
+                "Enter trigger time shift (in seconds):",
+                0.0,
+                -1e9,
+                1e9,
+                6,
+            )
+            return value if ok else None
+
+        import_markers(
+            self.record,
+            selections,
+            params=self.params,
+            stim_id_provider=ask_stim_id,
+            trigger_shift_provider=ask_trigger_shift,
+        )
+        self.measures = _ensure_measures(self.record, self.params)
+        after = _markers_as_records(self.measures.get("markers"))
+        self._refresh_marker_items()
+        _set_record_field(self.record, "measures", self.measures)
+        if after != before:
+            self.changed = True
+            logmsg("Imported markers")
+            self._report_status(f"Imported markers from {len(selections)} source(s)")
+        else:
+            self._report_status("No markers imported")
+
     def add_marker(self, marker_key: str) -> None:
         definition = _marker_definition(self.params, marker_key)
         if definition is None:
@@ -632,6 +720,7 @@ class NTTrackBehaviorWindow(QMainWindow):
                     "Shift+P/Shift+N: previous/next marker",
                     "+/-: playback speed",
                     "Shift+M: add marker",
+                    "Shift+I: import markers",
                     "Shift+G: go to time",
                     "Delete: delete next marker",
                     "Shift+D: delete all markers",
@@ -648,6 +737,8 @@ class NTTrackBehaviorWindow(QMainWindow):
         modifiers = event.modifiers()
         if key == Qt.Key.Key_M and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.add_marker_dialog()
+        elif key == Qt.Key.Key_I and modifiers == Qt.KeyboardModifier.ShiftModifier:
+            self.import_markers_dialog()
         elif key == Qt.Key.Key_Delete:
             self.delete_next_marker()
         elif key == Qt.Key.Key_D and modifiers == Qt.KeyboardModifier.ShiftModifier:

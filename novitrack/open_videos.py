@@ -102,6 +102,31 @@ def _candidate_stems(record: Any, session_path: Path, camera_name: str) -> list[
     ]
 
 
+def movie_search_locations(
+    record: Any,
+    params: Any | None = None,
+    *,
+    session_path: str | Path | None = None,
+) -> tuple[Path, dict[str, list[Path]]]:
+    """Return the folder and exact movie filenames searched per camera."""
+    if params is None:
+        params = load_parameters(record)
+    if session_path is None:
+        folder, _ = resolve_session_path(record, params)
+    else:
+        folder = Path(session_path)
+
+    locations = {
+        str(camera_name): [
+            stem.with_suffix(ext)
+            for stem in _candidate_stems(record, folder, str(camera_name))
+            for ext in VIDEO_EXTENSIONS
+        ]
+        for camera_name in _get(params, "nt_camera_names", [])
+    }
+    return folder, locations
+
+
 def _find_movie(record: Any, session_path: Path, camera_name: str) -> Path | None:
     for stem in _candidate_stems(record, session_path, camera_name):
         for ext in VIDEO_EXTENSIONS:
@@ -188,4 +213,4 @@ def open_videos(
     return readers, video_info, active_cameras
 
 
-__all__ = ["OpenCVVideoReader", "VideoInfo", "open_videos"]
+__all__ = ["OpenCVVideoReader", "VideoInfo", "movie_search_locations", "open_videos"]
