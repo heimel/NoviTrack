@@ -42,9 +42,11 @@ def _as_array(value: Any) -> np.ndarray:
     return np.asarray(value, dtype=float).reshape(-1)
 
 
-def parse_channels(comment: str | None) -> dict[str, str]:
+def parse_channels(comment: Any) -> dict[str, str]:
     """Parse channel-to-fiber mappings from a record comment."""
-    if comment is None or comment.size == 0:
+    # Database records may contain a native Python string or an empty NumPy
+    # array, depending on how the MATLAB data was loaded.
+    if comment is None or np.size(comment) == 0:
         return {}
 
     result: dict[str, str] = {}
