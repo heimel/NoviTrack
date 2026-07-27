@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+import numpy as np
 import pandas as pd
 from PyQt6.QtCore import QEventLoop
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QPushButton
 
 try:
     from IPython import get_ipython
@@ -32,6 +34,305 @@ from .results_nttestrecord import results_nttestrecord
 _OPEN_WINDOWS: list[DatabaseBrowser] = []
 _LAST_WINDOW: DatabaseBrowser | None = None
 _DEFAULT_TEST_DATABASE = Path(__file__).parent.parent / "test_data" / "nttestdb_examples.mat"
+_RECORD_ID_FIELDS = (
+    "mouse",
+    "subject",
+    "date",
+    "epoch",
+    "sessionid",
+    "sessnr",
+    "condition",
+    "stimulus",
+    "stack",
+    "test",
+    "datatype",
+)
+
+
+def _is_empty_import_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    if isinstance(value, (list, tuple, dict)):
+        return len(value) == 0
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _import_identity(record: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]:
+    """Return the fields used by MATLAB's ``recordfilter`` duplicate check."""
+    identity: list[tuple[str, Any]] = []
+    for field in _RECORD_ID_FIELDS:
+        value = record.get(field)
+        if _is_empty_import_value(value):
+            continue
+        if isinstance(value, np.generic):
+            value = value.item()
+        identity.append((field, value))
+    return tuple(identity)
+
+
+def _record_is_duplicate(record: Mapping[str, Any], db: pd.DataFrame) -> bool:
+    identity = _import_identity(record)
+    if not identity or db.empty:
+        return False
+
+    matches = pd.Series(True, index=db.index)
+    for field, expected in identity:
+        if field not in db.columns:
+            return False
+        matches &= db[field].map(
+            lambda value: not _is_empty_import_value(value) and value == expected
+        )
+    return bool(matches.any())
+
+
+def _records_from_json(filename: str | Path) -> pd.DataFrame:
+    with Path(filename).open(encoding="utf-8") as stream:
+        value = json.load(stream)
+    if isinstance(value, Mapping):
+        records = [dict(value)]
+    elif isinstance(value, list) and all(isinstance(item, Mapping) for item in value):
+        records = [dict(item) for item in value]
+    else:
+        raise ValueError("JSON import must contain a record or a list of records.")
+    return pd.DataFrame.from_records(records)
+
+
+def load_import_file(filename: str | Path) -> pd.DataFrame:
+    """Load records from a MATLAB database or session JSON file."""
+    filename = Path(filename)
+    suffix = filename.suffix.lower()
+    if suffix == ".mat":
+        return load_mat_database(filename)
+    if suffix == ".json":
+        return _records_from_json(filename)
+    raise ValueError(
+        f"Unsupported import extension {suffix!r}. Select a .mat or .json file."
+    )
+
+
+def collect_session_json_files(folder: str | Path) -> pd.DataFrame:
+    """Recursively collect records from files whose names end in ``session.json``."""
+    records: list[dict[str, Any]] = []
+    for filename in sorted(
+        path
+        for path in Path(folder).rglob("*")
+        if path.is_file() and path.name.lower().endswith("session.json")
+    ):
+        imported = _records_from_json(filename)
+        for record in imported.to_dict(orient="records"):
+            record.setdefault("datatype", "")
+            record.setdefault("measures", {})
+            record.setdefault("comment", "")
+            records.append(record)
+
+    db = pd.DataFrame.from_records(records)
+    return db
+
+
+def _empty_like(value: Any) -> Any:
+    if isinstance(value, str):
+        return ""
+    if isinstance(value, dict):
+        return {}
+    if isinstance(value, list):
+        return []
+    if isinstance(value, tuple):
+        return ()
+    if isinstance(value, np.ndarray):
+        return np.array([], dtype=value.dtype)
+    return np.nan
+
+
+def _align_imported_columns(
+    db: pd.DataFrame, imported_db: pd.DataFrame
+) -> pd.DataFrame:
+    """Match MATLAB ``structconvert(..., db, true)`` field alignment."""
+    if db.empty:
+        return imported_db.copy()
+
+    aligned = imported_db.copy()
+    for column in db.columns:
+        if column in aligned.columns:
+            continue
+        exemplar = next(
+            (
+                value
+                for value in db[column]
+                if not _is_empty_import_value(value)
+            ),
+            np.nan,
+        )
+        aligned[column] = [_empty_like(exemplar) for _ in range(len(aligned))]
+    return aligned.loc[:, list(db.columns)]
+
+
+def insert_imported_records(
+    db: pd.DataFrame,
+    imported_db: pd.DataFrame,
+    *,
+    after_index: Any | None = None,
+    ask_import_duplicates: Callable[[], bool] | None = None,
+) -> tuple[pd.DataFrame, int]:
+    """Insert imported rows after ``after_index``, returning the database and count."""
+    if imported_db.empty:
+        return db.copy(), 0
+
+    imported_db = _align_imported_columns(db, imported_db)
+    accepted: list[dict[str, Any]] = []
+    import_duplicates: bool | None = None
+    comparison_db = db.copy()
+    for record in imported_db.to_dict(orient="records"):
+        if _record_is_duplicate(record, comparison_db):
+            if import_duplicates is None:
+                import_duplicates = (
+                    ask_import_duplicates() if ask_import_duplicates is not None else False
+                )
+            if not import_duplicates:
+                continue
+        accepted.append(record)
+        comparison_db = pd.concat(
+            [comparison_db, pd.DataFrame.from_records([record])],
+            ignore_index=True,
+            sort=False,
+        )
+
+    if not accepted:
+        return db.copy(), 0
+
+    position = len(db)
+    if after_index is not None and after_index in db.index:
+        location = db.index.get_loc(after_index)
+        position = int(location) + 1 if isinstance(location, (int, np.integer)) else len(db)
+
+    imported = pd.DataFrame.from_records(accepted)
+    merged = pd.concat(
+        [db.iloc[:position], imported, db.iloc[position:]],
+        ignore_index=True,
+        sort=False,
+    )
+    return merged, len(accepted)
+
+
+def _ask_import_duplicates(window: DatabaseBrowser) -> bool:
+    answer = QMessageBox.question(
+        window,
+        "Import duplicates",
+        "A duplicate record was detected. Import duplicate records?",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    return answer == QMessageBox.StandardButton.Yes
+
+
+def _import_records_into_window(
+    window: DatabaseBrowser,
+    imported_db: pd.DataFrame,
+    source: str | Path,
+) -> int:
+    current_index = window.current_record_index()
+    current_row_position = (
+        int(window.db.index.get_loc(current_index))
+        if current_index is not None and current_index in window.db.index
+        else None
+    )
+    merged, count = insert_imported_records(
+        window.db,
+        imported_db,
+        after_index=current_index,
+        ask_import_duplicates=lambda: _ask_import_duplicates(window),
+    )
+    if count == 0:
+        QMessageBox.information(
+            window,
+            "Nothing imported",
+            "No new records were found to import.",
+        )
+        return 0
+
+    window.db = merged
+    expression = window.filter_box.text().strip()
+    if expression:
+        window.apply_filter()
+        if (
+            current_row_position is not None
+            and current_row_position in window.filtered_index
+        ):
+            window.position = window.filtered_index.index(current_row_position)
+    else:
+        window.filtered_index = list(window.db.index)
+        window.position = min(window.position, len(window.filtered_index) - 1)
+    window._set_dirty(True)
+    window._refresh_view()
+    window.statusBar().showMessage(
+        f"Imported {count} record{'s' if count != 1 else ''} from {source}.",
+        5000,
+    )
+    return count
+
+
+def _import_file_into_window(window: DatabaseBrowser) -> None:
+    start = window.filename.parent if window.filename else Path.cwd()
+    filename, _ = QFileDialog.getOpenFileName(
+        window,
+        "Import file",
+        str(start),
+        "Supported files (*.mat *.json);;MATLAB databases (*.mat);;"
+        "Session JSON files (*.json);;All files (*.*)",
+    )
+    if not filename:
+        return
+    try:
+        _import_records_into_window(window, load_import_file(filename), filename)
+    except Exception as exc:  # pragma: no cover - GUI error path
+        window._show_error("Import failed", exc)
+
+
+def _import_folder_into_window(window: DatabaseBrowser) -> None:
+    start = window.filename.parent if window.filename else Path.cwd()
+    folder = QFileDialog.getExistingDirectory(window, "Import folder", str(start))
+    if not folder:
+        return
+    try:
+        _import_records_into_window(window, collect_session_json_files(folder), folder)
+    except Exception as exc:  # pragma: no cover - GUI error path
+        window._show_error("Import failed", exc)
+
+
+def _show_import_dialog(window: DatabaseBrowser) -> None:
+    message = QMessageBox(window)
+    message.setIcon(QMessageBox.Icon.Question)
+    message.setWindowTitle("Import type")
+    message.setText("What do you want to import?")
+    file_button = message.addButton("Single file", QMessageBox.ButtonRole.AcceptRole)
+    folder_button = message.addButton("Full folder", QMessageBox.ButtonRole.AcceptRole)
+    message.addButton(QMessageBox.StandardButton.Cancel)
+    message.exec()
+    if message.clickedButton() is file_button:
+        _import_file_into_window(window)
+    elif message.clickedButton() is folder_button:
+        _import_folder_into_window(window)
+
+
+def _install_import_button(window: DatabaseBrowser) -> None:
+    """Add the NoviTrack import control beside the generic browser's Load button."""
+    layout = window.centralWidget().layout().itemAt(0).layout()
+    button = QPushButton("Import", window)
+    if window.load_button is not None:
+        button.setFixedHeight(window.load_button.height())
+    button.setToolTip(
+        "Import a database or session JSON records after the current record"
+    )
+    button.clicked.connect(lambda _checked=False: _show_import_dialog(window))
+    load_position = layout.indexOf(window.load_button)
+    layout.insertWidget(load_position + 1 if load_position >= 0 else 0, button)
+    window.import_button = button
 
 
 def _install_filter_error_help(window: DatabaseBrowser) -> None:
@@ -68,9 +369,39 @@ def default_database_filename() -> Path:
 
 def track_behavior_record(record: pd.Series) -> Any:
     """Launch the behavior tracker lazily so normal database browsing stays light."""
-    from .track_behavior import track_record
+    from .track_behavior import track_behavior
 
-    return track_record(record)
+    browser = _LAST_WINDOW
+    record_index = record.name
+
+    def update_open_record(updated_record: Any) -> None:
+        if browser is None or record_index not in browser.db.index:
+            return
+        values = _normalize_action_result(updated_record)
+        if values is None:
+            return
+        for column, value in values.items():
+            if column not in browser.db.columns:
+                browser.db[column] = pd.Series(
+                    [None] * len(browser.db),
+                    index=browser.db.index,
+                    dtype=object,
+                )
+            browser.db.at[record_index, column] = value
+        browser._set_dirty(True)
+        if browser.current_record_index() == record_index:
+            browser._refresh_view()
+
+    updated_record, changed = track_behavior(
+        record,
+        block=True,
+        on_record_changed=update_open_record if browser is not None else None,
+    )
+    if browser is not None:
+        # Marker edits were already propagated immediately, like MATLAB's
+        # update_record(record, h_dbfig, true) callback.
+        return None
+    return updated_record if changed else None
 
 
 def analyse_nttestrecord_and_show_results(record: pd.Series) -> Any:
@@ -167,6 +498,7 @@ def experiment_db(
         block=False,
     )
     window.filter_box.setPlaceholderText("subject == '123456'")
+    _install_import_button(window)
     _install_filter_error_help(window)
     _OPEN_WINDOWS.append(window)
     _LAST_WINDOW = window
@@ -188,8 +520,11 @@ NTDatabaseBrowser = DatabaseBrowser
 __all__ = [
     "NTDatabaseBrowser",
     "analyse_nttestrecord_and_show_results",
+    "collect_session_json_files",
     "default_database_filename",
     "experiment_db",
+    "insert_imported_records",
+    "load_import_file",
     "results_nttestrecord_from_gui",
     "track_behavior_record",
 ]

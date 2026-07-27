@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import sys
 import time
-from collections.abc import Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from PyQt6.QtCore import QEventLoop, QTimer, Qt
+from PyQt6.QtCore import QEventLoop, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
@@ -158,7 +158,15 @@ def _missing_movies_message(record: Any, params: Any) -> str:
 class NTTrackBehaviorWindow(QMainWindow):
     """First usable PyQt6 port of MATLAB ``track_behavior``."""
 
-    def __init__(self, record: Any, parent: QWidget | None = None) -> None:
+    tracking_closed = pyqtSignal()
+
+    def __init__(
+        self,
+        record: Any,
+        parent: QWidget | None = None,
+        *,
+        on_record_changed: Callable[[Any], None] | None = None,
+    ) -> None:
         if pg is None:
             raise ImportError(
                 "track_behavior needs pyqtgraph. Install it in the GUI environment, "
@@ -168,6 +176,7 @@ class NTTrackBehaviorWindow(QMainWindow):
 
         pg.setConfigOptions(antialias=False, imageAxisOrder="row-major")
         self.record = record
+        self._on_record_changed = on_record_changed
         self.params = load_parameters(record)
         self.measures = _ensure_measures(record, self.params)
         self.changed = False
@@ -399,6 +408,14 @@ class NTTrackBehaviorWindow(QMainWindow):
     def _report_status(self, message: str) -> None:
         self.message_label.setText(message)
 
+    def _record_changed(self) -> None:
+        """Store tracker edits and notify an owning database browser."""
+        self.changed = True
+        _set_record_field(self.record, "measures", self.measures)
+        callback = getattr(self, "_on_record_changed", None)
+        if callback is not None:
+            callback(self.record)
+
     def _make_trace_plot(self, title: str, values: np.ndarray, y_range: tuple[float, float]) -> pg.PlotWidget:
         plot = pg.PlotWidget(title=title)
         plot.setBackground("w")
@@ -625,9 +642,8 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.measures = _ensure_measures(self.record, self.params)
         after = _markers_as_records(self.measures.get("markers"))
         self._refresh_marker_items()
-        _set_record_field(self.record, "measures", self.measures)
         if after != before:
-            self.changed = True
+            self._record_changed()
             logmsg("Imported markers")
             self._report_status(f"Imported markers from {len(selections)} source(s)")
         else:
@@ -656,14 +672,14 @@ class NTTrackBehaviorWindow(QMainWindow):
             return
         markers.append({"time": float(self.master_time), "marker": marker_text})
         self.measures["markers"] = sorted(markers, key=lambda item: float(item["time"]))
+        logmsg(f"Inserting marker '{marker_text}' at time {self.master_time:g}")
         if marker_key[0] == str(_get(self.params, "nt_stop_marker", "t")):
             positions = np.asarray(self.measures.get("object_positions", np.empty((0, 5))), dtype=float).reshape(-1, 5)
             stim_id = int(marker_text[1:]) if len(marker_text) > 1 and marker_text[1:].isdigit() else 1
             positions = np.vstack([positions, [self.master_time, np.nan, np.nan, float(_get(self.params, "ARENA", 1)), stim_id]])
             self.measures["object_positions"] = positions[np.argsort(positions[:, 0])]
-        self.changed = True
         self._refresh_marker_items()
-        _set_record_field(self.record, "measures", self.measures)
+        self._record_changed()
         self._report_status(f"Added marker {marker_text} at {self.master_time:.2f} s")
 
     def delete_next_marker(self) -> None:
@@ -679,9 +695,8 @@ class NTTrackBehaviorWindow(QMainWindow):
             return
         del markers[index]
         self.measures["markers"] = markers
-        self.changed = True
         self._refresh_marker_items()
-        _set_record_field(self.record, "measures", self.measures)
+        self._record_changed()
         self._report_status(f"Deleted marker {marker.get('marker')} at {float(marker.get('time')):.2f} s")
 
     def delete_all_markers(self) -> None:
@@ -698,9 +713,8 @@ class NTTrackBehaviorWindow(QMainWindow):
 
         logmsg("Deleting all markers")
         self.measures["markers"] = []
-        self.changed = True
         self._refresh_marker_items()
-        _set_record_field(self.record, "measures", self.measures)
+        self._record_changed()
         self._report_status("Deleted all markers")
 
     def speed_increase(self) -> None:
@@ -794,9 +808,15 @@ class NTTrackBehaviorWindow(QMainWindow):
         if self in _OPEN_WINDOWS:
             _OPEN_WINDOWS.remove(self)
         super().closeEvent(event)
+        self.tracking_closed.emit()
 
 
-def track_behavior(record: Any, *, block: bool | None = None) -> Any:
+def track_behavior(
+    record: Any,
+    *,
+    block: bool | None = None,
+    on_record_changed: Callable[[Any], None] | None = None,
+) -> Any:
     """Open the behavior tracking GUI for one NoviTrack record.
 
     If ``block`` is true, this function returns ``(record, changed)`` after the
@@ -811,7 +831,7 @@ def track_behavior(record: Any, *, block: bool | None = None) -> Any:
     if block is None:
         block = created_app
 
-    window = NTTrackBehaviorWindow(record)
+    window = NTTrackBehaviorWindow(record, on_record_changed=on_record_changed)
     _OPEN_WINDOWS.append(window)
     window.show()
 
@@ -819,7 +839,7 @@ def track_behavior(record: Any, *, block: bool | None = None) -> Any:
         return window
 
     loop = QEventLoop()
-    window.destroyed.connect(loop.quit)
+    window.tracking_closed.connect(loop.quit)
     if created_app:
         app.exec()
     else:
@@ -827,10 +847,18 @@ def track_behavior(record: Any, *, block: bool | None = None) -> Any:
     return record, window.changed
 
 
-def track_record(record: Any) -> Any:
-    """Database-browser friendly wrapper that returns an updated record."""
-    updated_record, _changed = track_behavior(record, block=True)
-    return updated_record
+def track_record(
+    record: Any,
+    *,
+    on_record_changed: Callable[[Any], None] | None = None,
+) -> Any:
+    """Return an updated record only when tracking actually changed it."""
+    updated_record, changed = track_behavior(
+        record,
+        block=True,
+        on_record_changed=on_record_changed,
+    )
+    return updated_record if changed else None
 
 
 __all__ = ["NTTrackBehaviorWindow", "track_behavior", "track_record"]
