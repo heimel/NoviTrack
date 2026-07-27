@@ -125,6 +125,16 @@ def _qt_color(value: Any) -> tuple[int, int, int]:
     return tuple(int(round(v * 255)) for v in arr)
 
 
+def _orient_camera_frame(frame: np.ndarray) -> np.ndarray:
+    """Return a frame in the orientation used by the tracking display."""
+    return np.flipud(frame).copy()
+
+
+def _orient_camera_y(y: np.ndarray, frame_height: int) -> np.ndarray:
+    """Mirror original movie y coordinates to match the displayed frame."""
+    return float(frame_height - 1) - y
+
+
 def _record_title(record: Any) -> str:
     sessionid = _get(record, "sessionid", "unknown session")
     subject = _get(record, "subject", "")
@@ -450,6 +460,7 @@ class NTTrackBehaviorWindow(QMainWindow):
             if force or self.playing:
                 frame = reader.read_at_time(video_time)
                 if frame is not None:
+                    frame = _orient_camera_frame(frame)
                     self.video_images[camera_index].setImage(frame, autoLevels=False)
             offset, multiplier = self._video_to_master[camera_index]
             camera_master_times.append(video_time * multiplier + offset)
@@ -477,6 +488,10 @@ class NTTrackBehaviorWindow(QMainWindow):
             return
         x = np.asarray([self.x_values[index], self.com_x_values[index], self.tail_x_values[index]], dtype=float)
         y = np.asarray([self.y_values[index], self.com_y_values[index], self.tail_y_values[index]], dtype=float)
+        overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
+        overhead_info = self.video_info[overhead_index]
+        if overhead_info is not None:
+            y = _orient_camera_y(y, overhead_info.height)
         finite = np.isfinite(x) & np.isfinite(y)
         if not np.any(finite):
             self.overhead_mouse_item.setData([], [])

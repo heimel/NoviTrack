@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 pytest.importorskip("PyQt6")
@@ -7,6 +8,25 @@ pytest.importorskip("PyQt6")
 from PyQt6.QtWidgets import QMessageBox
 
 from novitrack import track_behavior
+
+
+def test_orient_camera_frame_flips_every_camera_top_to_bottom():
+    frame = np.arange(2 * 3 * 3).reshape(2, 3, 3)
+    expected = frame[::-1]
+
+    oriented = track_behavior._orient_camera_frame(frame)
+
+    np.testing.assert_array_equal(oriented, expected)
+    assert oriented.flags.c_contiguous
+
+
+def test_orient_camera_y_matches_vertically_flipped_frame():
+    y = np.array([0.0, 1.0, 4.0])
+
+    np.testing.assert_array_equal(
+        track_behavior._orient_camera_y(y, frame_height=5),
+        [4.0, 3.0, 0.0],
+    )
 
 
 def _window_stub(markers):
