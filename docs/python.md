@@ -15,8 +15,12 @@ conda activate pyqt6_env
 Install the remaining dependencies:
 
 ```bash
-conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv spyder-kernels jupyter ipykernel pyyaml
+conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv ffmpeg spyder-kernels jupyter ipykernel pyyaml
 ```
+
+FFmpeg is used to remux raw Raspberry Pi `.h264` recordings automatically to
+seekable `.mp4` files without re-encoding them. If MP4Box from GPAC is already
+installed for the MATLAB version, NoviTrack can use that as a fallback.
 
 Download the following repositories:
 

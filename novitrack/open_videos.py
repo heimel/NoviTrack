@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
+import subprocess
 from typing import Any
 
 import numpy as np
@@ -132,8 +134,83 @@ def _find_movie(record: Any, session_path: Path, camera_name: str) -> Path | Non
         for ext in VIDEO_EXTENSIONS:
             candidate = stem.with_suffix(ext)
             if candidate.exists():
+                if candidate.suffix.lower() == ".h264":
+                    return _remux_h264_to_mp4(candidate)
                 return candidate
     return None
+
+
+def _remux_h264_to_mp4(h264_path: Path, framerate: float = 30.0) -> Path:
+    """Losslessly put a raw H.264 stream in an indexed MP4 container."""
+    mp4_path = h264_path.with_suffix(".mp4")
+    if mp4_path.exists():
+        return mp4_path
+
+    ffmpeg = shutil.which("ffmpeg")
+    mp4box = shutil.which("MP4Box")
+    commands: list[tuple[str, list[str]]] = []
+    if ffmpeg:
+        commands.append(
+            (
+                "FFmpeg",
+                [
+                    ffmpeg,
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-r",
+                    f"{framerate:g}",
+                    "-i",
+                    str(h264_path),
+                    "-c:v",
+                    "copy",
+                    "-movflags",
+                    "+faststart",
+                    str(mp4_path),
+                ],
+            )
+        )
+    if mp4box:
+        commands.append(
+            (
+                "MP4Box",
+                [
+                    mp4box,
+                    "-add",
+                    f"{h264_path}:fps={framerate:g}",
+                    "-fps",
+                    "original",
+                    "-new",
+                    str(mp4_path),
+                ],
+            )
+        )
+
+    if not commands:
+        raise RuntimeError(
+            f"Cannot remux {h264_path} to MP4 because neither FFmpeg nor MP4Box "
+            "is installed. Install FFmpeg (recommended) or GPAC/MP4Box and try again."
+        )
+
+    logmsg(f"Remuxing movie {h264_path} to {mp4_path}")
+    failures: list[str] = []
+    for tool_name, command in commands:
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            mp4_path.unlink(missing_ok=True)
+            detail = getattr(exc, "stderr", None) or str(exc)
+            failures.append(f"{tool_name}: {str(detail).strip()}")
+            continue
+        if mp4_path.exists():
+            logmsg(f"Created movie {mp4_path}")
+            return mp4_path
+        failures.append(f"{tool_name}: conversion finished without creating {mp4_path}")
+
+    raise RuntimeError(
+        f"Could not remux {h264_path} to MP4. " + " | ".join(failures)
+    )
 
 
 def _metadata(path: Path) -> tuple[float, int, float, int, int]:
