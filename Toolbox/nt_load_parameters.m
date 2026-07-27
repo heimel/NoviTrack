@@ -105,13 +105,13 @@ end
 % Overrides with values from record.measures
 if ~isempty(record) && isfield(record,'measures') && ~isempty(record.measures) 
     if isfield(record.measures,'overhead_neurotar_headring')
-        params.overhead_neurotar_headring = record.measures.overhead_neurotar_headring;
+        params.overhead_neurotar_headring = double(record.measures.overhead_neurotar_headring);
     end
     if isfield(record.measures,'overhead_neurotar_center')
-        params.overhead_neurotar_center = record.measures.overhead_neurotar_center;
+        params.overhead_neurotar_center = double(record.measures.overhead_neurotar_center);
     end
     if isfield(record.measures,'overhead_arena_center')
-        params.overhead_arena_center = record.measures.overhead_arena_center;
+        params.overhead_arena_center = double(record.measures.overhead_arena_center);
     end
     if isfield(record.measures,'overhead_camera_distortion')
         params.overhead_camera_distortion = record.measures.overhead_camera_distortion;
