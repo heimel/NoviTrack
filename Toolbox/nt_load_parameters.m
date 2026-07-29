@@ -114,22 +114,22 @@ if ~isempty(record) && isfield(record,'measures') && ~isempty(record.measures)
         params.overhead_arena_center = double(record.measures.overhead_arena_center);
     end
     if isfield(record.measures,'overhead_camera_distortion')
-        params.overhead_camera_distortion = record.measures.overhead_camera_distortion;
+        params.overhead_camera_distortion = double(record.measures.overhead_camera_distortion);
     end
     if isfield(record.measures,'overhead_camera_shear')
-        params.overhead_camera_shear = record.measures.overhead_camera_shear;
+        params.overhead_camera_shear = double(record.measures.overhead_camera_shear);
     end
     if isfield(record.measures,'overhead_camera_height')
-        params.overhead_camera_height = record.measures.overhead_camera_height;
+        params.overhead_camera_height = double(record.measures.overhead_camera_height);
     end
     if isfield(record.measures,'overhead_camera_width')
-        params.overhead_camera_width = record.measures.overhead_camera_width;
+        params.overhead_camera_width = double(record.measures.overhead_camera_width);
     end
     if isfield(record.measures,'overhead_camera_angle')
-        params.overhead_camera_angle = record.measures.overhead_camera_angle;
+        params.overhead_camera_angle = double(record.measures.overhead_camera_angle);
     end
     if isfield(record.measures,'picamera_time_multiplier')
-        params.picamera_time_multiplier = record.measures.picamera_time_multiplier;
+        params.picamera_time_multiplier = double(record.measures.picamera_time_multiplier);
     end
 end
 

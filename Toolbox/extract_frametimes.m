@@ -14,9 +14,9 @@ if ischar(vid)
     filename = vid;
     vid = VideoReader(filename);
 end
-framerate = vid.FrameRate;
-n_frames = vid.NumFrames;
-duration = vid.Duration;
+framerate = double(vid.FrameRate);
+n_frames = double(vid.NumFrames);
+duration = double(vid.Duration);
 frametimes = NaN(n_frames,1);
 if abs(n_frames/framerate-duration)<1E-3 
     % assume fixed framerate
@@ -26,7 +26,7 @@ else
     if ~isa(vid,'VideoReader')
         vid = VideoReader([vid.filename vid.ext]);
         %framerate = vid.FrameRate;
-        n_frames = vid.NumFrames;
+        n_frames = double(vid.NumFrames);
         %duration = vid.Duration;
         frametimes = NaN(n_frames,1);
     end

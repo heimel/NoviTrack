@@ -37,7 +37,7 @@ for observable = observables(:)'
     end
     for j = 1:n_events
         event_time = events.time(j);
-        time = nt_data.Time;
+        time = double(nt_data.Time);
         mask = time> (event_time - params.nt_pretime - params.nt_photometry_bin_width) & ...
             time < (event_time + params.nt_posttime + params.nt_photometry_bin_width);
         if any(mask)

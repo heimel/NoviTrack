@@ -18,7 +18,7 @@ if isempty(measures) || ~isfield(measures,'markers') || isempty(measures.markers
     return
 end
 
-events = table([measures.markers.time]',...
+events = table(double([measures.markers.time])',...
     string({measures.markers.marker}'),'VariableNames',{'time','event'});
 
 % temporary fix for illegal field names 0 and 1
