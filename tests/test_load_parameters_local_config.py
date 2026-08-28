@@ -34,3 +34,9 @@ def test_load_parameters_allows_empty_measures_array():
     params = load_parameters(record=record)
 
     assert params is not None
+
+
+def test_bottom_panel_markers_are_enabled_by_default():
+    params = load_parameters(apply_local_overrides=False)
+
+    assert params.nt_show_markers_in_bottom_panels is True

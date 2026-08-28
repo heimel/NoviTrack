@@ -281,6 +281,7 @@ class NTTrackBehaviorWindow(QMainWindow):
             ("Import markers", "Shift+I", self.import_markers_dialog),
             ("Delete next", "Del", self.delete_next_marker),
             ("Delete all", "Shift+D", self.delete_all_markers),
+            ("Behavior markers", "B", self.toggle_behavior_markers),
             ("Go to", "Shift+G", self.goto_dialog),
             ("Help", "Shift+H", self.show_help),
             ("Stop", "Shift+Q", self.close),
@@ -431,9 +432,20 @@ class NTTrackBehaviorWindow(QMainWindow):
     def _refresh_marker_items(self) -> None:
         markers = _markers_as_records(self.measures.get("markers"))
         self.measures["markers"] = markers
-        for item in list(self.timeline.items()):
-            if getattr(item, "_nt_marker", False):
-                self.timeline.removeItem(item)
+
+        timeline_plots = (self.timeline, self.speed_plot, self.rotation_plot, self.distance_plot)
+        for plot in timeline_plots:
+            for item in list(plot.items()):
+                if getattr(item, "_nt_marker", False):
+                    plot.removeItem(item)
+
+        if not bool(_get(self.params, "nt_show_markers", True)):
+            return
+
+        marker_plots = [self.timeline]
+        if bool(_get(self.params, "nt_show_markers_in_bottom_panels", True)):
+            marker_plots.extend((self.speed_plot, self.rotation_plot, self.distance_plot))
+
         for marker in markers:
             marker_text = str(marker.get("marker", ""))
             marker_time = float(marker.get("time", np.nan))
@@ -445,10 +457,11 @@ class NTTrackBehaviorWindow(QMainWindow):
             ):
                 continue
             color = _qt_color(definition.get("color", [0, 0, 0]) if definition else [0, 0, 0])
-            line = pg.InfiniteLine(marker_time, angle=90, pen=pg.mkPen(color, width=1))
-            line._nt_marker = True
-            line.setZValue(100)
-            self.timeline.addItem(line)
+            for plot in marker_plots:
+                line = pg.InfiniteLine(marker_time, angle=90, pen=pg.mkPen(color, width=1))
+                line._nt_marker = True
+                line.setZValue(100)
+                plot.addItem(line)
 
     def _tick(self) -> None:
         now = time.perf_counter()
@@ -530,6 +543,15 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.state_label.setText("Playing" if self.playing else "Paused")
         self._last_tick = time.perf_counter()
         self._report_status("Playing" if self.playing else "Paused")
+
+    def toggle_behavior_markers(self) -> None:
+        visible = not bool(_get(self.params, "nt_show_behavior_markers", True))
+        if isinstance(self.params, MutableMapping):
+            self.params["nt_show_behavior_markers"] = visible
+        else:
+            setattr(self.params, "nt_show_behavior_markers", visible)
+        self._refresh_marker_items()
+        self._report_status(f"Behavior markers {'shown' if visible else 'hidden'}")
 
     def backward_frame(self) -> None:
         self.playing = False
@@ -750,6 +772,7 @@ class NTTrackBehaviorWindow(QMainWindow):
                     "+/-: playback speed",
                     "Shift+M: add marker",
                     "Shift+I: import markers",
+                    "B: toggle behavior markers",
                     "Shift+G: go to time",
                     "Delete: delete next marker",
                     "Shift+D: delete all markers",
@@ -772,6 +795,8 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.delete_next_marker()
         elif key == Qt.Key.Key_D and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.delete_all_markers()
+        elif key == Qt.Key.Key_B and modifiers == Qt.KeyboardModifier.NoModifier:
+            self.toggle_behavior_markers()
         elif key == Qt.Key.Key_G and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.goto_dialog()
         elif key == Qt.Key.Key_Q and modifiers == Qt.KeyboardModifier.ShiftModifier:

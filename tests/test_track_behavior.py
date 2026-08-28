@@ -112,3 +112,95 @@ def test_add_marker_logs_marker_and_time(monkeypatch):
     assert refreshes == [True]
     assert changes == [window.record]
     assert statuses == ["Added marker o at 12.50 s"]
+
+
+class _FakeMarkerLine:
+    def __init__(self, position, *, angle, pen):
+        self.position = position
+        self.angle = angle
+        self.pen = pen
+        self.z_value = None
+
+    def setZValue(self, value):
+        self.z_value = value
+
+
+class _FakePlot:
+    def __init__(self):
+        self._items = []
+
+    def items(self):
+        return list(self._items)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def removeItem(self, item):
+        self._items.remove(item)
+
+
+def _marker_window(*, show_bottom=True, show_behavior=True):
+    markers = [
+        {"time": 1.0, "marker": "o"},
+        {"time": 2.0, "marker": "a"},
+    ]
+    marker_table = pd.DataFrame(
+        [
+            {"marker": "o", "color": [0.0, 0.0, 1.0], "behavior": False},
+            {"marker": "a", "color": [0.0, 0.7, 0.0], "behavior": True},
+        ]
+    )
+    return SimpleNamespace(
+        measures={"markers": markers},
+        params=SimpleNamespace(
+            markers=marker_table,
+            nt_show_markers=True,
+            nt_show_markers_in_bottom_panels=show_bottom,
+            nt_show_behavior_markers=show_behavior,
+        ),
+        timeline=_FakePlot(),
+        speed_plot=_FakePlot(),
+        rotation_plot=_FakePlot(),
+        distance_plot=_FakePlot(),
+    )
+
+
+def test_refresh_marker_items_adds_visible_markers_to_all_time_course_panels(monkeypatch):
+    window = _marker_window(show_behavior=False)
+    monkeypatch.setattr(track_behavior.pg, "InfiniteLine", _FakeMarkerLine)
+    monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
+
+    track_behavior.NTTrackBehaviorWindow._refresh_marker_items(window)
+
+    for plot in (window.timeline, window.speed_plot, window.rotation_plot, window.distance_plot):
+        assert [line.position for line in plot.items()] == [1.0]
+        assert all(line._nt_marker for line in plot.items())
+
+
+def test_refresh_marker_items_can_disable_bottom_panel_markers(monkeypatch):
+    window = _marker_window(show_bottom=False)
+    monkeypatch.setattr(track_behavior.pg, "InfiniteLine", _FakeMarkerLine)
+    monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
+
+    track_behavior.NTTrackBehaviorWindow._refresh_marker_items(window)
+
+    assert [line.position for line in window.timeline.items()] == [1.0, 2.0]
+    assert window.speed_plot.items() == []
+    assert window.rotation_plot.items() == []
+    assert window.distance_plot.items() == []
+
+
+def test_toggle_behavior_markers_refreshes_marker_items():
+    refreshes = []
+    statuses = []
+    window = SimpleNamespace(
+        params=SimpleNamespace(nt_show_behavior_markers=True),
+        _refresh_marker_items=lambda: refreshes.append(True),
+        _report_status=statuses.append,
+    )
+
+    track_behavior.NTTrackBehaviorWindow.toggle_behavior_markers(window)
+
+    assert window.params.nt_show_behavior_markers is False
+    assert refreshes == [True]
+    assert statuses == ["Behavior markers hidden"]

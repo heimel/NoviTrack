@@ -307,6 +307,7 @@ nt_result_shows_individual_object_insertions: true
 
 ## Tracking
 nt_show_markers: true # false increases speed at the cost of information loss
+nt_show_markers_in_bottom_panels: true # false increases tracking-window display speed
 nt_show_position_changes: true # false reduces visual clutter at the cost of information loss
 nt_show_overhead_mouse: true
 nt_show_behavior_markers: true
