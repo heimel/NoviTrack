@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoviTrack 24 px icon comparison</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --text: #1f2937; --muted: #5f6b7a; --border: #d8dee8; --head: #eef3f8; --stripe: #f8fafc; --hover: #eef6ff; --code: #e9eef5; --link: #0969da; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111827; --text: #e5e7eb; --muted: #aab3c0; --border: #374151; --head: #1f2937; --stripe: #172033; --hover: #1d3553; --code: #273449; --link: #72b7ff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1800px; margin: 0 auto; padding: 28px; }
+  h1 { margin: 0 0 8px; font-size: 2rem; }
+  h2 { margin-top: 36px; padding-top: 8px; border-top: 1px solid var(--border); }
+  p { max-width: 1000px; color: var(--muted); }
+  a { color: var(--link); }
+  code { padding: 2px 5px; border-radius: 4px; background: var(--code); color: var(--text); white-space: nowrap; }
+  table { width: 100%; min-width: 1120px; margin: 16px 0 30px; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  thead { position: sticky; top: 0; z-index: 2; }
+  th { background: var(--head); text-align: left; }
+  th, td { padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: top; }
+  th:last-child, td:last-child { border-right: 0; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:nth-child(even) { background: var(--stripe); }
+  tbody tr:hover { background: var(--hover); }
+  th:first-child, td:first-child { width: 76px; white-space: nowrap; }
+  th:nth-child(2), td:nth-child(2) { min-width: 180px; }
+  td img { width: 24px; height: 24px; margin: 2px 5px 2px 0; vertical-align: middle; }
+  ul { line-height: 1.8; }
+  @media (max-width: 900px) { main { padding: 16px; overflow-x: auto; } h1 { font-size: 1.6rem; } }
+  @media print { thead { position: static; } body { color: #000; background: #fff; } main { max-width: none; padding: 0; } }
+</style>
+</head>
+<body>
+<main><h1 id="novitrack-24-px-icon-comparison">NoviTrack 24 px icon comparison</h1>
+<p>This worksheet compares two candidates from four open-source 24 px icon sets for the text-heavy controls in the NoviTrack Database Browser and Track Behavior window.</p>
+<p>Reply with a preferred set and any per-action choices using the IDs and letters below, for example: <code>Set: Tabler; DB-03 B; TR-07 A</code>.</p>
+<h2 id="candidate-sets">Candidate sets</h2>
+<table>
+<thead>
+<tr>
+<th>Set</th>
+<th>Prefix</th>
+<th>Style</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://icon-sets.iconify.design/tabler/">Tabler Icons</a></td>
+<td><code>tabler</code></td>
+<td>Outline</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><a href="https://icon-sets.iconify.design/lucide/">Lucide</a></td>
+<td><code>lucide</code></td>
+<td>Outline</td>
+<td>ISC</td>
+</tr>
+<tr>
+<td><a href="https://icon-sets.iconify.design/mdi/">Material Design Icons</a></td>
+<td><code>mdi</code></td>
+<td>Mixed outline/filled</td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td><a href="https://icon-sets.iconify.design/material-symbols/">Material Symbols</a></td>
+<td><code>material-symbols</code></td>
+<td>Outline Rounded candidates</td>
+<td>Apache 2.0</td>
+</tr>
+</tbody>
+</table>
+<p>All previews are requested from the Iconify API at 24 × 24 px. Icon names were validated against the current Iconify collections on 2026-08-29.</p>
+<h2 id="database-browser">Database Browser</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Function</th>
+<th>Tabler</th>
+<th>Lucide</th>
+<th>Material Design Icons</th>
+<th>Material Symbols</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB-01</td>
+<td>Import records</td>
+<td><img src="https://api.iconify.design/tabler/database-import.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database-import</code><br><img src="https://api.iconify.design/tabler/file-import.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-import</code></td>
+<td><img src="https://api.iconify.design/lucide/file-input.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-input</code><br><img src="https://api.iconify.design/lucide/database-backup.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-backup</code></td>
+<td><img src="https://api.iconify.design/mdi/database-import.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database-import</code><br><img src="https://api.iconify.design/mdi/file-import.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-import</code></td>
+<td><img src="https://api.iconify.design/material-symbols/file-open-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-open-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/download-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>download-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-02</td>
+<td>Export database</td>
+<td><img src="https://api.iconify.design/tabler/database-export.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database-export</code><br><img src="https://api.iconify.design/tabler/file-export.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-export</code></td>
+<td><img src="https://api.iconify.design/lucide/file-output.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-output</code><br><img src="https://api.iconify.design/lucide/database-backup.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-backup</code></td>
+<td><img src="https://api.iconify.design/mdi/database-export.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database-export</code><br><img src="https://api.iconify.design/mdi/file-export.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-export</code></td>
+<td><img src="https://api.iconify.design/material-symbols/file-export-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-export-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/upload-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>upload-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-03</td>
+<td>Explore session folder</td>
+<td><img src="https://api.iconify.design/tabler/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> A <code>folder-open</code><br><img src="https://api.iconify.design/tabler/folder-search.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-search</code></td>
+<td><img src="https://api.iconify.design/lucide/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> A <code>folder-open</code><br><img src="https://api.iconify.design/lucide/folder-search.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-search</code></td>
+<td><img src="https://api.iconify.design/mdi/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> A <code>folder-open</code><br><img src="https://api.iconify.design/mdi/folder-search.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-search</code></td>
+<td><img src="https://api.iconify.design/material-symbols/folder-open-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>folder-open-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/folder-special-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-special-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-04</td>
+<td>Analyze current record</td>
+<td><img src="https://api.iconify.design/tabler/microscope.svg?width=24&height=24" width="24" height="24" alt=""> A <code>microscope</code><br><img src="https://api.iconify.design/tabler/chart-histogram.svg?width=24&height=24" width="24" height="24" alt=""> B <code>chart-histogram</code></td>
+<td><img src="https://api.iconify.design/lucide/microscope.svg?width=24&height=24" width="24" height="24" alt=""> A <code>microscope</code><br><img src="https://api.iconify.design/lucide/chart-no-axes-combined.svg?width=24&height=24" width="24" height="24" alt=""> B <code>chart-no-axes-combined</code></td>
+<td><img src="https://api.iconify.design/mdi/microscope.svg?width=24&height=24" width="24" height="24" alt=""> A <code>microscope</code><br><img src="https://api.iconify.design/mdi/chart-histogram.svg?width=24&height=24" width="24" height="24" alt=""> B <code>chart-histogram</code></td>
+<td><img src="https://api.iconify.design/material-symbols/analytics-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>analytics-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/query-stats-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>query-stats-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-05</td>
+<td>Show results</td>
+<td><img src="https://api.iconify.design/tabler/chart-line.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chart-line</code><br><img src="https://api.iconify.design/tabler/report-analytics.svg?width=24&height=24" width="24" height="24" alt=""> B <code>report-analytics</code></td>
+<td><img src="https://api.iconify.design/lucide/chart-line.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chart-line</code><br><img src="https://api.iconify.design/lucide/file-chart-column.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-chart-column</code></td>
+<td><img src="https://api.iconify.design/mdi/chart-line.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chart-line</code><br><img src="https://api.iconify.design/mdi/file-chart.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-chart</code></td>
+<td><img src="https://api.iconify.design/material-symbols/monitoring-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>monitoring-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/insert-chart-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>insert-chart-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-06</td>
+<td>Open behavioral tracker</td>
+<td><img src="https://api.iconify.design/tabler/route.svg?width=24&height=24" width="24" height="24" alt=""> A <code>route</code><br><img src="https://api.iconify.design/tabler/radar.svg?width=24&height=24" width="24" height="24" alt=""> B <code>radar</code></td>
+<td><img src="https://api.iconify.design/lucide/route.svg?width=24&height=24" width="24" height="24" alt=""> A <code>route</code><br><img src="https://api.iconify.design/lucide/radar.svg?width=24&height=24" width="24" height="24" alt=""> B <code>radar</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-path.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-path</code><br><img src="https://api.iconify.design/mdi/radar.svg?width=24&height=24" width="24" height="24" alt=""> B <code>radar</code></td>
+<td><img src="https://api.iconify.design/material-symbols/route-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>route-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/radar-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>radar-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-07</td>
+<td>Settings</td>
+<td><img src="https://api.iconify.design/tabler/settings.svg?width=24&height=24" width="24" height="24" alt=""> A <code>settings</code><br><img src="https://api.iconify.design/tabler/adjustments-horizontal.svg?width=24&height=24" width="24" height="24" alt=""> B <code>adjustments-horizontal</code></td>
+<td><img src="https://api.iconify.design/lucide/settings.svg?width=24&height=24" width="24" height="24" alt=""> A <code>settings</code><br><img src="https://api.iconify.design/lucide/sliders-horizontal.svg?width=24&height=24" width="24" height="24" alt=""> B <code>sliders-horizontal</code></td>
+<td><img src="https://api.iconify.design/mdi/cog.svg?width=24&height=24" width="24" height="24" alt=""> A <code>cog</code><br><img src="https://api.iconify.design/mdi/tune.svg?width=24&height=24" width="24" height="24" alt=""> B <code>tune</code></td>
+<td><img src="https://api.iconify.design/material-symbols/settings-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>settings-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/tune-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>tune-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-08</td>
+<td>Load database</td>
+<td><img src="https://api.iconify.design/tabler/database.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database</code><br><img src="https://api.iconify.design/tabler/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-open</code></td>
+<td><img src="https://api.iconify.design/lucide/database.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database</code><br><img src="https://api.iconify.design/lucide/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-open</code></td>
+<td><img src="https://api.iconify.design/mdi/database.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database</code><br><img src="https://api.iconify.design/mdi/folder-open.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-open</code></td>
+<td><img src="https://api.iconify.design/material-symbols/database-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>database-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/folder-open-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-open-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-09</td>
+<td>Save database</td>
+<td><img src="https://api.iconify.design/tabler/device-floppy.svg?width=24&height=24" width="24" height="24" alt=""> A <code>device-floppy</code><br><img src="https://api.iconify.design/tabler/database.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database</code></td>
+<td><img src="https://api.iconify.design/lucide/save.svg?width=24&height=24" width="24" height="24" alt=""> A <code>save</code><br><img src="https://api.iconify.design/lucide/database.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database</code></td>
+<td><img src="https://api.iconify.design/mdi/content-save.svg?width=24&height=24" width="24" height="24" alt=""> A <code>content-save</code><br><img src="https://api.iconify.design/mdi/database.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database</code></td>
+<td><img src="https://api.iconify.design/material-symbols/save-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>save-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/database-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-10</td>
+<td>Close figures</td>
+<td><img src="https://api.iconify.design/tabler/x.svg?width=24&height=24" width="24" height="24" alt=""> A <code>x</code><br><img src="https://api.iconify.design/tabler/photo-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>photo-off</code></td>
+<td><img src="https://api.iconify.design/lucide/x.svg?width=24&height=24" width="24" height="24" alt=""> A <code>x</code><br><img src="https://api.iconify.design/lucide/image-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>image-off</code></td>
+<td><img src="https://api.iconify.design/mdi/window-close.svg?width=24&height=24" width="24" height="24" alt=""> A <code>window-close</code><br><img src="https://api.iconify.design/mdi/image-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>image-off</code></td>
+<td><img src="https://api.iconify.design/material-symbols/close-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>close-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/hide-image-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>hide-image-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-11</td>
+<td>Apply filter</td>
+<td><img src="https://api.iconify.design/tabler/filter-check.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-check</code><br><img src="https://api.iconify.design/tabler/filter.svg?width=24&height=24" width="24" height="24" alt=""> B <code>filter</code></td>
+<td><img src="https://api.iconify.design/lucide/list-filter-plus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>list-filter-plus</code><br><img src="https://api.iconify.design/lucide/funnel.svg?width=24&height=24" width="24" height="24" alt=""> B <code>funnel</code></td>
+<td><img src="https://api.iconify.design/mdi/filter-check.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-check</code><br><img src="https://api.iconify.design/mdi/filter.svg?width=24&height=24" width="24" height="24" alt=""> B <code>filter</code></td>
+<td><img src="https://api.iconify.design/material-symbols/filter-alt-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-alt-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/filter-list-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>filter-list-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-12</td>
+<td>Clear filter</td>
+<td><img src="https://api.iconify.design/tabler/filter-off.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-off</code><br><img src="https://api.iconify.design/tabler/eraser.svg?width=24&height=24" width="24" height="24" alt=""> B <code>eraser</code></td>
+<td><img src="https://api.iconify.design/lucide/funnel-x.svg?width=24&height=24" width="24" height="24" alt=""> A <code>funnel-x</code><br><img src="https://api.iconify.design/lucide/eraser.svg?width=24&height=24" width="24" height="24" alt=""> B <code>eraser</code></td>
+<td><img src="https://api.iconify.design/mdi/filter-off.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-off</code><br><img src="https://api.iconify.design/mdi/eraser.svg?width=24&height=24" width="24" height="24" alt=""> B <code>eraser</code></td>
+<td><img src="https://api.iconify.design/material-symbols/filter-alt-off-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>filter-alt-off-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/ink-eraser-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>ink-eraser-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-13</td>
+<td>First record</td>
+<td><img src="https://api.iconify.design/tabler/chevrons-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevrons-left</code><br><img src="https://api.iconify.design/tabler/player-skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-back</code></td>
+<td><img src="https://api.iconify.design/lucide/chevrons-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevrons-left</code><br><img src="https://api.iconify.design/lucide/skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-back</code></td>
+<td><img src="https://api.iconify.design/mdi/page-first.svg?width=24&height=24" width="24" height="24" alt=""> A <code>page-first</code><br><img src="https://api.iconify.design/mdi/skip-previous.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-previous</code></td>
+<td><img src="https://api.iconify.design/material-symbols/first-page-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>first-page-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/skip-previous-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-previous-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-14</td>
+<td>Previous record</td>
+<td><img src="https://api.iconify.design/tabler/chevron-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-left</code><br><img src="https://api.iconify.design/tabler/arrow-left.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-left</code></td>
+<td><img src="https://api.iconify.design/lucide/chevron-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-left</code><br><img src="https://api.iconify.design/lucide/arrow-left.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-left</code></td>
+<td><img src="https://api.iconify.design/mdi/chevron-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-left</code><br><img src="https://api.iconify.design/mdi/arrow-left.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-left</code></td>
+<td><img src="https://api.iconify.design/material-symbols/chevron-left-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-left-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/arrow-back-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-back-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-15</td>
+<td>Next record</td>
+<td><img src="https://api.iconify.design/tabler/chevron-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-right</code><br><img src="https://api.iconify.design/tabler/arrow-right.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-right</code></td>
+<td><img src="https://api.iconify.design/lucide/chevron-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-right</code><br><img src="https://api.iconify.design/lucide/arrow-right.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-right</code></td>
+<td><img src="https://api.iconify.design/mdi/chevron-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-right</code><br><img src="https://api.iconify.design/mdi/arrow-right.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-right</code></td>
+<td><img src="https://api.iconify.design/material-symbols/chevron-right-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevron-right-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/arrow-forward-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>arrow-forward-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-16</td>
+<td>Last record</td>
+<td><img src="https://api.iconify.design/tabler/chevrons-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevrons-right</code><br><img src="https://api.iconify.design/tabler/player-skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-forward</code></td>
+<td><img src="https://api.iconify.design/lucide/chevrons-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>chevrons-right</code><br><img src="https://api.iconify.design/lucide/skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-forward</code></td>
+<td><img src="https://api.iconify.design/mdi/page-last.svg?width=24&height=24" width="24" height="24" alt=""> A <code>page-last</code><br><img src="https://api.iconify.design/mdi/skip-next.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-next</code></td>
+<td><img src="https://api.iconify.design/material-symbols/last-page-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>last-page-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/skip-next-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-next-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-17</td>
+<td>Delete record</td>
+<td><img src="https://api.iconify.design/tabler/trash.svg?width=24&height=24" width="24" height="24" alt=""> A <code>trash</code><br><img src="https://api.iconify.design/tabler/trash-x.svg?width=24&height=24" width="24" height="24" alt=""> B <code>trash-x</code></td>
+<td><img src="https://api.iconify.design/lucide/trash-2.svg?width=24&height=24" width="24" height="24" alt=""> A <code>trash-2</code><br><img src="https://api.iconify.design/lucide/file-x.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-x</code></td>
+<td><img src="https://api.iconify.design/mdi/delete.svg?width=24&height=24" width="24" height="24" alt=""> A <code>delete</code><br><img src="https://api.iconify.design/mdi/database-remove.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-remove</code></td>
+<td><img src="https://api.iconify.design/material-symbols/delete-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>delete-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/database-off-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-off-outline-rounded</code></td>
+</tr>
+<tr>
+<td>DB-18</td>
+<td>Duplicate record</td>
+<td><img src="https://api.iconify.design/tabler/copy.svg?width=24&height=24" width="24" height="24" alt=""> A <code>copy</code><br><img src="https://api.iconify.design/tabler/database-plus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-plus</code></td>
+<td><img src="https://api.iconify.design/lucide/copy.svg?width=24&height=24" width="24" height="24" alt=""> A <code>copy</code><br><img src="https://api.iconify.design/lucide/copy-plus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>copy-plus</code></td>
+<td><img src="https://api.iconify.design/mdi/content-copy.svg?width=24&height=24" width="24" height="24" alt=""> A <code>content-copy</code><br><img src="https://api.iconify.design/mdi/database-plus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-plus</code></td>
+<td><img src="https://api.iconify.design/material-symbols/content-copy-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>content-copy-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/database-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>database-outline-rounded</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="track-behavior-toolbar">Track Behavior toolbar</h2>
+<p>For stateful controls, one option can contain a pair of icons, such as play/pause or visible/hidden.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Function</th>
+<th>Tabler</th>
+<th>Lucide</th>
+<th>Material Design Icons</th>
+<th>Material Symbols</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TR-01</td>
+<td>Previous marker</td>
+<td><img src="https://api.iconify.design/tabler/map-pin.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin</code><br><img src="https://api.iconify.design/tabler/player-skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-back</code></td>
+<td><img src="https://api.iconify.design/lucide/map-pin.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin</code><br><img src="https://api.iconify.design/lucide/skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-back</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-left.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-left</code><br><img src="https://api.iconify.design/mdi/skip-previous.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-previous</code></td>
+<td><img src="https://api.iconify.design/material-symbols/skip-previous-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>skip-previous-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/first-page-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>first-page-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-02</td>
+<td>Play / pause</td>
+<td><img src="https://api.iconify.design/tabler/player-play.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/tabler/player-pause.svg?width=24&height=24" width="24" height="24" alt=""> A <code>player-play</code> / <code>player-pause</code><br><img src="https://api.iconify.design/tabler/player-play-filled.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/tabler/player-pause-filled.svg?width=24&height=24" width="24" height="24" alt=""> B filled pair</td>
+<td><img src="https://api.iconify.design/lucide/play.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/lucide/pause.svg?width=24&height=24" width="24" height="24" alt=""> A <code>play</code> / <code>pause</code><br><img src="https://api.iconify.design/lucide/circle-play.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/lucide/circle-pause.svg?width=24&height=24" width="24" height="24" alt=""> B circle pair</td>
+<td><img src="https://api.iconify.design/mdi/play.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/mdi/pause.svg?width=24&height=24" width="24" height="24" alt=""> A <code>play</code> / <code>pause</code><br><img src="https://api.iconify.design/mdi/play-circle.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/mdi/pause-circle.svg?width=24&height=24" width="24" height="24" alt=""> B circle pair</td>
+<td><img src="https://api.iconify.design/material-symbols/play-arrow-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/material-symbols/pause-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A arrow pair<br><img src="https://api.iconify.design/material-symbols/play-circle-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/material-symbols/pause-circle-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B circle pair</td>
+</tr>
+<tr>
+<td>TR-03</td>
+<td>Next marker</td>
+<td><img src="https://api.iconify.design/tabler/map-pin.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin</code><br><img src="https://api.iconify.design/tabler/player-skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-forward</code></td>
+<td><img src="https://api.iconify.design/lucide/map-pin.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin</code><br><img src="https://api.iconify.design/lucide/skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-forward</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-right.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-right</code><br><img src="https://api.iconify.design/mdi/skip-next.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-next</code></td>
+<td><img src="https://api.iconify.design/material-symbols/skip-next-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>skip-next-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/last-page-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>last-page-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-04</td>
+<td>Previous video frame</td>
+<td><img src="https://api.iconify.design/tabler/player-track-prev.svg?width=24&height=24" width="24" height="24" alt=""> A <code>player-track-prev</code><br><img src="https://api.iconify.design/tabler/player-skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-back</code></td>
+<td><img src="https://api.iconify.design/lucide/step-back.svg?width=24&height=24" width="24" height="24" alt=""> A <code>step-back</code><br><img src="https://api.iconify.design/lucide/skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-back</code></td>
+<td><img src="https://api.iconify.design/mdi/step-backward.svg?width=24&height=24" width="24" height="24" alt=""> A <code>step-backward</code><br><img src="https://api.iconify.design/mdi/skip-backward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-backward</code></td>
+<td><img src="https://api.iconify.design/material-symbols/arrow-back-ios-new-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>arrow-back-ios-new-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/fast-rewind-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-rewind-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-05</td>
+<td>Next video frame</td>
+<td><img src="https://api.iconify.design/tabler/player-track-next.svg?width=24&height=24" width="24" height="24" alt=""> A <code>player-track-next</code><br><img src="https://api.iconify.design/tabler/player-skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-forward</code></td>
+<td><img src="https://api.iconify.design/lucide/step-forward.svg?width=24&height=24" width="24" height="24" alt=""> A <code>step-forward</code><br><img src="https://api.iconify.design/lucide/skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-forward</code></td>
+<td><img src="https://api.iconify.design/mdi/step-forward.svg?width=24&height=24" width="24" height="24" alt=""> A <code>step-forward</code><br><img src="https://api.iconify.design/mdi/skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>skip-forward</code></td>
+<td><img src="https://api.iconify.design/material-symbols/arrow-forward-ios-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>arrow-forward-ios-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/fast-forward-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-forward-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-06</td>
+<td>Add marker</td>
+<td><img src="https://api.iconify.design/tabler/map-pin-plus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin-plus</code><br><img src="https://api.iconify.design/tabler/flag-plus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-plus</code></td>
+<td><img src="https://api.iconify.design/lucide/map-pin-plus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin-plus</code><br><img src="https://api.iconify.design/lucide/flag.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-plus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-plus</code><br><img src="https://api.iconify.design/mdi/flag-plus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-plus</code></td>
+<td><img src="https://api.iconify.design/material-symbols/add-location-alt-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>add-location-alt-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/flag-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-07</td>
+<td>Import markers</td>
+<td><img src="https://api.iconify.design/tabler/map-pin-share.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin-share</code><br><img src="https://api.iconify.design/tabler/file-import.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-import</code></td>
+<td><img src="https://api.iconify.design/lucide/file-input.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-input</code><br><img src="https://api.iconify.design/lucide/folder-input.svg?width=24&height=24" width="24" height="24" alt=""> B <code>folder-input</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-down.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-down</code><br><img src="https://api.iconify.design/mdi/file-import.svg?width=24&height=24" width="24" height="24" alt=""> B <code>file-import</code></td>
+<td><img src="https://api.iconify.design/material-symbols/file-open-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>file-open-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/download-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>download-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-08</td>
+<td>Delete next marker</td>
+<td><img src="https://api.iconify.design/tabler/map-pin-minus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin-minus</code><br><img src="https://api.iconify.design/tabler/flag-minus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-minus</code></td>
+<td><img src="https://api.iconify.design/lucide/map-pin-minus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-pin-minus</code><br><img src="https://api.iconify.design/lucide/flag-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-off</code></td>
+<td><img src="https://api.iconify.design/mdi/map-marker-minus.svg?width=24&height=24" width="24" height="24" alt=""> A <code>map-marker-minus</code><br><img src="https://api.iconify.design/mdi/flag-minus.svg?width=24&height=24" width="24" height="24" alt=""> B <code>flag-minus</code></td>
+<td><img src="https://api.iconify.design/material-symbols/location-off-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>location-off-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/wrong-location-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>wrong-location-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-09</td>
+<td>Delete all markers</td>
+<td><img src="https://api.iconify.design/tabler/trash.svg?width=24&height=24" width="24" height="24" alt=""> A <code>trash</code><br><img src="https://api.iconify.design/tabler/trash-x.svg?width=24&height=24" width="24" height="24" alt=""> B <code>trash-x</code></td>
+<td><img src="https://api.iconify.design/lucide/trash-2.svg?width=24&height=24" width="24" height="24" alt=""> A <code>trash-2</code><br><img src="https://api.iconify.design/lucide/trash.svg?width=24&height=24" width="24" height="24" alt=""> B <code>trash</code></td>
+<td><img src="https://api.iconify.design/mdi/delete-sweep.svg?width=24&height=24" width="24" height="24" alt=""> A <code>delete-sweep</code><br><img src="https://api.iconify.design/mdi/trash-can.svg?width=24&height=24" width="24" height="24" alt=""> B <code>trash-can</code></td>
+<td><img src="https://api.iconify.design/material-symbols/delete-sweep-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>delete-sweep-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/delete-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>delete-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-10</td>
+<td>Show / hide behavioral markers</td>
+<td><img src="https://api.iconify.design/tabler/eye.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/tabler/eye-off.svg?width=24&height=24" width="24" height="24" alt=""> A <code>eye</code> / <code>eye-off</code><br><img src="https://api.iconify.design/tabler/tags.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/tabler/tag-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>tags</code> / <code>tag-off</code></td>
+<td><img src="https://api.iconify.design/lucide/eye.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/lucide/eye-off.svg?width=24&height=24" width="24" height="24" alt=""> A <code>eye</code> / <code>eye-off</code><br><img src="https://api.iconify.design/lucide/map-pin.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/lucide/map-pin-off.svg?width=24&height=24" width="24" height="24" alt=""> B <code>map-pin</code> / <code>map-pin-off</code></td>
+<td><img src="https://api.iconify.design/mdi/eye.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/mdi/eye-off.svg?width=24&height=24" width="24" height="24" alt=""> A <code>eye</code> / <code>eye-off</code><br><img src="https://api.iconify.design/mdi/map-marker-multiple.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/mdi/map-marker-off.svg?width=24&height=24" width="24" height="24" alt=""> B marker pair</td>
+<td><img src="https://api.iconify.design/material-symbols/visibility-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/material-symbols/visibility-off-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A visibility pair<br><img src="https://api.iconify.design/material-symbols/label-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> <img src="https://api.iconify.design/material-symbols/label-off-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B label pair</td>
+</tr>
+<tr>
+<td>TR-11</td>
+<td>Go to time</td>
+<td><img src="https://api.iconify.design/tabler/clock-play.svg?width=24&height=24" width="24" height="24" alt=""> A <code>clock-play</code><br><img src="https://api.iconify.design/tabler/focus-2.svg?width=24&height=24" width="24" height="24" alt=""> B <code>focus-2</code></td>
+<td><img src="https://api.iconify.design/lucide/locate-fixed.svg?width=24&height=24" width="24" height="24" alt=""> A <code>locate-fixed</code><br><img src="https://api.iconify.design/lucide/clock-arrow-up.svg?width=24&height=24" width="24" height="24" alt=""> B <code>clock-arrow-up</code></td>
+<td><img src="https://api.iconify.design/mdi/timeline-clock.svg?width=24&height=24" width="24" height="24" alt=""> A <code>timeline-clock</code><br><img src="https://api.iconify.design/mdi/clock-fast.svg?width=24&height=24" width="24" height="24" alt=""> B <code>clock-fast</code></td>
+<td><img src="https://api.iconify.design/material-symbols/schedule-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>schedule-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/my-location-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>my-location-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-12</td>
+<td>Help</td>
+<td><img src="https://api.iconify.design/tabler/help-circle.svg?width=24&height=24" width="24" height="24" alt=""> A <code>help-circle</code><br><img src="https://api.iconify.design/tabler/lifebuoy.svg?width=24&height=24" width="24" height="24" alt=""> B <code>lifebuoy</code></td>
+<td><img src="https://api.iconify.design/lucide/circle-help.svg?width=24&height=24" width="24" height="24" alt=""> A <code>circle-help</code><br><img src="https://api.iconify.design/lucide/life-buoy.svg?width=24&height=24" width="24" height="24" alt=""> B <code>life-buoy</code></td>
+<td><img src="https://api.iconify.design/mdi/help-circle.svg?width=24&height=24" width="24" height="24" alt=""> A <code>help-circle</code><br><img src="https://api.iconify.design/mdi/lifebuoy.svg?width=24&height=24" width="24" height="24" alt=""> B <code>lifebuoy</code></td>
+<td><img src="https://api.iconify.design/material-symbols/help-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>help-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/help-center-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>help-center-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-13</td>
+<td>Stop / close tracker</td>
+<td><img src="https://api.iconify.design/tabler/player-stop.svg?width=24&height=24" width="24" height="24" alt=""> A <code>player-stop</code><br><img src="https://api.iconify.design/tabler/square.svg?width=24&height=24" width="24" height="24" alt=""> B <code>square</code></td>
+<td><img src="https://api.iconify.design/lucide/square.svg?width=24&height=24" width="24" height="24" alt=""> A <code>square</code><br><img src="https://api.iconify.design/lucide/circle-stop.svg?width=24&height=24" width="24" height="24" alt=""> B <code>circle-stop</code></td>
+<td><img src="https://api.iconify.design/mdi/stop.svg?width=24&height=24" width="24" height="24" alt=""> A <code>stop</code><br><img src="https://api.iconify.design/mdi/stop-circle.svg?width=24&height=24" width="24" height="24" alt=""> B <code>stop-circle</code></td>
+<td><img src="https://api.iconify.design/material-symbols/stop-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>stop-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/stop-circle-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>stop-circle-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-14</td>
+<td>Decrease playback speed</td>
+<td><img src="https://api.iconify.design/tabler/gauge.svg?width=24&height=24" width="24" height="24" alt=""> A <code>gauge</code><br><img src="https://api.iconify.design/tabler/player-skip-back.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-back</code></td>
+<td><img src="https://api.iconify.design/lucide/gauge.svg?width=24&height=24" width="24" height="24" alt=""> A <code>gauge</code><br><img src="https://api.iconify.design/lucide/rewind.svg?width=24&height=24" width="24" height="24" alt=""> B <code>rewind</code></td>
+<td><img src="https://api.iconify.design/mdi/speedometer-slow.svg?width=24&height=24" width="24" height="24" alt=""> A <code>speedometer-slow</code><br><img src="https://api.iconify.design/mdi/rewind.svg?width=24&height=24" width="24" height="24" alt=""> B <code>rewind</code></td>
+<td><img src="https://api.iconify.design/material-symbols/slow-motion-video-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>slow-motion-video-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/fast-rewind-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-rewind-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-15</td>
+<td>Reset playback speed to 1×</td>
+<td><img src="https://api.iconify.design/tabler/rotate-2.svg?width=24&height=24" width="24" height="24" alt=""> A <code>rotate-2</code><br><img src="https://api.iconify.design/tabler/refresh.svg?width=24&height=24" width="24" height="24" alt=""> B <code>refresh</code></td>
+<td><img src="https://api.iconify.design/lucide/rotate-ccw.svg?width=24&height=24" width="24" height="24" alt=""> A <code>rotate-ccw</code><br><img src="https://api.iconify.design/lucide/refresh-cw.svg?width=24&height=24" width="24" height="24" alt=""> B <code>refresh-cw</code></td>
+<td><img src="https://api.iconify.design/mdi/speedometer-medium.svg?width=24&height=24" width="24" height="24" alt=""> A <code>speedometer-medium</code><br><img src="https://api.iconify.design/mdi/restore.svg?width=24&height=24" width="24" height="24" alt=""> B <code>restore</code></td>
+<td><img src="https://api.iconify.design/material-symbols/speed-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>speed-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/replay-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>replay-outline-rounded</code></td>
+</tr>
+<tr>
+<td>TR-16</td>
+<td>Increase playback speed</td>
+<td><img src="https://api.iconify.design/tabler/gauge.svg?width=24&height=24" width="24" height="24" alt=""> A <code>gauge</code><br><img src="https://api.iconify.design/tabler/player-skip-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>player-skip-forward</code></td>
+<td><img src="https://api.iconify.design/lucide/gauge.svg?width=24&height=24" width="24" height="24" alt=""> A <code>gauge</code><br><img src="https://api.iconify.design/lucide/fast-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-forward</code></td>
+<td><img src="https://api.iconify.design/mdi/speedometer.svg?width=24&height=24" width="24" height="24" alt=""> A <code>speedometer</code><br><img src="https://api.iconify.design/mdi/fast-forward.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-forward</code></td>
+<td><img src="https://api.iconify.design/material-symbols/speed-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> A <code>speed-outline-rounded</code><br><img src="https://api.iconify.design/material-symbols/fast-forward-outline-rounded.svg?width=24&height=24" width="24" height="24" alt=""> B <code>fast-forward-outline-rounded</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="selection-notes">Selection notes</h2>
+<ul>
+<li>Preferred set:</li>
+<li>Database Browser exceptions:</li>
+<li>Track Behavior exceptions:</li>
+<li>Controls that should retain text:</li>
+<li>Controls that need a different candidate:</li>
+</ul>
+<p>The final implementation should bundle only the selected SVG files locally, retain every original label as a tooltip and accessible name, and avoid any runtime dependency on Iconify.</p>
+</main>
+</body>
+</html>

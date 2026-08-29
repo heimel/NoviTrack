@@ -47,6 +47,11 @@ _RECORD_ID_FIELDS = (
     "test",
     "datatype",
 )
+_DATABASE_ACTION_ICONS = {
+    "Analyze": "microscope",
+    "Results": "chart-line",
+    "Track": "route",
+}
 
 
 def _is_empty_import_value(value: Any) -> bool:
@@ -323,11 +328,14 @@ def _show_import_dialog(window: DatabaseBrowser) -> None:
 def _install_import_button(window: DatabaseBrowser) -> None:
     """Add the NoviTrack import control beside the generic browser's Load button."""
     layout = window.centralWidget().layout().itemAt(0).layout()
-    button = QPushButton("Import", window)
+    button = QPushButton(window)
     if window.load_button is not None:
         button.setFixedHeight(window.load_button.height())
-    button.setToolTip(
-        "Import a database or session JSON records after the current record"
+    window.set_button_icon(
+        button,
+        "file-input",
+        "Import records",
+        tooltip="Import a database or session JSON records after the current record",
     )
     button.clicked.connect(lambda _checked=False: _show_import_dialog(window))
     load_position = layout.indexOf(window.load_button)
@@ -491,6 +499,7 @@ def experiment_db(
         db,
         filename=filename,
         actions=actions if actions is not None else _default_actions(),
+        action_icons=_DATABASE_ACTION_ICONS,
         session_folder_resolver=session_path,
         window_title_prefix="NoviTrack database browser",
         font_size=font_size,

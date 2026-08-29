@@ -2,8 +2,28 @@ from types import SimpleNamespace
 import json
 
 import pandas as pd
+from PyQt6.QtCore import QSize
+from PyQt6.QtWidgets import QApplication
 
 import novitrack.database_browser as database_browser
+from inpythotools.database_browser import DatabaseBrowser
+
+
+def test_import_button_uses_shared_24_px_icon():
+    app = QApplication.instance() or QApplication([])
+    window = DatabaseBrowser(pd.DataFrame())
+
+    database_browser._install_import_button(window)
+
+    button = window.import_button
+    assert button.text() == ""
+    assert button.accessibleName() == "Import records"
+    assert button.iconSize() == QSize(24, 24)
+    assert not button.icon().isNull()
+    assert button.width() == button.height()
+
+    window.close()
+    app.processEvents()
 
 
 def test_filter_error_shows_syntax_help_without_traceback(monkeypatch):
@@ -43,6 +63,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
 
     def fake_browse_database(*args, **kwargs):
         captured["block"] = kwargs["block"]
+        captured["action_icons"] = kwargs["action_icons"]
         return FakeWindow()
 
     monkeypatch.setattr(database_browser, "_browse_database", fake_browse_database)
@@ -57,6 +78,11 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
 
     assert window is not None
     assert captured["block"] is False
+    assert captured["action_icons"] == {
+        "Analyze": "microscope",
+        "Results": "chart-line",
+        "Track": "route",
+    }
 
 
 def test_track_behavior_marks_open_database_dirty_on_marker_change(monkeypatch):
