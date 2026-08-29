@@ -6,9 +6,78 @@ import pytest
 
 pytest.importorskip("PyQt6")
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtCore import QSize
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QToolBar
 
 from novitrack import track_behavior
+
+
+def test_tracker_toolbar_uses_selected_24_px_lucide_icons():
+    app = QApplication.instance() or QApplication([])
+    window = QMainWindow()
+    toolbar = QToolBar(window)
+    toolbar.setIconSize(track_behavior._ICON_SIZE)
+
+    for _slot_name, text, icon_name, shortcut in track_behavior._TRACKER_ACTIONS:
+        action = track_behavior._add_toolbar_action(
+            window,
+            toolbar,
+            text=text,
+            icon_name=icon_name,
+            shortcut=shortcut,
+            slot=lambda: None,
+        )
+        button = toolbar.widgetForAction(action)
+        assert action.text() == text
+        assert action.toolTip() == text
+        assert not action.icon().isNull()
+        assert button.accessibleName() == text
+
+    assert toolbar.iconSize() == QSize(24, 24)
+    assert not track_behavior._lucide_icon("play").isNull()
+    assert not track_behavior._lucide_icon("map-pin-off").isNull()
+
+    window.close()
+    app.processEvents()
+
+
+def test_playback_and_marker_visibility_icons_follow_state(monkeypatch):
+    icon_names = []
+    monkeypatch.setattr(
+        track_behavior,
+        "_lucide_icon",
+        lambda name: icon_names.append(name) or name,
+    )
+    play_icons = []
+    marker_icons = []
+    state_labels = []
+    refreshes = []
+    statuses = []
+    window = SimpleNamespace(
+        playing=True,
+        params=SimpleNamespace(nt_show_behavior_markers=True),
+        toolbar_actions={
+            "toggle_play": SimpleNamespace(setIcon=play_icons.append),
+            "toggle_behavior_markers": SimpleNamespace(setIcon=marker_icons.append),
+        },
+        state_label=SimpleNamespace(setText=state_labels.append),
+        _refresh_marker_items=lambda: refreshes.append(True),
+        _report_status=statuses.append,
+    )
+    window._set_playing = lambda playing: (
+        track_behavior.NTTrackBehaviorWindow._set_playing(window, playing)
+    )
+
+    track_behavior.NTTrackBehaviorWindow.toggle_play(window)
+    track_behavior.NTTrackBehaviorWindow.toggle_behavior_markers(window)
+
+    assert window.playing is False
+    assert play_icons == ["play"]
+    assert marker_icons == ["map-pin-off"]
+    assert state_labels == ["Paused"]
+    assert refreshes == [True]
+    assert statuses == ["Paused", "Behavior markers hidden"]
+    assert icon_names == ["play", "map-pin-off"]
 
 
 def test_orient_camera_frame_flips_every_camera_top_to_bottom():

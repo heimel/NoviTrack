@@ -10,8 +10,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from PyQt6.QtCore import QEventLoop, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QCloseEvent, QKeyEvent
+from PyQt6.QtCore import QEventLoop, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtGui import QAction, QCloseEvent, QIcon, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -45,6 +45,52 @@ from .open_videos import OpenCVVideoReader, VideoInfo, movie_search_locations, o
 
 _OPEN_WINDOWS: list["NTTrackBehaviorWindow"] = []
 _SPEEDS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 8.0, 16.0]
+_ICON_SIZE = QSize(24, 24)
+_LUCIDE_ICON_DIR = Path(__file__).with_name("icons") / "lucide"
+_TRACKER_ACTIONS = (
+    ("previous_marker", "Previous marker", "skip-back", "Shift+P"),
+    ("toggle_play", "Play / pause", "pause", "Space"),
+    ("next_marker", "Next marker", "skip-forward", "Shift+N"),
+    ("backward_frame", "Previous video frame", "step-back", "Left"),
+    ("forward_frame", "Next video frame", "step-forward", "Right"),
+    ("speed_decrease", "Decrease playback speed", "rewind", "-"),
+    ("speed_original", "Reset playback speed to 1x", "refresh-cw", "="),
+    ("speed_increase", "Increase playback speed", "fast-forward", "+"),
+    ("add_marker_dialog", "Add marker", "map-pin-plus", "Shift+M"),
+    ("import_markers_dialog", "Import markers", "file-input", "Shift+I"),
+    ("delete_next_marker", "Delete next marker", "map-pin-minus", "Del"),
+    ("delete_all_markers", "Delete all markers", "trash-2", "Shift+D"),
+    ("toggle_behavior_markers", "Show / hide behavioral markers", "map-pin", "B"),
+    ("goto_dialog", "Go to time", "clock-arrow-up", "Shift+G"),
+    ("show_help", "Help", "circle-help", "Shift+H"),
+    ("close", "Stop / close tracker", "square", "Shift+Q"),
+)
+
+
+def _lucide_icon(name: str) -> QIcon:
+    """Load a bundled 24 px Lucide tracker icon."""
+    return QIcon(str(_LUCIDE_ICON_DIR / f"{name}.svg"))
+
+
+def _add_toolbar_action(
+    window: QMainWindow,
+    toolbar: QToolBar,
+    *,
+    text: str,
+    icon_name: str,
+    shortcut: str,
+    slot: Callable[..., Any],
+) -> QAction:
+    """Create an icon-only toolbar action with accessible descriptive text."""
+    action = QAction(_lucide_icon(icon_name), text, window)
+    action.setShortcut(shortcut)
+    action.setToolTip(text)
+    action.triggered.connect(slot)
+    toolbar.addAction(action)
+    button = toolbar.widgetForAction(action)
+    if button is not None:
+        button.setAccessibleName(text)
+    return action
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -267,29 +313,22 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.setCentralWidget(root)
 
         toolbar = QToolBar("Tracking", self)
+        toolbar.setIconSize(_ICON_SIZE)
         self.addToolBar(toolbar)
-        for text, shortcut, slot in (
-            ("Prev marker", "Shift+P", self.previous_marker),
-            ("Play", "Space", self.toggle_play),
-            ("Next marker", "Shift+N", self.next_marker),
-            ("Frame -", "Left", self.backward_frame),
-            ("Frame +", "Right", self.forward_frame),
-            ("-", "-", self.speed_decrease),
-            ("1x", "=", self.speed_original),
-            ("+", "+", self.speed_increase),
-            ("Add marker", "Shift+M", self.add_marker_dialog),
-            ("Import markers", "Shift+I", self.import_markers_dialog),
-            ("Delete next", "Del", self.delete_next_marker),
-            ("Delete all", "Shift+D", self.delete_all_markers),
-            ("Behavior markers", "B", self.toggle_behavior_markers),
-            ("Go to", "Shift+G", self.goto_dialog),
-            ("Help", "Shift+H", self.show_help),
-            ("Stop", "Shift+Q", self.close),
-        ):
-            action = QAction(text, self)
-            action.setShortcut(shortcut)
-            action.triggered.connect(slot)
-            toolbar.addAction(action)
+        self.toolbar_actions: dict[str, QAction] = {}
+        for slot_name, text, icon_name, shortcut in _TRACKER_ACTIONS:
+            if slot_name == "toggle_behavior_markers" and not bool(
+                _get(self.params, "nt_show_behavior_markers", True)
+            ):
+                icon_name = "map-pin-off"
+            self.toolbar_actions[slot_name] = _add_toolbar_action(
+                self,
+                toolbar,
+                text=text,
+                icon_name=icon_name,
+                shortcut=shortcut,
+                slot=getattr(self, slot_name),
+            )
 
         status = QHBoxLayout()
         layout.addLayout(status)
@@ -400,8 +439,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         if not view_box.sceneBoundingRect().contains(event.scenePos()):
             return
         position = view_box.mapSceneToView(event.scenePos())
-        self.playing = False
-        self.state_label.setText("Paused")
+        self._set_playing(False)
         self._seek(float(position.x()), force=True)
         self._report_status(f"Jumped to {self.master_time:.2f} s")
         event.accept()
@@ -539,10 +577,18 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._distance_cursor.setValue(self.master_time)
 
     def toggle_play(self) -> None:
-        self.playing = not self.playing
-        self.state_label.setText("Playing" if self.playing else "Paused")
+        self._set_playing(not self.playing)
+
         self._last_tick = time.perf_counter()
         self._report_status("Playing" if self.playing else "Paused")
+
+    def _set_playing(self, playing: bool) -> None:
+        """Set playback state and keep its label and toolbar icon in sync."""
+        self.playing = playing
+        action = getattr(self, "toolbar_actions", {}).get("toggle_play")
+        if action is not None:
+            action.setIcon(_lucide_icon("pause" if self.playing else "play"))
+        self.state_label.setText("Playing" if self.playing else "Paused")
 
     def toggle_behavior_markers(self) -> None:
         visible = not bool(_get(self.params, "nt_show_behavior_markers", True))
@@ -550,18 +596,21 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.params["nt_show_behavior_markers"] = visible
         else:
             setattr(self.params, "nt_show_behavior_markers", visible)
+        action = getattr(self, "toolbar_actions", {}).get(
+            "toggle_behavior_markers"
+        )
+        if action is not None:
+            action.setIcon(_lucide_icon("map-pin" if visible else "map-pin-off"))
         self._refresh_marker_items()
         self._report_status(f"Behavior markers {'shown' if visible else 'hidden'}")
 
     def backward_frame(self) -> None:
-        self.playing = False
-        self.state_label.setText("Paused")
+        self._set_playing(False)
         self._seek(self.master_time - 1.0 / self._base_fps(), force=True)
         self._report_status(f"Stepped back to {self.master_time:.2f} s")
 
     def forward_frame(self) -> None:
-        self.playing = False
-        self.state_label.setText("Paused")
+        self._set_playing(False)
         self._seek(self.master_time + 1.0 / self._base_fps(), force=True)
         self._report_status(f"Stepped forward to {self.master_time:.2f} s")
 
@@ -572,8 +621,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def previous_marker(self) -> None:
         marker_times = [float(m["time"]) for m in _markers_as_records(self.measures.get("markers")) if float(m["time"]) < self.master_time - 0.04]
         if marker_times:
-            self.playing = False
-            self.state_label.setText("Paused")
+            self._set_playing(False)
             self._seek(max(marker_times), force=True)
             self._report_status(f"Jumped to previous marker at {self.master_time:.2f} s")
         else:
@@ -582,8 +630,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def next_marker(self) -> None:
         marker_times = [float(m["time"]) for m in _markers_as_records(self.measures.get("markers")) if float(m["time"]) > self.master_time + 0.04]
         if marker_times:
-            self.playing = False
-            self.state_label.setText("Paused")
+            self._set_playing(False)
             self._seek(min(marker_times), force=True)
             self._report_status(f"Jumped to next marker at {self.master_time:.2f} s")
         else:
@@ -592,8 +639,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def goto_dialog(self) -> None:
         value, ok = QInputDialog.getDouble(self, "Go to", "Second:", self.master_time, self.min_time, self.max_time, 2)
         if ok:
-            self.playing = False
-            self.state_label.setText("Paused")
+            self._set_playing(False)
             self._seek(value, force=True)
             self._report_status(f"Jumped to {self.master_time:.2f} s")
 
