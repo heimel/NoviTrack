@@ -40,8 +40,3 @@ import novitrack as nt
 nt.experiment_db()
 ```
 
-Run the focused Python tests from the repository root with:
-
-```bash
-pytest tests
-```
