@@ -37,8 +37,7 @@ browser from the NoviTrack repository root:
 
 ```python
 import novitrack as nt
-
-browser = nt.experiment_db()
+nt.experiment_db()
 ```
 
 Run the focused Python tests from the repository root with:
