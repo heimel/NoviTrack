@@ -31,7 +31,7 @@ Pi looks for the `acqReady` file.
 
 ## Visual stimulus PC
 
-Visual stimulation is optional and uses NewStim3. In MATLAB:
+Visual stimulation is optional and uses [NewStim3](https://github.com/heimel/NewStim3). In MATLAB:
 
 ```matlab
 NewStimInit
