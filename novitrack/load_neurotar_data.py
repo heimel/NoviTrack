@@ -163,7 +163,8 @@ def _trim_after_end_marker(neurotar_data: dict[str, Any], record: Any) -> dict[s
     end_times = [
         float(_get(marker, "time"))
         for marker in markers
-        if str(_get(marker, "marker", "")) == "e" and _get(marker, "time", None) is not None
+        if str(_get(marker, "marker_id", "unknown")) == "end"
+        and _get(marker, "time", None) is not None
     ]
     if not end_times:
         return neurotar_data

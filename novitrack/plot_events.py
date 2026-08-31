@@ -45,12 +45,12 @@ def _marker_table(params: Any) -> pd.DataFrame:
 
 def _event_description(params: Any, event_type: str) -> str:
     markers = _marker_table(params)
-    if markers.empty or "marker" not in markers:
+    if markers.empty or "marker_id" not in markers:
         return event_type
-    match = markers[markers["marker"].astype(str) == event_type[0]]
+    match = markers[markers["marker_id"].astype(str) == event_type]
     if match.empty:
         return event_type
-    return f"{match.iloc[0].get('description', event_type)} {event_type}"
+    return str(match.iloc[0].get("description", event_type))
 
 
 def plot_events(

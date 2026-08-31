@@ -323,6 +323,14 @@ def load_parameters(
     stop_marker = params.get("nt_stop_marker", None)
     linked_non_behavior = params.markers[~params.markers["behavior"] & params.markers["linked"]]
     params.nt_stim_markers = [m for m in linked_non_behavior["marker"].tolist() if m != stop_marker]
+    stop_matches = params.markers[params.markers["marker"].astype(str) == str(stop_marker)]
+    params.nt_stop_marker_id = (
+        str(stop_matches.iloc[0]["marker_id"]) if len(stop_matches) == 1 else "stop"
+    )
+    params.nt_stim_marker_ids = linked_non_behavior.loc[
+        linked_non_behavior["marker_id"].astype(str) != params.nt_stop_marker_id,
+        "marker_id",
+    ].astype(str).tolist()
 
     # Tracking preset.
     tracking_presets = params.get("tracking_presets", {})

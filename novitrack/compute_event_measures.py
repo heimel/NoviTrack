@@ -39,14 +39,12 @@ def _behavior_motifs(params: Any) -> list[str]:
     motifs: list[str] = []
     for marker in _marker_list(params):
         if bool(_get(marker, "behavior", False)):
-            motifs.append(str(_get(marker, "marker")))
-    motifs.extend(["a1", "v1"])
+            motifs.append(str(_get(marker, "marker_id")))
     return motifs
 
 
 def _get_behaviors(events: pd.DataFrame, motif_list: list[str]) -> pd.DataFrame:
-    motif_set = set(motif_list)
-    keep = events["event"].astype(str).str[0].isin(motif_set)
+    keep = events["marker_id"].astype(str).isin(set(motif_list))
     return events.loc[keep].reset_index(drop=True)
 
 
@@ -61,12 +59,29 @@ def _safe_div(num: float, den: float) -> float:
     return float(num / den) if den != 0 else np.nan
 
 
-def _event_field(event_type: str) -> str:
-    if event_type == "0":
-        return "opto_off"
-    if event_type == "1":
-        return "opto_on"
-    return event_type
+def _parameter(row: Any, name: str, default: Any = None) -> Any:
+    parameters = row.get("parameters", {}) if hasattr(row, "get") else _get(row, "parameters", {})
+    return parameters.get(name, default) if isinstance(parameters, Mapping) else default
+
+
+def _same_parameter(left: Any, right: Any) -> bool:
+    if left is None or right is None:
+        return left is right
+    try:
+        if bool(pd.isna(left)) and bool(pd.isna(right)):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return left == right
+
+
+def _matching_parameter(rows: pd.DataFrame, name: str, value: Any) -> pd.Series:
+    return rows["parameters"].apply(
+        lambda parameters: _same_parameter(
+            parameters.get(name) if isinstance(parameters, Mapping) else None,
+            value,
+        )
+    )
 
 
 def compute_event_measures(
@@ -89,20 +104,19 @@ def compute_event_measures(
 
     out.setdefault("behavior", {})
     motif_set = set(motif_list)
-    stop_marker = str(_get(params, "nt_stop_marker", "t"))
+    stop_marker_id = str(_get(params, "nt_stop_marker_id", "stop"))
     has_movie_bounds = "max_time" in out and "min_time" in out
     max_time = float(_get(out, "max_time", np.nan))
     min_time = float(_get(out, "min_time", np.nan))
 
     for event_type in unique_events:
         event_type = str(event_type)
-        if event_type and event_type[0] in motif_set:
+        if event_type in motif_set:
             continue
 
         stim_indices = events.index[events["event"] == event_type].to_numpy()
         n_stimuli = len(stim_indices)
-        field_event_type = _event_field(event_type)
-        out["behavior"].setdefault(field_event_type, {})
+        out["behavior"].setdefault(event_type, {})
 
         for motif in motif_list:
             shortest_latency = np.inf
@@ -114,11 +128,17 @@ def compute_event_measures(
 
             for stim_index in stim_indices:
                 stim_start = float(events.loc[stim_index, "time"])
-                stop_event = f"{stop_marker}{event_type[1]}" if len(event_type) > 1 else stop_marker
+                stimulus_id = _parameter(events.loc[stim_index], "stimulus_id")
+                duration = float(events.loc[stim_index, "duration"])
+                stop_event = "opto_off" if event_type == "opto_on" else stop_marker_id
                 stop_candidates = events.index[
-                    (events["time"] > stim_start) & (events["event"] == stop_event)
+                    (events["time"] > stim_start)
+                    & (events["marker_id"] == stop_event)
+                    & _matching_parameter(events, "stimulus_id", stimulus_id)
                 ].to_numpy()
-                if stop_candidates.size == 0:
+                if np.isfinite(duration) and duration > 0:
+                    stim_stop = stim_start + duration
+                elif stop_candidates.size == 0:
                     logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
                     stim_stop = max_time
                 else:
@@ -132,6 +152,13 @@ def compute_event_measures(
                     & (behaviors["time"] < stim_stop)
                     & (behaviors["event"] == motif)
                 ].to_numpy()
+                if stimulus_id is not None and behavior_indices.size:
+                    candidate_behaviors = behaviors.loc[behavior_indices]
+                    linked = candidate_behaviors["parameters"].apply(
+                        lambda values: isinstance(values, Mapping) and "stimulus_id" in values
+                    )
+                    matches = _matching_parameter(candidate_behaviors, "stimulus_id", stimulus_id)
+                    behavior_indices = candidate_behaviors.index[~linked | matches].to_numpy()
                 if behavior_indices.size == 0:
                     continue
 
@@ -152,7 +179,7 @@ def compute_event_measures(
                         )
                     total_duration += duration
 
-            out["behavior"][field_event_type][motif] = {
+            out["behavior"][event_type][motif] = {
                 "n_occurrences_per_stimulus": _safe_div(n_occurrences, n_stimuli),
                 "n_responses_per_stimulus": _safe_div(n_responses, n_stimuli),
                 "shortest_latency": shortest_latency,
@@ -214,22 +241,30 @@ def compute_event_measures(
     for event_type in unique_events:
         event_type = str(event_type)
         event_indices = events.index[events["event"] == event_type].to_numpy()
-        field_event_type = _event_field(event_type)
-        out["event"].setdefault(field_event_type, {})
+        out["event"].setdefault(event_type, {})
+        event_parameters = [dict(value) for value in events.loc[event_indices, "parameters"]]
+        event_durations = events.loc[event_indices, "duration"].to_numpy(dtype=float)
         for field, values in data.items():
             arr = np.asarray(values, dtype=float)
             event_data = arr[event_indices, :]
             snippet_mean = np.nanmean(event_data, axis=0)
-            out["event"][field_event_type][field] = {
+            snippet_sem = (
+                ivt_sem(event_data, axis=0)
+                if len(event_indices) > 1
+                else np.full_like(snippet_mean, np.nan)
+            )
+            out["event"][event_type][field] = {
                 "snippet_mean": snippet_mean,
                 "snippet_first": event_data[0, :],
                 "snippet_std": np.nanstd(event_data, axis=0, ddof=0),
-                "snippet_sem": ivt_sem(event_data, axis=0),
+                "snippet_sem": snippet_sem,
                 "mean": float(np.nanmean(snippet_mean[mask_post])),
                 "max": float(np.nanmax(snippet_mean[mask_post])),
                 "min": float(np.nanmin(snippet_mean[mask_post])),
                 "n": int(len(event_indices)),
                 "event_mean": np.nanmean(event_data, axis=1),
+                "parameters": event_parameters,
+                "duration": event_durations,
                 "unit": _get(units, field, None),
             }
 

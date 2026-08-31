@@ -29,6 +29,23 @@ def marker_definition(params: Any, marker: str) -> Mapping[str, Any] | None:
     return None if len(matches) != 1 else matches.iloc[0].to_dict()
 
 
+def marker_definition_by_id(params: Any, marker_id: str) -> Mapping[str, Any] | None:
+    """Return the configured definition for a descriptive marker ID."""
+    table = _get(params, "markers", pd.DataFrame())
+    if not isinstance(table, pd.DataFrame):
+        table = pd.DataFrame(table)
+    if table.empty or "marker_id" not in table:
+        return None
+    matches = table.loc[table["marker_id"].astype(str) == str(marker_id)]
+    return None if len(matches) != 1 else matches.iloc[0].to_dict()
+
+
+def marker_parameters(marker: Any) -> dict[str, Any]:
+    """Return a marker's event-specific parameters as a plain dictionary."""
+    parameters = _get(marker, "parameters", {})
+    return dict(parameters) if isinstance(parameters, Mapping) else {}
+
+
 def normalize_duration(value: Any) -> float:
     """Return a nonnegative duration in seconds, or NaN when unknown."""
     if value is None:
@@ -135,6 +152,8 @@ def normalize_marker_records(markers: Any, params: Any) -> list[dict[str, Any]]:
 __all__ = [
     "make_marker_record",
     "marker_definition",
+    "marker_definition_by_id",
+    "marker_parameters",
     "normalize_duration",
     "normalize_marker_record",
     "normalize_marker_records",

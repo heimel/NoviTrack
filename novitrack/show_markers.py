@@ -25,12 +25,12 @@ def _marker_table(params: Any) -> pd.DataFrame:
     return pd.DataFrame(markers)
 
 
-def _marker_definition(params: Any, marker: str) -> Mapping[str, Any] | None:
+def _marker_definition(params: Any, marker_id: str) -> Mapping[str, Any] | None:
     marker_table = _marker_table(params)
-    if marker_table.empty or "marker" not in marker_table:
+    if marker_table.empty or "marker_id" not in marker_table:
         return None
 
-    match = marker_table[marker_table["marker"].astype(str) == marker[0]]
+    match = marker_table[marker_table["marker_id"].astype(str) == marker_id]
     if match.empty:
         return None
     return match.iloc[0].to_dict()
@@ -78,14 +78,14 @@ def show_markers(
     y = [float(yl[0]), float(yl[1])]
 
     for marker in markers:
-        marker_name = str(_get(marker, "marker", ""))
-        if not marker_name:
+        marker_id = str(_get(marker, "marker_id", "unknown") or "unknown")
+        if not marker_id:
             continue
         marker_time = float(_get(marker, "time", np.nan))
         if not np.isfinite(marker_time) or marker_time < min_time or marker_time > max_time:
             continue
 
-        marker_def = _marker_definition(params, marker_name)
+        marker_def = _marker_definition(params, marker_id)
         if marker_def is None:
             color = "black"
         else:

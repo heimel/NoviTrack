@@ -54,14 +54,12 @@ def test_upgrade_database_measures_adds_marker_schema_without_losing_legacy_fiel
     assert all(np.isnan(marker["duration"]) for marker in measures["markers"][:3])
     assert measures["markers"][3]["marker_id"] == "unknown"
 
-    # Existing analyses still see the retained legacy codes.
+    # Analyses use descriptive IDs and retain event-specific parameters.
     events = get_events(measures)
-    assert events.to_dict(orient="records") == [
-        {"time": 2.0, "event": "o2"},
-        {"time": 3.0, "event": "opto_on"},
-        {"time": 4.0, "event": "opto_off"},
-        {"time": 5.0, "event": "x7"},
-    ]
+    assert events["event"].tolist() == ["start", "opto_on", "opto_off", "unknown"]
+    assert events["marker_id"].tolist() == events["event"].tolist()
+    assert events.loc[0, "parameters"] == {"stimulus_id": 2}
+    assert events.loc[0, "stimulus_id"] == 2
 
 
 def test_current_measures_version_takes_fast_path(monkeypatch):

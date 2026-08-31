@@ -65,7 +65,7 @@ def get_ethogram(
     if motifs.empty:
         return np.array([]), np.array([]), motifs, None
 
-    motif_list = motifs["marker"].astype(str).tolist()
+    motif_list = motifs["marker_id"].astype(str).tolist()
     dt = 0.1
     min_time = float(_get(measures, "min_time", np.floor(min(_get(m, "time") for m in markers) / 60) * 60))
     max_time = float(_get(measures, "max_time", np.ceil(max(_get(m, "time") for m in markers) / 60) * 60))
@@ -75,13 +75,27 @@ def get_ethogram(
     current_motif: int | None = None
     start_index: int | None = None
     for marker in markers:
-        marker_name = str(_get(marker, "marker", ""))
-        if marker_name and marker_name[0] in motif_list:
-            if current_motif is not None and start_index is not None:
-                stop_index = min(int(np.ceil((float(_get(marker, "time")) - min_time + 0.0001) / dt)), n_samples)
-                ethogram[start_index:stop_index, current_motif] = current_motif + 1
-            current_motif = motif_list.index(marker_name[0])
-            start_index = max(int(np.ceil((float(_get(marker, "time")) - min_time + 0.0001) / dt)) - 1, 0)
+        marker_id = str(_get(marker, "marker_id", "unknown") or "unknown")
+        if marker_id not in motif_list:
+            continue
+        marker_time = float(_get(marker, "time"))
+        motif_index = motif_list.index(marker_id)
+        marker_start = max(int(np.ceil((marker_time - min_time + 0.0001) / dt)) - 1, 0)
+        duration = float(_get(marker, "duration", np.nan))
+
+        if np.isfinite(duration):
+            marker_stop = min(
+                int(np.ceil((marker_time + duration - min_time + 0.0001) / dt)),
+                n_samples,
+            )
+            if marker_stop > marker_start:
+                ethogram[marker_start:marker_stop, motif_index] = motif_index + 1
+            continue
+
+        if current_motif is not None and start_index is not None:
+            ethogram[start_index:marker_start, current_motif] = current_motif + 1
+        current_motif = motif_index
+        start_index = marker_start
 
     if current_motif is not None and start_index is not None:
         ethogram[start_index:, current_motif] = current_motif + 1
@@ -89,7 +103,10 @@ def get_ethogram(
     t = (np.arange(n_samples) + 0.5) * dt + min_time
     durations = np.count_nonzero(ethogram, axis=0) * dt
     motifs["total_duration"] = durations
-    motifs["n"] = [int(np.sum(np.diff(ethogram[:, i] > 0) > 0)) for i in range(len(motifs))]
+    motifs["n"] = [
+        int(np.count_nonzero(np.diff(ethogram[:, i] > 0, prepend=False) > 0))
+        for i in range(len(motifs))
+    ]
     motifs["mean_duration"] = motifs.apply(
         lambda row: row["total_duration"] / row["n"] if row["n"] else np.nan,
         axis=1,

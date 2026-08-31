@@ -14,8 +14,8 @@ def test_ethogram_uses_white_background():
         "sessionid": "example",
         "measures": {
             "markers": [
-                {"marker": "a", "time": 0.0},
-                {"marker": "b", "time": 1.0},
+                {"marker_id": "approach", "duration": np.nan, "parameters": {}, "time": 0.0},
+                {"marker_id": "back", "duration": np.nan, "parameters": {}, "time": 1.0},
             ],
             "min_time": 0.0,
             "max_time": 2.0,
@@ -23,8 +23,8 @@ def test_ethogram_uses_white_background():
     }
     params = {
         "markers": [
-            {"marker": "a", "behavior": True, "description": "approach", "color": [1.0, 0.0, 0.0]},
-            {"marker": "b", "behavior": True, "description": "back", "color": [0.0, 1.0, 0.0]},
+            {"marker_id": "approach", "behavior": True, "description": "approach", "color": [1.0, 0.0, 0.0]},
+            {"marker_id": "back", "behavior": True, "description": "back", "color": [0.0, 1.0, 0.0]},
         ],
         "show_markers": True,
     }
