@@ -80,6 +80,46 @@ def test_playback_and_marker_visibility_icons_follow_state(monkeypatch):
     assert icon_names == ["play", "map-pin-off"]
 
 
+def test_import_markers_temporarily_pauses_playback(monkeypatch):
+    playback_states = []
+    imported = []
+    window = SimpleNamespace(
+        playing=True,
+        _last_tick=0.0,
+        _run_import_markers_dialog=lambda: imported.append(True),
+    )
+
+    def set_playing(playing):
+        playback_states.append(playing)
+        window.playing = playing
+
+    window._set_playing = set_playing
+    monkeypatch.setattr(track_behavior.time, "perf_counter", lambda: 123.0)
+
+    track_behavior.NTTrackBehaviorWindow.import_markers_dialog(window)
+
+    assert imported == [True]
+    assert playback_states == [False, True]
+    assert window.playing is True
+    assert window._last_tick == 123.0
+
+
+def test_import_markers_leaves_paused_playback_paused():
+    playback_states = []
+    imported = []
+    window = SimpleNamespace(
+        playing=False,
+        _set_playing=playback_states.append,
+        _run_import_markers_dialog=lambda: imported.append(True),
+    )
+
+    track_behavior.NTTrackBehaviorWindow.import_markers_dialog(window)
+
+    assert imported == [True]
+    assert playback_states == []
+    assert window.playing is False
+
+
 def test_orient_camera_frame_flips_every_camera_top_to_bottom():
     frame = np.arange(2 * 3 * 3).reshape(2, 3, 3)
     expected = frame[::-1]

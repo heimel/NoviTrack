@@ -9,7 +9,11 @@ New-format entries in ``record["measures"]["markers"]`` have five fields::
         "marker": "1",           # legacy code retained for MATLAB
         "marker_id": "opto_on",  # descriptive id from params.markers
         "duration": 5.0,          # seconds; NaN when unknown
-        "parameters": {"frequency_hz": 20.0},
+        "parameters": {
+            "frequency": 20.0,    # Hz (SI)
+            "pulse_width": 0.01,  # s (SI)
+            "power": 0.005,       # W (SI)
+        },
     }
 
 ``parameters`` contains only values relevant to that marker type; linked
@@ -37,6 +41,13 @@ from inpythotools.logmsg import logmsg
 from .change_times import change_times
 from .load_parameters import load_parameters
 from .load_photometry import load_rwd_triggers
+from .marker_schema import (
+    make_marker_record,
+    marker_definition,
+    normalize_marker_records,
+    unknown_opto_parameters,
+)
+from .measures_schema import CURRENT_MEASURES_VERSION
 from .photometry_folder import photometry_folder
 from .session_path import session_path
 
@@ -44,6 +55,15 @@ from .session_path import session_path
 IMPORT_OPTIONS = ("Noldus EPM log", "RWD log", "Laser log", "NewStim log")
 StimIdProvider = Callable[[str], int | None]
 TriggerShiftProvider = Callable[[], float | None]
+
+
+def _missing_parameter(value: Any) -> bool:
+    if value is None or (isinstance(value, np.ndarray) and value.size == 0):
+        return True
+    try:
+        return bool(np.isnan(value))
+    except (TypeError, ValueError):
+        return False
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -63,42 +83,23 @@ def _set(obj: Any, name: str, value: Any) -> None:
         setattr(obj, name, value)
 
 
-def _as_markers(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, pd.DataFrame):
-        value = value.to_dict(orient="records")
-    elif isinstance(value, Mapping):
-        value = [value]
-    try:
-        markers = [
-            {
-                "time": float(_get(marker, "time", np.nan)),
-                "marker": str(_get(marker, "marker", "")),
-            }
-            for marker in value
-        ]
-    except TypeError:
-        return []
-    return sorted(markers, key=lambda marker: marker["time"])
+def _as_markers(value: Any, params: Any) -> list[dict[str, Any]]:
+    return normalize_marker_records(value, params)
 
 
-def _ensure_measures(record: Any) -> dict[str, Any]:
+def _ensure_measures(record: Any, params: Any) -> dict[str, Any]:
     measures = _get(record, "measures", None)
     if not isinstance(measures, dict):
         measures = {}
     measures.pop("events", None)
-    measures.setdefault("markers", [])
+    measures["markers"] = _as_markers(measures.get("markers", []), params)
+    measures["measures_version"] = CURRENT_MEASURES_VERSION
     _set(record, "measures", measures)
     return measures
 
 
 def _marker_definition(params: Any, marker: str) -> Mapping[str, Any] | None:
-    table = _get(params, "markers", pd.DataFrame())
-    if not isinstance(table, pd.DataFrame) or table.empty or "marker" not in table:
-        return None
-    match = table.loc[table["marker"].astype(str) == marker[0]]
-    return None if match.empty else match.iloc[0].to_dict()
+    return marker_definition(params, marker)
 
 
 def insert_marker(
@@ -108,12 +109,14 @@ def insert_marker(
     params: Any,
     *,
     stim_id_provider: StimIdProvider | None = None,
+    duration: Any = np.nan,
+    parameters: Mapping[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], int | None]:
     """Validate and chronologically insert one marker.
 
     Linked marker types carry a stimulus id, matching ``nt_insert_marker.m``.
     """
-    records = _as_markers(markers)
+    records = _as_markers(markers, params)
     marker = str(marker)
     if not marker:
         return records, None
@@ -140,11 +143,29 @@ def insert_marker(
         marker = marker[0]
 
     time = float(time)
-    if any(item["time"] == time and item["marker"] == marker for item in records):
+    new_record = make_marker_record(
+        time,
+        marker,
+        params,
+        duration=duration,
+        parameters=parameters,
+    )
+    existing = next(
+        (item for item in records if item["time"] == time and item["marker"] == marker),
+        None,
+    )
+    if existing is not None:
+        if _missing_parameter(existing["duration"]) and not _missing_parameter(new_record["duration"]):
+            existing["duration"] = new_record["duration"]
+        for name, value in new_record["parameters"].items():
+            if name not in existing["parameters"] or (
+                _missing_parameter(existing["parameters"][name]) and not _missing_parameter(value)
+            ):
+                existing["parameters"][name] = value
         logmsg(f"Marker {marker} already present at t = {time:g}. Not inserting again")
         return records, stim_id
 
-    records.append({"time": time, "marker": marker})
+    records.append(new_record)
     records.sort(key=lambda item: item["time"])
     return records, stim_id
 
@@ -156,7 +177,7 @@ def _insert_events(
     *,
     stim_id_provider: StimIdProvider | None = None,
 ) -> list[dict[str, Any]]:
-    records = _as_markers(markers)
+    records = _as_markers(markers, params)
     for event in events.itertuples(index=False):
         records, _ = insert_marker(
             records,
@@ -164,6 +185,8 @@ def _insert_events(
             str(event.code),
             params,
             stim_id_provider=stim_id_provider,
+            duration=getattr(event, "duration", np.nan),
+            parameters=getattr(event, "parameters", None),
         )
     return records
 
@@ -411,7 +434,7 @@ def import_noldus_epm(
     *,
     stim_id_provider: StimIdProvider | None = None,
 ) -> Any:
-    measures = _ensure_measures(record)
+    measures = _ensure_measures(record, params)
     measures["markers"] = _insert_events(
         measures["markers"],
         load_noldus_epm_events(record, params),
@@ -427,25 +450,34 @@ def import_laser(
     *,
     stim_id_provider: StimIdProvider | None = None,
 ) -> Any:
-    measures = _ensure_measures(record)
+    measures = _ensure_measures(record, params)
     events = load_laser_events(record, params)
-    markers = _as_markers(measures["markers"])
+    markers = _as_markers(measures["markers"], params)
     multiplier = float(_get(params, "laser_time_multiplier", 1.0))
     for event in events.itertuples(index=False):
         time = float(event.time) / multiplier
         duration = float(event.duration) / multiplier
-        additions = []
+        additions: list[tuple[float, str, float, Mapping[str, Any] | None]] = []
         if event.code in ("p", "b"):
-            additions.extend(((time, "v"), (time + duration, "t")))
+            additions.extend(
+                ((time, "v", duration, None), (time + duration, "t", 0.0, None))
+            )
         if event.code in ("o", "b"):
-            additions.extend(((time, "1"), (time + duration, "0")))
-        for marker_time, marker in additions:
+            additions.extend(
+                (
+                    (time, "1", duration, unknown_opto_parameters()),
+                    (time + duration, "0", 0.0, None),
+                )
+            )
+        for marker_time, marker, marker_duration, parameters in additions:
             markers, _ = insert_marker(
                 markers,
                 marker_time,
                 marker,
                 params,
                 stim_id_provider=stim_id_provider,
+                duration=marker_duration,
+                parameters=parameters,
             )
     measures["markers"] = markers
     return record
@@ -457,7 +489,7 @@ def import_rwd(
     *,
     stim_id_provider: StimIdProvider | None = None,
 ) -> Any:
-    measures = _ensure_measures(record)
+    measures = _ensure_measures(record, params)
     folder, found = photometry_folder(record, params)
     if not found or folder is None:
         return record
@@ -475,13 +507,31 @@ def import_rwd(
 
     newstim_triggers, newstim_events = load_newstim_triggers(record, params)
     stim_events = events.loc[events["code"] == "Trigger2"].copy() if newstim_triggers.size else events.copy()
-    markers = _as_markers(measures["markers"])
+    markers = _as_markers(measures["markers"], params)
     for event in events.loc[events["code"] == "Input3"].itertuples(index=False):
-        for marker_time, marker in (
-            (float(event.time), _marker_for_id(params, "opto_on", "1")),
-            (float(event.time + event.duration), _marker_for_id(params, "opto_off", "0")),
+        for marker_time, marker, marker_duration, parameters in (
+            (
+                float(event.time),
+                _marker_for_id(params, "opto_on", "1"),
+                float(event.duration),
+                unknown_opto_parameters(),
+            ),
+            (
+                float(event.time + event.duration),
+                _marker_for_id(params, "opto_off", "0"),
+                0.0,
+                None,
+            ),
         ):
-            markers, _ = insert_marker(markers, marker_time, marker, params, stim_id_provider=stim_id_provider)
+            markers, _ = insert_marker(
+                markers,
+                marker_time,
+                marker,
+                params,
+                stim_id_provider=stim_id_provider,
+                duration=marker_duration,
+                parameters=parameters,
+            )
 
     rwd_diff = np.diff(stim_events["time"].to_numpy(dtype=float))
     newstim_diff = np.diff(newstim_triggers)
@@ -494,11 +544,19 @@ def import_rwd(
     if matching_newstim:
         for rwd_event, newstim_event in zip(stim_events.itertuples(index=False), newstim_events.itertuples(index=False)):
             code = str(newstim_event.code)
-            for marker_time, marker in (
-                (float(rwd_event.time), code),
-                (float(rwd_event.time) + float(newstim_event.duration) * multiplier, f"t{code[1:]}"),
+            stim_duration = float(newstim_event.duration) * multiplier
+            for marker_time, marker, marker_duration in (
+                (float(rwd_event.time), code, stim_duration),
+                (float(rwd_event.time) + stim_duration, f"t{code[1:]}", 0.0),
             ):
-                markers, _ = insert_marker(markers, marker_time, marker, params, stim_id_provider=stim_id_provider)
+                markers, _ = insert_marker(
+                    markers,
+                    marker_time,
+                    marker,
+                    params,
+                    stim_id_provider=stim_id_provider,
+                    duration=marker_duration,
+                )
     else:
         stim_events = stim_events.loc[stim_events["code"] != "Input3"]
         unique_codes = {code: index + 1 for index, code in enumerate(sorted(stim_events["code"].astype(str).unique()))}
@@ -509,6 +567,7 @@ def import_rwd(
                 f"o{unique_codes[str(event.code)]}",
                 params,
                 stim_id_provider=stim_id_provider,
+                duration=float(event.duration),
             )
 
     measures["markers"] = markers
@@ -522,7 +581,7 @@ def import_newstim(
     stim_id_provider: StimIdProvider | None = None,
     trigger_shift_provider: TriggerShiftProvider | None = None,
 ) -> Any:
-    measures = _ensure_measures(record)
+    measures = _ensure_measures(record, params)
     triggers, events = load_newstim_triggers(record, params)
     if triggers.size == 0 or events.empty:
         logmsg("No NewStim triggers to import.")
@@ -537,14 +596,22 @@ def import_newstim(
         shift = float(selected)
     changed_times, _, multiplier = change_times(events["time"].to_numpy(dtype=float), triggers, master_triggers if master_triggers.size else [0])
 
-    markers = _as_markers(measures["markers"])
+    markers = _as_markers(measures["markers"], params)
     for event, time in zip(events.itertuples(index=False), changed_times):
         code = str(event.code)
-        for marker_time, marker in (
-            (float(time) + shift, code),
-            (float(time) + shift + float(event.duration) * multiplier, f"t{code[1:]}"),
+        duration = float(event.duration) * multiplier
+        for marker_time, marker, marker_duration in (
+            (float(time) + shift, code, duration),
+            (float(time) + shift + duration, f"t{code[1:]}", 0.0),
         ):
-            markers, _ = insert_marker(markers, marker_time, marker, params, stim_id_provider=stim_id_provider)
+            markers, _ = insert_marker(
+                markers,
+                marker_time,
+                marker,
+                params,
+                stim_id_provider=stim_id_provider,
+                duration=marker_duration,
+            )
     measures["markers"] = markers
     return record
 
@@ -577,7 +644,7 @@ def import_markers(
         "Laser log": import_laser,
         "NewStim log": import_newstim,
     }
-    _ensure_measures(record)
+    _ensure_measures(record, params)
     for name in options:
         kwargs: dict[str, Any] = {"stim_id_provider": stim_id_provider}
         if name == "NewStim log":

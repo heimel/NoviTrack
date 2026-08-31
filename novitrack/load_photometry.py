@@ -18,6 +18,12 @@ import pandas as pd
 from inpythotools.logmsg import logmsg
 from .change_times import change_times
 from .load_parameters import load_parameters
+from .marker_schema import (
+    make_marker_record,
+    normalize_marker_records,
+    unknown_opto_parameters,
+)
+from .measures_schema import CURRENT_MEASURES_VERSION
 from .photometry_folder import photometry_folder as resolve_photometry_folder
 
 
@@ -161,24 +167,47 @@ def _import_rwd_markers(
     events["time"], _, multiplier = change_times(events["time"].to_numpy(), rwd_triggers, trigger_times)
     events["duration"] = events["duration"].to_numpy(dtype=float) * multiplier
 
-    markers = list(_get(measures, "markers", []) or [])
+    markers = normalize_marker_records(_get(measures, "markers", []), params)
     opto_on_marker = _marker_for_marker_id(params, "opto_on", "1")
     opto_off_marker = _marker_for_marker_id(params, "opto_off", "0")
 
     for _, event in events.loc[events["code"] == "Input3"].iterrows():
         time = float(event["time"])
         duration = float(event["duration"])
-        markers.append({"time": time, "marker": opto_on_marker})
-        markers.append({"time": time + duration, "marker": opto_off_marker})
+        markers.append(
+            make_marker_record(
+                time,
+                opto_on_marker,
+                params,
+                duration=duration,
+                parameters=unknown_opto_parameters(),
+            )
+        )
+        markers.append(
+            make_marker_record(
+                time + duration,
+                opto_off_marker,
+                params,
+                duration=0.0,
+            )
+        )
 
     stim_events = events.loc[events["code"] != "Input3"].copy()
     unique_codes = {code: index + 1 for index, code in enumerate(sorted(stim_events["code"].astype(str).unique()))}
     for _, event in stim_events.iterrows():
         code = str(event["code"])
-        markers.append({"time": float(event["time"]), "marker": f"o{unique_codes[code]}"})
+        markers.append(
+            make_marker_record(
+                float(event["time"]),
+                f"o{unique_codes[code]}",
+                params,
+                duration=float(event["duration"]),
+            )
+        )
 
     markers.sort(key=lambda marker: float(_get(marker, "time")))
     measures["markers"] = markers
+    measures["measures_version"] = CURRENT_MEASURES_VERSION
 
 
 def _default_channel_mapping(channel_names: Sequence[str]) -> dict[str, str]:

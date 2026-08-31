@@ -650,6 +650,18 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.add_marker(key)
 
     def import_markers_dialog(self) -> None:
+        was_playing = self.playing
+        if was_playing:
+            self._set_playing(False)
+        try:
+            self._run_import_markers_dialog()
+        finally:
+            if was_playing:
+                self._set_playing(True)
+                # Do not count time spent in modal import dialogs as playback.
+                self._last_tick = time.perf_counter()
+
+    def _run_import_markers_dialog(self) -> None:
         dialog = QDialog(self)
         dialog.setWindowTitle("Import Options")
         layout = QVBoxLayout(dialog)
