@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from PyQt6.QtCore import QEventLoop, QSize, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEventLoop, QLineF, QRectF, QSize, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QIcon, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
@@ -169,6 +169,85 @@ def _qt_color(value: Any) -> tuple[int, int, int]:
     arr = _as_array(value, [0.0, 0.0, 0.0])
     arr = np.clip(arr[:3], 0.0, 1.0)
     return tuple(int(round(v * 255)) for v in arr)
+
+
+class _MarkerOverlay(pg.GraphicsObject if pg is not None else object):
+    """Paint timeline markers as one viewport-aware graphics item.
+
+    A separate ``InfiniteLine`` for every marker is expensive because each line
+    participates in Qt's scene indexing and in every ViewBox range update.  This
+    item keeps sorted NumPy arrays instead and only submits lines inside the
+    currently exposed x range to the painter.
+    """
+
+    _Y_MIN = -1.0e9
+    _Y_MAX = 1.0e9
+
+    def __init__(
+        self,
+        plot: Any,
+        times: Sequence[float],
+        colors: Sequence[tuple[int, int, int]],
+    ) -> None:
+        super().__init__()
+        self._plot = plot
+        self.times = np.asarray(times, dtype=float)
+        self._pens: list[Any] = []
+        pen_indices = np.empty(self.times.size, dtype=np.int32)
+        pen_lookup: dict[tuple[int, int, int], int] = {}
+        for index, color in enumerate(colors):
+            pen_index = pen_lookup.get(color)
+            if pen_index is None:
+                pen_index = len(self._pens)
+                pen_lookup[color] = pen_index
+                self._pens.append(pg.mkPen(color, width=1))
+            pen_indices[index] = pen_index
+        self._pen_indices = pen_indices
+        self._nt_marker = True
+        self.setZValue(100)
+
+    def boundingRect(self) -> QRectF:
+        if self.times.size == 0:
+            return QRectF()
+        x0 = float(self.times[0])
+        x1 = float(self.times[-1])
+        # A non-empty rectangle is needed when all markers share one time.
+        width = max(x1 - x0, np.finfo(float).eps * max(1.0, abs(x0)))
+        return QRectF(x0, self._Y_MIN, width, self._Y_MAX - self._Y_MIN)
+
+    def visible_slice(self, x_range: Sequence[float]) -> slice:
+        """Return the marker slice intersecting ``x_range`` in O(log n)."""
+        if self.times.size == 0:
+            return slice(0, 0)
+        x0, x1 = sorted((float(x_range[0]), float(x_range[1])))
+        return slice(
+            int(np.searchsorted(self.times, x0, side="left")),
+            int(np.searchsorted(self.times, x1, side="right")),
+        )
+
+    def paint(self, painter: Any, option: Any, widget: Any = None) -> None:
+        del widget
+        if self.times.size == 0:
+            return
+        view_box = self._plot.getViewBox()
+        x_range, y_range = view_box.viewRange()
+        exposed = option.exposedRect
+        x0 = max(float(min(x_range)), float(exposed.left()))
+        x1 = min(float(max(x_range)), float(exposed.right()))
+        if x1 < x0:
+            return
+        visible = self.visible_slice((x0, x1))
+        times = self.times[visible]
+        if times.size == 0:
+            return
+        pen_indices = self._pen_indices[visible]
+        y0, y1 = sorted((float(y_range[0]), float(y_range[1])))
+        for pen_index, pen in enumerate(self._pens):
+            pen_times = times[pen_indices == pen_index]
+            if pen_times.size == 0:
+                continue
+            painter.setPen(pen)
+            painter.drawLines([QLineF(float(x), y0, float(x), y1) for x in pen_times])
 
 
 def _orient_camera_frame(frame: np.ndarray) -> np.ndarray:
@@ -395,7 +474,9 @@ class NTTrackBehaviorWindow(QMainWindow):
             movable=True,
         )
         self.timeline_cursor.setZValue(1000)
-        self.timeline_cursor.sigPositionChangeFinished.connect(lambda item: self._seek(float(item.value()), force=True))
+        self.timeline_cursor.sigPositionChangeFinished.connect(
+            lambda item: self._jump_to_time(float(item.value()))
+        )
         self.timeline.addItem(self.timeline_cursor)
         self.timeline.scene().sigMouseClicked.connect(self._timeline_clicked)
         layout.addWidget(self.timeline, stretch=1)
@@ -439,10 +520,16 @@ class NTTrackBehaviorWindow(QMainWindow):
         if not view_box.sceneBoundingRect().contains(event.scenePos()):
             return
         position = view_box.mapSceneToView(event.scenePos())
-        self._set_playing(False)
-        self._seek(float(position.x()), force=True)
-        self._report_status(f"Jumped to {self.master_time:.2f} s")
+        target_time = float(position.x())
+        # Finish dispatching the mouse event before the potentially slow video
+        # seek.  In particular, random access in H.264 files may synchronously
+        # decode from an earlier keyframe.
         event.accept()
+        QTimer.singleShot(0, lambda: self._complete_timeline_jump(target_time))
+
+    def _complete_timeline_jump(self, target_time: float) -> None:
+        self._jump_to_time(target_time)
+        self._report_status(f"Jumped to {self.master_time:.2f} s")
 
     def _report_status(self, message: str) -> None:
         self.message_label.setText(message)
@@ -484,22 +571,39 @@ class NTTrackBehaviorWindow(QMainWindow):
         if bool(_get(self.params, "nt_show_markers_in_bottom_panels", True)):
             marker_plots.extend((self.speed_plot, self.rotation_plot, self.distance_plot))
 
+        marker_definitions: dict[str, Mapping[str, Any]] = {}
+        marker_table = _get(self.params, "markers", pd.DataFrame())
+        if isinstance(marker_table, pd.DataFrame) and "marker" in marker_table:
+            marker_definitions = {
+                str(row["marker"])[0]: row.to_dict()
+                for _, row in marker_table.iterrows()
+                if str(row["marker"])
+            }
+        marker_times: list[float] = []
+        marker_colors: list[tuple[int, int, int]] = []
         for marker in markers:
             marker_text = str(marker.get("marker", ""))
             marker_time = float(marker.get("time", np.nan))
             if not np.isfinite(marker_time):
                 continue
-            definition = _marker_definition(self.params, marker_text)
+            definition = marker_definitions.get(marker_text[:1])
             if definition is not None and bool(definition.get("behavior", False)) and not bool(
                 _get(self.params, "nt_show_behavior_markers", True)
             ):
                 continue
             color = _qt_color(definition.get("color", [0, 0, 0]) if definition else [0, 0, 0])
-            for plot in marker_plots:
-                line = pg.InfiniteLine(marker_time, angle=90, pen=pg.mkPen(color, width=1))
-                line._nt_marker = True
-                line.setZValue(100)
-                plot.addItem(line)
+            marker_times.append(marker_time)
+            marker_colors.append(color)
+
+        if not marker_times:
+            return
+        for plot in marker_plots:
+            overlay = _MarkerOverlay(plot, marker_times, marker_colors)
+            # Markers are decoration and must not influence auto-ranging.
+            try:
+                plot.addItem(overlay, ignoreBounds=True)
+            except TypeError:  # Simple plot doubles used by unit tests.
+                plot.addItem(overlay)
 
     def _tick(self) -> None:
         now = time.perf_counter()
@@ -538,6 +642,17 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._update_trace_ranges()
         self.time_label.setText(f"{self.master_time:.2f}")
         self.timeline_cursor.setValue(self.master_time)
+
+    def _jump_to_time(self, master_time: float) -> None:
+        """Seek without changing whether playback is running or paused."""
+        was_playing = self.playing
+        try:
+            self._seek(master_time, force=True)
+        finally:
+            self._set_playing(was_playing)
+            # Do not count time spent choosing or processing the jump as
+            # playback time on the next timer tick.
+            self._last_tick = time.perf_counter()
 
     def _current_index(self) -> int | None:
         if self.time_values.size == 0:
@@ -621,8 +736,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def previous_marker(self) -> None:
         marker_times = [float(m["time"]) for m in _markers_as_records(self.measures.get("markers")) if float(m["time"]) < self.master_time - 0.04]
         if marker_times:
-            self._set_playing(False)
-            self._seek(max(marker_times), force=True)
+            self._jump_to_time(max(marker_times))
             self._report_status(f"Jumped to previous marker at {self.master_time:.2f} s")
         else:
             self._report_status("No previous marker")
@@ -630,8 +744,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def next_marker(self) -> None:
         marker_times = [float(m["time"]) for m in _markers_as_records(self.measures.get("markers")) if float(m["time"]) > self.master_time + 0.04]
         if marker_times:
-            self._set_playing(False)
-            self._seek(min(marker_times), force=True)
+            self._jump_to_time(min(marker_times))
             self._report_status(f"Jumped to next marker at {self.master_time:.2f} s")
         else:
             self._report_status("No next marker")
@@ -639,8 +752,7 @@ class NTTrackBehaviorWindow(QMainWindow):
     def goto_dialog(self) -> None:
         value, ok = QInputDialog.getDouble(self, "Go to", "Second:", self.master_time, self.min_time, self.max_time, 2)
         if ok:
-            self._set_playing(False)
-            self._seek(value, force=True)
+            self._jump_to_time(value)
             self._report_status(f"Jumped to {self.master_time:.2f} s")
 
     def add_marker_dialog(self) -> None:
@@ -898,6 +1010,7 @@ def track_behavior(
     record: Any,
     *,
     block: bool | None = None,
+    parent: QWidget | None = None,
     on_record_changed: Callable[[Any], None] | None = None,
 ) -> Any:
     """Open the behavior tracking GUI for one NoviTrack record.
@@ -914,9 +1027,21 @@ def track_behavior(
     if block is None:
         block = created_app
 
-    window = NTTrackBehaviorWindow(record, on_record_changed=on_record_changed)
+    window = NTTrackBehaviorWindow(
+        record,
+        parent=parent,
+        on_record_changed=on_record_changed,
+    )
+    if parent is not None:
+        # The database action is waiting in a nested event loop.  Establishing
+        # native ownership and modality prevents that originating window from
+        # being activated above the tracker while a video seek is busy.
+        window.setWindowFlag(Qt.WindowType.Window, True)
+        window.setWindowModality(Qt.WindowModality.WindowModal)
     _OPEN_WINDOWS.append(window)
     window.show()
+    window.raise_()
+    window.activateWindow()
 
     if not block:
         return window
@@ -933,12 +1058,14 @@ def track_behavior(
 def track_record(
     record: Any,
     *,
+    parent: QWidget | None = None,
     on_record_changed: Callable[[Any], None] | None = None,
 ) -> Any:
     """Return an updated record only when tracking actually changed it."""
     updated_record, changed = track_behavior(
         record,
         block=True,
+        parent=parent,
         on_record_changed=on_record_changed,
     )
     return updated_record if changed else None

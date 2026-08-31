@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PyQt6")
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QToolBar
 
 from novitrack import track_behavior
@@ -120,6 +120,109 @@ def test_import_markers_leaves_paused_playback_paused():
     assert window.playing is False
 
 
+@pytest.mark.parametrize("playing", [False, True])
+def test_jump_to_time_restores_current_playback_state(monkeypatch, playing):
+    playback_states = []
+    seeks = []
+    window = SimpleNamespace(playing=playing, _last_tick=0.0)
+
+    def seek(value, *, force=False):
+        seeks.append((value, force))
+        # Verify that the jump helper restores state even if seeking changes it.
+        window.playing = not playing
+
+    def set_playing(value):
+        playback_states.append(value)
+        window.playing = value
+
+    window._seek = seek
+    window._set_playing = set_playing
+    monkeypatch.setattr(track_behavior.time, "perf_counter", lambda: 123.0)
+
+    track_behavior.NTTrackBehaviorWindow._jump_to_time(window, 42.5)
+
+    assert seeks == [(42.5, True)]
+    assert playback_states == [playing]
+    assert window.playing is playing
+    assert window._last_tick == 123.0
+
+
+def test_timeline_click_is_accepted_before_slow_seek(monkeypatch):
+    calls = []
+
+    class FakeEvent:
+        def button(self):
+            return Qt.MouseButton.LeftButton
+
+        def scenePos(self):
+            return "scene-position"
+
+        def accept(self):
+            calls.append("accepted")
+
+    view_box = SimpleNamespace(
+        sceneBoundingRect=lambda: SimpleNamespace(contains=lambda position: True),
+        mapSceneToView=lambda position: SimpleNamespace(x=lambda: 42.5),
+    )
+    window = SimpleNamespace(
+        timeline=SimpleNamespace(getViewBox=lambda: view_box),
+        _complete_timeline_jump=lambda value: calls.append(("jumped", value)),
+    )
+    monkeypatch.setattr(
+        track_behavior.QTimer,
+        "singleShot",
+        lambda delay, callback: calls.append(("scheduled", delay)) or callback(),
+    )
+
+    track_behavior.NTTrackBehaviorWindow._timeline_clicked(window, FakeEvent())
+
+    assert calls == ["accepted", ("scheduled", 0), ("jumped", 42.5)]
+
+
+def test_owned_tracker_is_modal_and_activated_above_parent(monkeypatch):
+    calls = []
+    parent = object()
+
+    class FakeWindow:
+        def __init__(self, record, *, parent, on_record_changed):
+            calls.append(("created", parent, on_record_changed))
+
+        def setWindowFlag(self, flag, enabled):
+            calls.append(("window-flag", flag, enabled))
+
+        def setWindowModality(self, modality):
+            calls.append(("modality", modality))
+
+        def show(self):
+            calls.append("shown")
+
+        def raise_(self):
+            calls.append("raised")
+
+        def activateWindow(self):
+            calls.append("activated")
+
+    monkeypatch.setattr(track_behavior.QApplication, "instance", lambda: object())
+    monkeypatch.setattr(track_behavior, "NTTrackBehaviorWindow", FakeWindow)
+
+    window = track_behavior.track_behavior(
+        {},
+        block=False,
+        parent=parent,
+        on_record_changed=None,
+    )
+
+    assert calls == [
+        ("created", parent, None),
+        ("window-flag", Qt.WindowType.Window, True),
+        ("modality", Qt.WindowModality.WindowModal),
+        "shown",
+        "raised",
+        "activated",
+    ]
+    assert window is track_behavior._OPEN_WINDOWS.pop()
+
+
 def test_orient_camera_frame_flips_every_camera_top_to_bottom():
     frame = np.arange(2 * 3 * 3).reshape(2, 3, 3)
     expected = frame[::-1]
@@ -223,17 +326,6 @@ def test_add_marker_logs_marker_and_time(monkeypatch):
     assert statuses == ["Added marker o at 12.50 s"]
 
 
-class _FakeMarkerLine:
-    def __init__(self, position, *, angle, pen):
-        self.position = position
-        self.angle = angle
-        self.pen = pen
-        self.z_value = None
-
-    def setZValue(self, value):
-        self.z_value = value
-
-
 class _FakePlot:
     def __init__(self):
         self._items = []
@@ -276,27 +368,38 @@ def _marker_window(*, show_bottom=True, show_behavior=True):
 
 def test_refresh_marker_items_adds_visible_markers_to_all_time_course_panels(monkeypatch):
     window = _marker_window(show_behavior=False)
-    monkeypatch.setattr(track_behavior.pg, "InfiniteLine", _FakeMarkerLine)
     monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
 
     track_behavior.NTTrackBehaviorWindow._refresh_marker_items(window)
 
     for plot in (window.timeline, window.speed_plot, window.rotation_plot, window.distance_plot):
-        assert [line.position for line in plot.items()] == [1.0]
-        assert all(line._nt_marker for line in plot.items())
+        assert len(plot.items()) == 1
+        assert plot.items()[0].times.tolist() == [1.0]
+        assert plot.items()[0]._nt_marker
 
 
 def test_refresh_marker_items_can_disable_bottom_panel_markers(monkeypatch):
     window = _marker_window(show_bottom=False)
-    monkeypatch.setattr(track_behavior.pg, "InfiniteLine", _FakeMarkerLine)
     monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
 
     track_behavior.NTTrackBehaviorWindow._refresh_marker_items(window)
 
-    assert [line.position for line in window.timeline.items()] == [1.0, 2.0]
+    assert len(window.timeline.items()) == 1
+    assert window.timeline.items()[0].times.tolist() == [1.0, 2.0]
     assert window.speed_plot.items() == []
     assert window.rotation_plot.items() == []
     assert window.distance_plot.items() == []
+
+
+def test_marker_overlay_selects_only_markers_in_view(monkeypatch):
+    monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
+    times = np.arange(10_000, dtype=float)
+    colors = [(0, 0, 0)] * len(times)
+
+    overlay = track_behavior._MarkerOverlay(_FakePlot(), times, colors)
+    visible = overlay.visible_slice((500.25, 505.75))
+
+    assert overlay.times[visible].tolist() == [501.0, 502.0, 503.0, 504.0, 505.0]
 
 
 def test_toggle_behavior_markers_refreshes_marker_items():

@@ -100,7 +100,8 @@ def test_track_behavior_marks_open_database_dirty_on_marker_change(monkeypatch):
     browser._refresh_view = lambda: setattr(browser, "refreshes", browser.refreshes + 1)
     monkeypatch.setattr(database_browser, "_LAST_WINDOW", browser)
 
-    def fake_track_behavior(open_record, *, block, on_record_changed):
+    def fake_track_behavior(open_record, *, block, parent, on_record_changed):
+        assert parent is browser
         open_record["measures"] = {
             "markers": [{"time": 2.0, "marker": "o"}],
         }

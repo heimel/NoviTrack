@@ -403,6 +403,7 @@ def track_behavior_record(record: pd.Series) -> Any:
     updated_record, changed = track_behavior(
         record,
         block=True,
+        parent=browser,
         on_record_changed=update_open_record if browser is not None else None,
     )
     if browser is not None:
