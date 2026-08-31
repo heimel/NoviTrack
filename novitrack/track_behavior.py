@@ -936,7 +936,7 @@ __all__ = ["NTTrackBehaviorWindow", "track_behavior", "track_record"]
 
 
 if __name__ == "__main__":
-    from inpythotools.mat_database import load_mat_database
+    from .mat_database import load_mat_database
 
     if len(sys.argv) < 2:
         raise SystemExit("Usage: python track_behavior.py database.mat [row_index]")

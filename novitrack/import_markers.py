@@ -1,5 +1,23 @@
 """Import NoviTrack markers from external acquisition and analysis logs.
 
+Persistent marker schema
+------------------------
+New-format entries in ``record["measures"]["markers"]`` have five fields::
+
+    {
+        "time": 40.0,             # onset in master-time seconds
+        "marker": "1",           # legacy code retained for MATLAB
+        "marker_id": "opto_on",  # descriptive id from params.markers
+        "duration": 5.0,          # seconds; NaN when unknown
+        "parameters": {"frequency_hz": 20.0},
+    }
+
+``parameters`` contains only values relevant to that marker type; linked
+legacy markers such as ``"o2"`` become ``parameters["stimulus_id"] == 2``.
+On and off transitions remain separate entries. Databases using the older
+``time``/``marker`` representation are upgraded by
+``novitrack.measures_schema`` while retaining both legacy fields.
+
 This is the Python counterpart of MATLAB ``nt_import_markers.m``.
 """
 

@@ -1,7 +1,7 @@
 """Python interface for the NoviTrack analysis tools."""
 
 from .analyse_nttestrecord import analyse_nttestrecord
-from inpythotools.mat_database import load_mat_database, save_mat_database
+from .mat_database import load_mat_database, save_mat_database
 from .database_browser import (
     NTDatabaseBrowser,
     default_database_filename,

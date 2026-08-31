@@ -25,7 +25,7 @@ from inpythotools.database_browser import (
 )
 
 from .analyse_nttestrecord import analyse_nttestrecord
-from inpythotools.mat_database import load_mat_database
+from .mat_database import load_mat_database
 from .load_parameters import load_parameters
 from .session_path import session_path
 from .results_nttestrecord import results_nttestrecord
@@ -114,7 +114,7 @@ def load_import_file(filename: str | Path) -> pd.DataFrame:
     filename = Path(filename)
     suffix = filename.suffix.lower()
     if suffix == ".mat":
-        return load_mat_database(filename)
+        return load_mat_database(filename, save_upgraded=False)
     if suffix == ".json":
         return _records_from_json(filename)
     raise ValueError(
