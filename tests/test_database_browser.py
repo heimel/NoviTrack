@@ -2,11 +2,58 @@ from types import SimpleNamespace
 import json
 
 import pandas as pd
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QPoint, QRect, QSize
 from PyQt6.QtWidgets import QApplication
 
 import novitrack.database_browser as database_browser
 from inpythotools.database_browser import DatabaseBrowser
+
+
+class _FakeScreen:
+    def __init__(self, available):
+        self._available = available
+
+    def availableGeometry(self):
+        return QRect(self._available)
+
+
+class _FakeWindow:
+    def __init__(self, frame, geometry=None, screen=None):
+        self._frame = QRect(frame)
+        self._geometry = QRect(geometry if geometry is not None else frame)
+        self._screen = screen
+        self.set_geometry_calls = []
+
+    def screen(self):
+        return self._screen
+
+    def frameGeometry(self):
+        return QRect(self._frame)
+
+    def geometry(self):
+        return QRect(self._geometry)
+
+    def pos(self):
+        return self._geometry.topLeft()
+
+    def move(self, position):
+        offset = position - self._geometry.topLeft()
+        self._frame.translate(offset)
+        self._geometry.translate(offset)
+
+    def setGeometry(self, x, y, width, height):
+        self.set_geometry_calls.append((x, y, width, height))
+        left = self._geometry.left() - self._frame.left()
+        top = self._geometry.top() - self._frame.top()
+        right = self._frame.right() - self._geometry.right()
+        bottom = self._frame.bottom() - self._geometry.bottom()
+        self._geometry = QRect(x, y, width, height)
+        self._frame = QRect(
+            x - left,
+            y - top,
+            width + left + right,
+            height + top + bottom,
+        )
 
 
 def test_import_button_uses_shared_24_px_icon():
@@ -24,6 +71,120 @@ def test_import_button_uses_shared_24_px_icon():
 
     window.close()
     app.processEvents()
+
+
+def _navigation_states(window):
+    return {
+        button.accessibleName(): button.isEnabled()
+        for button in window.findChildren(database_browser.QPushButton)
+        if button.accessibleName() in database_browser._NAVIGATION_BUTTON_NAMES
+    }
+
+
+def test_navigation_buttons_follow_current_record_position():
+    app = QApplication.instance() or QApplication([])
+    window = DatabaseBrowser(pd.DataFrame({"sessionid": ["a", "b", "c"]}))
+    database_browser._install_navigation_button_states(window)
+
+    # The generic browser initially selects the last record.
+    assert _navigation_states(window) == {
+        "First record": True,
+        "Previous record": True,
+        "Next record": False,
+        "Last record": False,
+    }
+
+    window.first_record()
+    assert _navigation_states(window) == {
+        "First record": False,
+        "Previous record": False,
+        "Next record": True,
+        "Last record": True,
+    }
+
+    window.next_record()
+    assert all(_navigation_states(window).values())
+
+    window.close()
+    app.processEvents()
+
+
+def test_all_navigation_buttons_are_disabled_for_one_record():
+    app = QApplication.instance() or QApplication([])
+    window = DatabaseBrowser(pd.DataFrame({"sessionid": ["only"]}))
+    database_browser._install_navigation_button_states(window)
+
+    assert not any(_navigation_states(window).values())
+
+    window.close()
+    app.processEvents()
+
+
+def test_result_figures_fill_space_right_of_browser():
+    screen = _FakeScreen(QRect(20, 40, 1600, 900))
+    browser = _FakeWindow(QRect(200, 150, 500, 650), screen=screen)
+    figure_window_1 = _FakeWindow(
+        QRect(0, 0, 650, 500),
+        QRect(8, 30, 634, 462),
+    )
+    figure_window_2 = _FakeWindow(
+        QRect(50, 50, 650, 500),
+        QRect(58, 80, 634, 462),
+    )
+    figures = [
+        SimpleNamespace(canvas=SimpleNamespace(manager=SimpleNamespace(window=window)))
+        for window in (figure_window_1, figure_window_2)
+    ]
+
+    database_browser._layout_result_figures(browser, figures, gap=8)
+
+    assert browser.frameGeometry().topLeft() == QPoint(20, 40)
+    expected_frame = QRect(528, 40, 1092, 900)
+    assert figure_window_1.frameGeometry() == expected_frame
+    assert figure_window_2.frameGeometry() == expected_frame
+
+
+def test_result_figure_layout_ignores_backends_without_qt_windows():
+    screen = _FakeScreen(QRect(0, 0, 1200, 800))
+    browser = _FakeWindow(QRect(0, 0, 400, 600), screen=screen)
+    figure = SimpleNamespace(canvas=SimpleNamespace(manager=None))
+
+    database_browser._layout_result_figures(browser, [figure])
+
+
+def test_results_are_hidden_and_positioned_before_they_are_shown(monkeypatch):
+    events = []
+    figure = SimpleNamespace(
+        show=lambda: events.append("show"),
+        canvas=SimpleNamespace(
+            draw_idle=lambda: events.append("draw"),
+            flush_events=lambda: events.append("flush"),
+        ),
+    )
+
+    def create_figures(record, *, show):
+        assert show is False
+        assert database_browser.plt.isinteractive() is False
+        events.append("create")
+        return [figure]
+
+    monkeypatch.setattr(database_browser, "results_nttestrecord", create_figures)
+    monkeypatch.setattr(database_browser, "_LAST_WINDOW", object())
+    monkeypatch.setattr(
+        database_browser,
+        "_layout_result_figures",
+        lambda browser, figures: events.append("layout"),
+    )
+    was_interactive = database_browser.plt.isinteractive()
+    database_browser.plt.ion()
+    try:
+        result = database_browser.results_nttestrecord_from_gui(pd.Series())
+        assert database_browser.plt.isinteractive() is True
+    finally:
+        database_browser.plt.interactive(was_interactive)
+
+    assert result == [figure]
+    assert events == ["create", "layout", "show", "draw", "flush"]
 
 
 def test_filter_error_shows_syntax_help_without_traceback(monkeypatch):

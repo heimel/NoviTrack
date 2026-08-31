@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-from PyQt6.QtCore import QEventLoop
+from matplotlib import pyplot as plt
+from PyQt6.QtCore import QEventLoop, QPoint, QRect
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QPushButton
 
 try:
@@ -52,6 +53,135 @@ _DATABASE_ACTION_ICONS = {
     "Results": "chart-line",
     "Track": "route",
 }
+_RESULT_FIGURE_GAP = 8
+_NAVIGATION_BUTTON_NAMES = (
+    "First record",
+    "Previous record",
+    "Next record",
+    "Last record",
+)
+
+
+def _update_navigation_button_states(browser: Any) -> None:
+    """Enable only navigation actions that can change the current record."""
+    buttons = getattr(browser, "_nt_navigation_buttons", {})
+    record_count = len(getattr(browser, "filtered_index", ()))
+    position = getattr(browser, "position", 0)
+    can_move_backward = record_count > 0 and position > 0
+    can_move_forward = record_count > 0 and position < record_count - 1
+    for name in ("First record", "Previous record"):
+        if name in buttons:
+            buttons[name].setEnabled(can_move_backward)
+    for name in ("Next record", "Last record"):
+        if name in buttons:
+            buttons[name].setEnabled(can_move_forward)
+
+
+def _install_navigation_button_states(browser: Any) -> None:
+    """Keep database navigation buttons synchronized with the current row."""
+    if hasattr(browser, "_nt_navigation_buttons"):
+        _update_navigation_button_states(browser)
+        return
+    if not hasattr(browser, "findChildren") or not hasattr(browser, "_refresh_view"):
+        return
+
+    buttons = {
+        button.accessibleName(): button
+        for button in browser.findChildren(QPushButton)
+        if button.accessibleName() in _NAVIGATION_BUTTON_NAMES
+    }
+    browser._nt_navigation_buttons = buttons
+    original_refresh_view = browser._refresh_view
+
+    def refresh_view_and_navigation() -> None:
+        original_refresh_view()
+        _update_navigation_button_states(browser)
+
+    browser._refresh_view = refresh_view_and_navigation
+    _update_navigation_button_states(browser)
+
+
+def _available_screen_geometry(window: Any) -> QRect | None:
+    """Return the usable geometry of the screen containing ``window``."""
+    try:
+        screen = window.screen()
+    except (AttributeError, RuntimeError):
+        screen = None
+    if screen is None:
+        app = QApplication.instance()
+        screen = app.primaryScreen() if app is not None else None
+    return screen.availableGeometry() if screen is not None else None
+
+
+def _move_window_frame_to(window: Any, top_left: QPoint) -> None:
+    """Move a top-level Qt window by its outer frame, including decorations."""
+    frame_top_left = window.frameGeometry().topLeft()
+    window.move(window.pos() + top_left - frame_top_left)
+
+
+def _set_window_frame_geometry(window: Any, target: QRect) -> None:
+    """Fit a top-level Qt window's outer frame inside ``target``."""
+    # Create the native handle while the window is still hidden. This lets Qt
+    # report the title-bar and border sizes before the first visible frame.
+    if hasattr(window, "winId"):
+        window.winId()
+    geometry = window.geometry()
+    frame = window.frameGeometry()
+    left = geometry.left() - frame.left()
+    top = geometry.top() - frame.top()
+    right = frame.right() - geometry.right()
+    bottom = frame.bottom() - geometry.bottom()
+    window.setGeometry(
+        target.x() + left,
+        target.y() + top,
+        max(1, target.width() - left - right),
+        max(1, target.height() - top - bottom),
+    )
+
+
+def _position_browser_top_left(browser: Any) -> QRect | None:
+    """Place the database browser at the top-left of its usable screen."""
+    available = _available_screen_geometry(browser)
+    if available is None:
+        return None
+    try:
+        _move_window_frame_to(browser, available.topLeft())
+    except (AttributeError, RuntimeError):
+        return None
+    return available
+
+
+def _layout_result_figures(
+    browser: Any,
+    figures: Iterable[Any],
+    *,
+    gap: int = _RESULT_FIGURE_GAP,
+) -> None:
+    """Stack result figures in the screen area directly right of the browser."""
+    available = _position_browser_top_left(browser)
+    if available is None:
+        return
+
+    try:
+        browser_frame = browser.frameGeometry()
+        figure_x = browser_frame.right() + 1 + gap
+        figure_width = available.right() - figure_x + 1
+    except (AttributeError, RuntimeError):
+        return
+    if figure_width < 1:
+        return
+
+    target = QRect(figure_x, available.y(), figure_width, available.height())
+    for figure in figures:
+        manager = getattr(getattr(figure, "canvas", None), "manager", None)
+        figure_window = getattr(manager, "window", None)
+        if figure_window is None or not hasattr(figure_window, "setGeometry"):
+            continue
+        try:
+            _set_window_frame_geometry(figure_window, target)
+        except RuntimeError:
+            # A figure may have been closed while its results were being created.
+            continue
 
 
 def _is_empty_import_value(value: Any) -> bool:
@@ -423,7 +553,12 @@ def analyse_nttestrecord_and_show_results(record: pd.Series) -> Any:
 
 def results_nttestrecord_from_gui(record: pd.Series) -> Any:
     """Display result figures from the browser without restarting Qt's event loop."""
-    figures = results_nttestrecord(record, show=False)
+    # In interactive sessions Matplotlib otherwise exposes every new window
+    # immediately, before NoviTrack has a chance to assign its final geometry.
+    with plt.ioff():
+        figures = results_nttestrecord(record, show=False)
+    if _LAST_WINDOW is not None:
+        _layout_result_figures(_LAST_WINDOW, figures)
     for figure in figures:
         figure.show()
         figure.canvas.draw_idle()
@@ -510,6 +645,8 @@ def experiment_db(
     window.filter_box.setPlaceholderText("subject == '123456'")
     _install_import_button(window)
     _install_filter_error_help(window)
+    _install_navigation_button_states(window)
+    _position_browser_top_left(window)
     _OPEN_WINDOWS.append(window)
     _LAST_WINDOW = window
 
