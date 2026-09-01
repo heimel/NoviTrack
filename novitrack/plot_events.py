@@ -13,6 +13,9 @@ import pandas as pd
 from .get_events import get_events
 
 
+_EVENT_METADATA_KEYS = {"parameters", "duration"}
+
+
 def _get(obj: Any, name: str, default: Any = None) -> Any:
     if obj is None:
         return default
@@ -71,7 +74,9 @@ def plot_events(
     snippet_units = _get(snippets, "unit", {}) if snippets else {}
 
     for event_type, event in event_measures.items():
-        observables = list(event.keys())
+        observables = [name for name in event if name not in _EVENT_METADATA_KEYS]
+        if not observables:
+            continue
         n_cols = min(3, len(observables))
         n_rows = int(np.ceil(len(observables) / n_cols))
         fig = plt.figure(figsize=(4.5 * n_cols, 4.2 * n_rows), num=str(event_type), constrained_layout=True)

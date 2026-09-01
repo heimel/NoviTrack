@@ -84,6 +84,14 @@ def _matching_parameter(rows: pd.DataFrame, name: str, value: Any) -> pd.Series:
     )
 
 
+def _columnar_parameters(records: list[dict[str, Any]]) -> dict[str, np.ndarray]:
+    """Convert per-event parameter records to aligned parameter arrays."""
+    if not records:
+        return {}
+    table = pd.DataFrame.from_records(records)
+    return {str(name): table[name].to_numpy() for name in table.columns}
+
+
 def compute_event_measures(
     snippets: Mapping[str, Any] | None,
     measures: Mapping[str, Any],
@@ -241,9 +249,12 @@ def compute_event_measures(
     for event_type in unique_events:
         event_type = str(event_type)
         event_indices = events.index[events["event"] == event_type].to_numpy()
-        out["event"].setdefault(event_type, {})
-        event_parameters = [dict(value) for value in events.loc[event_indices, "parameters"]]
+        event_parameter_records = [dict(value) for value in events.loc[event_indices, "parameters"]]
         event_durations = events.loc[event_indices, "duration"].to_numpy(dtype=float)
+        out["event"][event_type] = {
+            "parameters": _columnar_parameters(event_parameter_records),
+            "duration": event_durations,
+        }
         for field, values in data.items():
             arr = np.asarray(values, dtype=float)
             event_data = arr[event_indices, :]
@@ -263,8 +274,6 @@ def compute_event_measures(
                 "min": float(np.nanmin(snippet_mean[mask_post])),
                 "n": int(len(event_indices)),
                 "event_mean": np.nanmean(event_data, axis=1),
-                "parameters": event_parameters,
-                "duration": event_durations,
                 "unit": _get(units, field, None),
             }
 

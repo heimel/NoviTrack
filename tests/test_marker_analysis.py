@@ -8,6 +8,7 @@ from novitrack.check_markers import check_markers
 from novitrack.compute_event_measures import compute_event_measures
 from novitrack.get_ethogram import get_ethogram
 from novitrack.get_events import get_events
+from novitrack.plot_events import plot_events
 from novitrack.show_markers import show_markers
 
 
@@ -75,26 +76,36 @@ def test_marker_consistency_pairs_stimulus_ids_without_legacy_strings():
     assert not check_markers(record, _params(), verbose=False)
 
 
-def test_event_measures_keep_trial_parameters_and_use_onset_duration():
+def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
     params = _params()
     measures = {
         "markers": [
-            _marker(1, "opto_on", duration=2.0, frequency=20.0),
+            _marker(0.5, "opto_on", duration=1.0, frequency=5.0),
             _marker(2, "approach"),
-            _marker(3, "opto_off", duration=0),
+            _marker(3, "opto_on", duration=2.0, frequency=30.0, power=0.002),
         ],
         "snippets_tbins": np.array([-0.5, 0.5]),
         "min_time": 0.0,
-        "max_time": 4.0,
+        "max_time": 6.0,
     }
     snippets = {"data": {"signal": np.arange(6, dtype=float).reshape(3, 2)}, "unit": {"signal": "zscore"}}
 
     out = compute_event_measures(snippets, measures, params)
 
-    assert out["behavior"]["opto_on"]["approach"]["n_responses_per_stimulus"] == 1
-    result = out["event"]["opto_on"]["signal"]
-    assert result["parameters"] == [{"frequency": 20.0}]
-    assert result["duration"].tolist() == [2.0]
+    event = out["event"]["opto_on"]
+    assert event["parameters"]["frequency"].tolist() == [5.0, 30.0]
+    assert event["parameters"]["power"][1] == 0.002
+    assert np.isnan(event["parameters"]["power"][0])
+    assert event["duration"].tolist() == [1.0, 2.0]
+    assert event["signal"]["event_mean"].shape == (2,)
+    assert "parameters" not in event["signal"]
+    assert "duration" not in event["signal"]
+
+    figures = plot_events({"measures": out}, params, snippets)
+    assert figures
+    assert all(len(figure.axes) == 2 for figure in figures)
+    for figure in figures:
+        plt.close(figure)
 
 
 def test_ethogram_uses_marker_id_and_allows_duration_events_to_overlap():

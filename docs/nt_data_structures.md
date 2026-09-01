@@ -34,7 +34,7 @@ snippets is a struct with fields:
     zscored = boolean, indicating if the snippets are z-score by the snippet baseline mean and std. deviation over all snippets. (not implemented yet)
     tbins = \[1 x n\_bins\_per\_snippet] (not implemented yet)
 
-For each record, the function nt\_compute\_event\_measures, computes several measures using these snippets, e.g. measures.event.(event\_type).(channel\_type).snippet\_mean = snippet\_mean. The structure event is saved in the session measures.
+For each record, the function nt\_compute\_event\_measures computes several measures using these snippets, e.g. `measures.event.(event_type).(channel_type).snippet_mean = snippet_mean`. Event occurrence metadata is stored once per event type: `measures.event.(event_type).parameters.(parameter_name)` and `measures.event.(event_type).duration` are arrays aligned with the event rows and with each channel's `event_mean`. The `parameters` and `duration` names are reserved at the event-type level. The structure event is saved in the session measures.
 
 Snippets are saved per session in variable 'snippets' in a mat-file 'nt_snippets.mat' in nt_session_folder(record).
 
