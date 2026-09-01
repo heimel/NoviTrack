@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from novitrack.load_photometry import _import_rwd_markers, parse_channels
+from novitrack.load_photometry import (
+    _import_rwd_markers,
+    parse_channels,
+    select_rwd_sync_triggers,
+)
 from novitrack.measures_schema import CURRENT_MEASURES_VERSION
 
 
@@ -18,6 +22,47 @@ def test_parse_channels_accepts_native_string():
         "Channel1": "signal",
         "Channel2": "isosbestic",
     }
+
+
+def test_sync_selection_recovers_long_input1_pulse_when_fit_is_good(capsys):
+    events = pd.DataFrame(
+        [
+            {"time": 35.560552, "code": "Trigger1", "duration": 0.0},
+            {"time": 1480.527216, "code": "Trigger1", "duration": 0.0},
+            {"time": 6218.528582, "code": "Input1", "duration": 1.565940},
+            {"time": 6230.915211, "code": "Trigger1", "duration": 0.0},
+        ]
+    )
+    short_triggers = np.array([35.560552, 1480.527216, 6230.915211])
+    master_triggers = np.array([0.0, 1444.962165, 6182.984461, 6195.363711])
+
+    selected = select_rwd_sync_triggers(events, short_triggers, master_triggers)
+
+    np.testing.assert_allclose(selected, events["time"])
+    output = capsys.readouterr().out
+    assert "accepting 1 long Input1 pulse(s)" in output
+    assert "maximum absolute residual 4.63118 ms" in output
+
+
+def test_sync_selection_rejects_long_pulse_and_warns_for_large_residual(capsys):
+    events = pd.DataFrame(
+        [
+            {"time": 10.0, "code": "Trigger1", "duration": 0.0},
+            {"time": 20.0, "code": "Trigger1", "duration": 0.0},
+            {"time": 30.0, "code": "Input1", "duration": 1.0},
+            {"time": 40.0, "code": "Trigger1", "duration": 0.0},
+        ]
+    )
+    short_triggers = np.array([10.0, 20.0, 40.0])
+    master_triggers = np.array([0.0, 10.0, 20.0, 30.1])
+
+    selected = select_rwd_sync_triggers(events, short_triggers, master_triggers)
+
+    np.testing.assert_allclose(selected, short_triggers)
+    output = capsys.readouterr().out
+    assert "WARNING: RWD sync recovery maximum residual" in output
+    assert "exceeds 20 ms" in output
+    assert "will not be used" in output
 
 
 def test_automatic_rwd_marker_import_uses_current_marker_schema():

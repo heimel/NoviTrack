@@ -47,12 +47,68 @@ def _prefer_tail_alignment(longer: np.ndarray, shorter: np.ndarray) -> bool:
     return cc_missing_first > cc_missing_last
 
 
+def _log_alignment_diagnostics(
+    label: str,
+    triggers_from: np.ndarray,
+    triggers_to: np.ndarray,
+    original_from_count: int,
+    original_to_count: int,
+    offset: float,
+    multiplier: float,
+    *,
+    multiplier_was_supplied: bool,
+) -> None:
+    pairs = ", ".join(
+        f"{source:.6g} -> {target:.6g}"
+        for source, target in zip(triggers_from, triggers_to)
+    )
+    matched_count = triggers_from.size
+    logmsg(
+        f"{label}: matched {matched_count}/{original_from_count} source sync pulse(s) "
+        f"to {matched_count}/{original_to_count} master sync pulse(s) "
+        f"(source -> master, s): {pairs}."
+    )
+    clock_difference = 100.0 * (multiplier - 1.0)
+    logmsg(
+        f"{label}: master_time = {multiplier:.12g} * source_time + "
+        f"{offset:.9g} s; clock multiplier {multiplier:.12g}, "
+        f"difference from 1 is {clock_difference:+.6g}%."
+    )
+    if matched_count < 2:
+        origin = (
+            "supplied clock multipliers"
+            if multiplier_was_supplied
+            else "an assumed multiplier of 1"
+        )
+        logmsg(
+            f"{label}: only one sync-pulse pair is available; clock drift cannot "
+            f"be measured and the fit uses {origin}."
+        )
+        return
+
+    residuals = triggers_to - (multiplier * triggers_from + offset)
+    rms_ms = 1000.0 * float(np.sqrt(np.mean(np.square(residuals))))
+    max_ms = 1000.0 * float(np.max(np.abs(residuals)))
+    correlation = _correlation(triggers_from, triggers_to)
+    logmsg(
+        f"{label}: sync fit correlation {correlation:.9g}, residual RMS "
+        f"{rms_ms:.6g} ms, maximum absolute residual {max_ms:.6g} ms."
+    )
+    if max_ms > 20.0:
+        logmsg(
+            f"WARNING: {label} maximum sync residual is {max_ms:.6g} ms, "
+            "which exceeds 20 ms. The time alignment may be inaccurate."
+        )
+
+
 def change_times(
     from_times: Any,
     triggers_from: Any,
     triggers_to: Any,
     multiplier_from: float | None = None,
     multiplier_to: float | None = None,
+    *,
+    diagnostic_label: str | None = None,
 ) -> tuple[np.ndarray, float, float]:
     """Change timestamps from one reference frame to another.
 
@@ -71,6 +127,9 @@ def change_times(
 
     n_triggers_from = triggers_from_vec.size
     n_triggers_to = triggers_to_vec.size
+    original_from_count = n_triggers_from
+    original_to_count = n_triggers_to
+    multiplier_was_supplied = multiplier_from is not None and multiplier_to is not None
 
     if n_triggers_from == 0 or n_triggers_to == 0:
         raise ValueError("change_times requires at least one trigger in both reference frames.")
@@ -101,6 +160,9 @@ def change_times(
             triggers_to_vec = triggers_to_vec[:n_triggers_from]
             logmsg("Missed last TO triggers in FROM reference")
         n_triggers_to = triggers_to_vec.size
+
+    matched_triggers_from = triggers_from_vec.copy()
+    matched_triggers_to = triggers_to_vec.copy()
 
     if n_triggers_from == 1:
         if multiplier_from is None or multiplier_to is None:
@@ -133,6 +195,18 @@ def change_times(
 
     if abs(multiplier - 1) > 0.01:
         logmsg("Clocks are more than 1% different. There is a likely mismatch of triggers.")
+
+    if diagnostic_label is not None:
+        _log_alignment_diagnostics(
+            diagnostic_label,
+            matched_triggers_from,
+            matched_triggers_to,
+            original_from_count,
+            original_to_count,
+            offset,
+            multiplier,
+            multiplier_was_supplied=multiplier_was_supplied,
+        )
 
     changed = (flat_from * multiplier + offset).reshape(original_shape)
     return changed, offset, multiplier

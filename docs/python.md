@@ -119,11 +119,14 @@ Restart the Jupyter kernel after changing this setting.
 ```python
 import novitrack as nt
 
-db = nt.load_mat_database("test_data/nttestdb_examples.mat")
+db = nt.load_mat_database()
 record = db.iloc[-1]
 out = nt.analyse_nttestrecord(record)
 nt.results_nttestrecord(out)
 ```
+
+With no filename, `load_mat_database()` loads the same bundled example database
+as `experiment_db()`. Pass a path to load a different database.
 
 When using Spyder, select the `pyqt6_env` interpreter or kernel after installing
 `spyder-kernels`.

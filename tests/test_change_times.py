@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -59,6 +60,37 @@ class TestNtChangeTimes(unittest.TestCase):
         np.testing.assert_allclose(changed, [2.0, 4.0])
         self.assertTrue(np.isclose(offset, 0.0))
         self.assertTrue(np.isclose(multiplier, 2.0))
+
+    def test_can_log_sync_pair_fit_diagnostics(self) -> None:
+        messages = []
+        with patch("novitrack.change_times.logmsg", side_effect=messages.append):
+            change_times(
+                [15.0],
+                [10.0, 20.0, 30.0],
+                [100.0, 120.0, 140.0],
+                diagnostic_label="RWD marker alignment",
+            )
+
+        output = "\n".join(messages)
+        self.assertIn("10 -> 100, 20 -> 120, 30 -> 140", output)
+        self.assertIn("master_time = 2 * source_time + 80 s", output)
+        self.assertIn("clock multiplier 2", output)
+        self.assertIn("sync fit correlation 1", output)
+        self.assertIn("residual RMS", output)
+
+    def test_warns_when_maximum_sync_residual_exceeds_20_ms(self) -> None:
+        messages = []
+        with patch("novitrack.change_times.logmsg", side_effect=messages.append):
+            change_times(
+                [0.0],
+                [0.0, 1.0, 2.0],
+                [0.0, 1.0, 2.1],
+                diagnostic_label="RWD marker alignment",
+            )
+
+        output = "\n".join(messages)
+        self.assertIn("WARNING: RWD marker alignment maximum sync residual", output)
+        self.assertIn("exceeds 20 ms", output)
 
     def test_deprecated_video_neurotar_wrappers(self) -> None:
         params = SimpleNamespace(picamera_time_multiplier=2.0)

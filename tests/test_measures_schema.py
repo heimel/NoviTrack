@@ -8,7 +8,7 @@ from inpythotools.mat_database import (
 )
 
 from novitrack.get_events import get_events
-from novitrack.mat_database import load_mat_database
+from novitrack.mat_database import default_database_filename, load_mat_database
 from novitrack.measures_schema import (
     CURRENT_MEASURES_VERSION,
     upgrade_database_measures,
@@ -126,3 +126,19 @@ def test_default_load_upgrades_without_writing_or_backing_up(tmp_path: Path):
     assert "legacy_backup" not in loaded.attrs
     assert filename.read_bytes() == original_bytes
     assert list(tmp_path.glob("source_legacy_*.mat")) == []
+
+
+def test_load_mat_database_without_filename_uses_example_database(monkeypatch):
+    expected = pd.DataFrame([{"sessionid": "example"}])
+    loaded_filenames = []
+
+    def fake_load(filename):
+        loaded_filenames.append(Path(filename))
+        return expected
+
+    monkeypatch.setattr("novitrack.mat_database._load_mat_database", fake_load)
+
+    loaded = load_mat_database()
+
+    assert loaded is expected
+    assert loaded_filenames == [default_database_filename()]

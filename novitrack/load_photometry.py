@@ -138,6 +138,87 @@ def load_rwd_triggers(
     return triggers, converted_events
 
 
+def select_rwd_sync_triggers(
+    converted_events: pd.DataFrame,
+    triggers: Any,
+    master_triggers: Any,
+    *,
+    maximum_residual: float = 0.020,
+) -> np.ndarray:
+    """Recover long Input1 sync pulses when the master clock supports them.
+
+    RWD normally represents a sync pulse as an effectively simultaneous low/high
+    pair, converted to ``Trigger1``. A delayed return edge is instead converted
+    to ``Input1``. When the normal trigger count differs from the master count,
+    reconsider those long Input1 events and accept them only if all candidate
+    onsets form a credible one-to-one clock fit.
+    """
+    selected = _as_array(triggers)
+    master = _as_array(master_triggers)
+    if master.size == 0 or selected.size == master.size or converted_events.empty:
+        return selected
+    if "code" not in converted_events or "time" not in converted_events:
+        return selected
+
+    sync_codes = converted_events["code"].astype(str).isin({"Trigger1", "Input1"})
+    candidates = converted_events.loc[sync_codes, "time"].to_numpy(dtype=float)
+    candidates = np.sort(candidates[np.isfinite(candidates)])
+    if candidates.size == selected.size:
+        return selected
+
+    logmsg(
+        f"RWD sync recovery: found {selected.size} short sync pulse(s), "
+        f"{candidates.size - selected.size} long Input1 candidate(s), and "
+        f"{master.size} master sync pulse(s)."
+    )
+    if candidates.size != master.size:
+        logmsg(
+            "RWD sync recovery: candidate count still does not match the master "
+            "count; retaining only the short sync pulses."
+        )
+        return selected
+
+    if candidates.size == 1:
+        multiplier = 1.0
+        offset = float(master[0] - candidates[0])
+        residuals = np.zeros(1, dtype=float)
+    else:
+        design = np.column_stack((np.ones(candidates.size), candidates))
+        offset, multiplier = np.linalg.lstsq(design, master, rcond=None)[0]
+        offset = float(offset)
+        multiplier = float(multiplier)
+        residuals = master - (multiplier * candidates + offset)
+
+    max_residual = float(np.max(np.abs(residuals)))
+    threshold_ms = 1000.0 * maximum_residual
+    logmsg(
+        f"RWD sync recovery candidate fit: clock multiplier {multiplier:.12g}, "
+        f"offset {offset:.9g} s, maximum absolute residual "
+        f"{1000 * max_residual:.6g} ms."
+    )
+    if max_residual > maximum_residual:
+        logmsg(
+            f"WARNING: RWD sync recovery maximum residual is "
+            f"{1000 * max_residual:.6g} ms, which exceeds "
+            f"{threshold_ms:.6g} ms. "
+            "Long Input1 candidates will not be used."
+        )
+        return selected
+    if abs(multiplier - 1.0) > 0.01:
+        logmsg(
+            f"WARNING: RWD sync recovery clock multiplier {multiplier:.12g} "
+            "differs from 1 by more than 1%; long Input1 candidates will not be used."
+        )
+        return selected
+
+    recovered_count = candidates.size - selected.size
+    logmsg(
+        f"RWD sync recovery: accepting {recovered_count} long Input1 pulse(s) "
+        "as sync pulses because they produce a one-to-one fit to the master pulses."
+    )
+    return candidates
+
+
 def _marker_for_marker_id(params: Any, marker_id: str, default_marker: str) -> str:
     markers = _get(params, "markers", None)
     if isinstance(markers, pd.DataFrame) and "marker_id" in markers:
@@ -298,17 +379,28 @@ def load_photometry(
     fluorescence["TimeStamp"] = fluorescence["TimeStamp"] / 1000
 
     triggers_fp, rwd_events = load_rwd_triggers(folder, params)
+    trigger_times = _as_array(_get(measures, "trigger_times", None))
+    if trigger_times.size:
+        triggers_fp = select_rwd_sync_triggers(
+            rwd_events,
+            triggers_fp,
+            trigger_times,
+        )
     if triggers_fp.size == 0:
         logmsg("No recorded RWD triggers. Assuming 0.")
         triggers_fp = np.array([0.0])
 
-    trigger_times = _as_array(_get(measures, "trigger_times", None))
     if trigger_times.size == 0:
         logmsg("No record trigger_times found. Using RWD trigger times.")
         trigger_times = triggers_fp.copy()
         measures["trigger_times"] = trigger_times
 
-    fluorescence_time, _, _ = change_times(fluorescence["TimeStamp"].to_numpy(), triggers_fp, trigger_times)
+    fluorescence_time, _, _ = change_times(
+        fluorescence["TimeStamp"].to_numpy(),
+        triggers_fp,
+        trigger_times,
+        diagnostic_label="RWD photometry alignment",
+    )
     fluorescence["time"] = fluorescence_time
 
     if not _has_markers(measures):

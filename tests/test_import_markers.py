@@ -41,7 +41,7 @@ def test_insert_marker_validates_linked_markers_sorts_and_deduplicates():
     assert all(np.isnan(marker["duration"]) for marker in markers)
 
 
-def test_load_laser_events_uses_received_trigger_as_time_zero(tmp_path):
+def test_load_laser_events_uses_received_trigger_as_time_zero(tmp_path, capsys):
     filename = tmp_path / "session_laser_triggers.csv"
     filename.write_text(
         "\n".join(
@@ -60,9 +60,13 @@ def test_load_laser_events_uses_received_trigger_as_time_zero(tmp_path):
         {"time": 2.5, "code": "p", "duration": 1.5},
         {"time": 4.0, "code": "o", "duration": 2.0},
     ]
+    assert (
+        "using received trigger at 2026-01-02 12:00:00.000 as source t = 0 s"
+        in capsys.readouterr().out
+    )
 
 
-def test_import_laser_translates_prey_and_opto_events(monkeypatch):
+def test_import_laser_translates_prey_and_opto_events(monkeypatch, capsys):
     params = _params(
         [
             {"marker_id": "virtual", "marker": "v", "linked": True},
@@ -97,6 +101,7 @@ def test_import_laser_translates_prey_and_opto_events(monkeypatch):
     assert all(np.isnan(value) for value in markers[1]["parameters"].values())
     assert markers[3]["parameters"] == {}
     assert record["measures"]["measures_version"] == CURRENT_MEASURES_VERSION
+    assert "divided by laser_time_multiplier = 2" in capsys.readouterr().out
 
 
 def test_load_noldus_epm_events_detects_zone_entries_and_video_offset(monkeypatch, tmp_path):
@@ -171,7 +176,7 @@ def test_import_newstim_aligns_events_to_master_time(monkeypatch):
     ]
 
 
-def test_import_rwd_adds_opto_and_numbered_event_markers(monkeypatch, tmp_path):
+def test_import_rwd_adds_opto_and_numbered_event_markers(monkeypatch, tmp_path, capsys):
     params = _params(
         [
             {"marker_id": "start", "marker": "o", "linked": True},
@@ -214,6 +219,14 @@ def test_import_rwd_adds_opto_and_numbered_event_markers(monkeypatch, tmp_path):
     assert all(np.isnan(value) for value in markers[0]["parameters"].values())
     assert markers[1]["parameters"] == {}
     assert markers[2]["parameters"] == {"stimulus_id": 1}
+
+    output = capsys.readouterr().out
+    assert "1 RWD sync pulse(s), and 1 master sync pulse(s)" in output
+    assert "matched 1/1 source sync pulse(s) to 1/1 master sync pulse(s)" in output
+    assert "clock multiplier 1" in output
+    assert "only one sync-pulse pair is available" in output
+    assert "aligned event range 10 to 20 s" in output
+    assert "RWD/NewStim marker match" in output
 
 
 def test_import_rwd_applies_timestamped_input_parameters(monkeypatch, tmp_path):

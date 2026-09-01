@@ -20,6 +20,16 @@ from .measures_schema import (
 )
 
 
+_DEFAULT_TEST_DATABASE = (
+    Path(__file__).parent.parent / "test_data" / "nttestdb_examples.mat"
+)
+
+
+def default_database_filename() -> Path:
+    """Return the bundled NoviTrack example database."""
+    return _DEFAULT_TEST_DATABASE
+
+
 def _legacy_backup_filename(filename: Path) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     candidate = filename.with_name(
@@ -73,11 +83,14 @@ def _save_upgraded_database(db: pd.DataFrame, filename: Path) -> Path:
 
 
 def load_mat_database(
-    filename: str | Path,
+    filename: str | Path | None = None,
     *,
     save_upgraded: bool = False,
 ) -> pd.DataFrame:
     """Load a database and upgrade outdated NoviTrack measures records.
+
+    When ``filename`` is omitted, the bundled NoviTrack example database is
+    loaded, matching :func:`novitrack.experiment_db`.
 
     By default, migration only changes the returned DataFrame; loading never
     writes to the source database. If ``save_upgraded=True`` is explicitly
@@ -85,7 +98,7 @@ def load_mat_database(
     ``<stem>_legacy_<YYYYMMDD_HHMMSS>.mat`` before the upgraded database
     atomically replaces it.
     """
-    filename = Path(filename)
+    filename = default_database_filename() if filename is None else Path(filename)
     db = _load_mat_database(filename)
     upgraded, report = upgrade_database_measures(db)
     if not report.changed:
@@ -112,4 +125,4 @@ def load_mat_database(
     return upgraded
 
 
-__all__ = ["load_mat_database", "save_mat_database"]
+__all__ = ["default_database_filename", "load_mat_database", "save_mat_database"]

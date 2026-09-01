@@ -41,7 +41,7 @@ from scipy.io import loadmat
 from inpythotools.logmsg import logmsg
 from .change_times import change_times
 from .load_parameters import load_parameters
-from .load_photometry import load_rwd_triggers
+from .load_photometry import load_rwd_triggers, select_rwd_sync_triggers
 from .marker_schema import (
     make_marker_record,
     marker_definition,
@@ -314,6 +314,10 @@ def load_laser_events(
     if len(received) > 1:
         logmsg("Multiple triggers received in laser trigger log. Using the first trigger.")
     start = received[0]
+    logmsg(
+        f"Laser marker alignment: using received trigger at "
+        f"{start.isoformat(sep=' ', timespec='milliseconds')} as source t = 0 s."
+    )
 
     rows = []
     for timestamp, fields, line in parsed:
@@ -579,6 +583,10 @@ def import_laser(
     events = load_laser_events(record, params)
     markers = _as_markers(measures["markers"], params)
     multiplier = float(_get(params, "laser_time_multiplier", 1.0))
+    logmsg(
+        f"Laser marker import: {len(events)} event(s); source times and durations "
+        f"are divided by laser_time_multiplier = {multiplier:.12g}."
+    )
     for event in events.itertuples(index=False):
         time = float(event.time) / multiplier
         duration = float(event.duration) / multiplier
@@ -622,21 +630,45 @@ def import_rwd(
     if events.empty:
         return record
 
+    trigger_times = np.asarray(
+        _get(measures, "trigger_times", []), dtype=float
+    ).reshape(-1)
+    if trigger_times.size == 0:
+        logmsg("No record trigger_times found. Cannot align RWD events.")
+        return record
+    rwd_triggers = select_rwd_sync_triggers(events, rwd_triggers, trigger_times)
+
     parameter_changes = load_rwd_parameters(folder)
     events = apply_rwd_parameters(events, parameter_changes)
     event_types = events.apply(_rwd_event_type, axis=1)
+    type_counts = event_types.value_counts().to_dict()
+    type_summary = ", ".join(
+        f"{name}={count}" for name, count in sorted(type_counts.items())
+    )
     events = events.loc[~event_types.isin({"ignore", "sync"})].copy()
     event_types = event_types.loc[events.index]
     if events.empty:
         return record
 
-    trigger_times = np.asarray(_get(measures, "trigger_times", []), dtype=float).reshape(-1)
-    if trigger_times.size == 0:
-        logmsg("No record trigger_times found. Cannot align RWD events.")
-        return record
+    logmsg(
+        f"RWD marker import from {folder}: {len(event_types)} retained event(s) "
+        f"(raw event types: {type_summary or 'none'}), {rwd_triggers.size} RWD sync "
+        f"pulse(s), and {trigger_times.size} master sync pulse(s)."
+    )
     events = events.copy()
-    events["time"], _, multiplier = change_times(events["time"].to_numpy(), rwd_triggers, trigger_times)
+    events["time"], _, multiplier = change_times(
+        events["time"].to_numpy(),
+        rwd_triggers,
+        trigger_times,
+        diagnostic_label="RWD marker alignment",
+    )
     events["duration"] = events["duration"].to_numpy(dtype=float) * multiplier
+    if not events.empty:
+        logmsg(
+            f"RWD marker alignment: aligned event range "
+            f"{events['time'].min():.6g} to {events['time'].max():.6g} s; "
+            f"durations multiplied by {multiplier:.12g}."
+        )
 
     newstim_triggers, newstim_events = load_newstim_triggers(record, params)
     stim_events = (
@@ -679,6 +711,21 @@ def import_rwd(
         and len(stim_events) == len(newstim_events)
         and rwd_diff.size == newstim_diff.size
         and (rwd_diff.size == 0 or np.max(np.abs(rwd_diff - newstim_diff)) < 0.020)
+    )
+    maximum_interval_difference = (
+        float(np.max(np.abs(rwd_diff - newstim_diff)))
+        if rwd_diff.size and rwd_diff.size == newstim_diff.size
+        else np.nan
+    )
+    interval_detail = (
+        f", maximum interval difference {1000 * maximum_interval_difference:.6g} ms"
+        if np.isfinite(maximum_interval_difference)
+        else ""
+    )
+    logmsg(
+        f"RWD/NewStim marker match: {len(stim_events)} RWD stimulus event(s), "
+        f"{len(newstim_events)} NewStim event(s){interval_detail}; "
+        f"match={'yes' if matching_newstim else 'no'}."
     )
     if matching_newstim:
         for rwd_event, newstim_event in zip(stim_events.itertuples(index=False), newstim_events.itertuples(index=False)):
@@ -738,7 +785,17 @@ def import_newstim(
         if selected is None:
             return record
         shift = float(selected)
-    changed_times, _, multiplier = change_times(events["time"].to_numpy(dtype=float), triggers, master_triggers if master_triggers.size else [0])
+    alignment_targets = master_triggers if master_triggers.size else np.array([0.0])
+    changed_times, _, multiplier = change_times(
+        events["time"].to_numpy(dtype=float),
+        triggers,
+        alignment_targets,
+        diagnostic_label="NewStim marker alignment",
+    )
+    logmsg(
+        f"NewStim marker alignment: {len(events)} event(s), manual shift "
+        f"{shift:.9g} s, durations multiplied by {multiplier:.12g}."
+    )
 
     markers = _as_markers(measures["markers"], params)
     for event, time in zip(events.itertuples(index=False), changed_times):

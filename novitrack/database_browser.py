@@ -26,7 +26,7 @@ from inpythotools.database_browser import (
 )
 
 from .analyse_nttestrecord import analyse_nttestrecord
-from .mat_database import load_mat_database
+from .mat_database import default_database_filename, load_mat_database
 from .load_parameters import load_parameters
 from .session_path import session_path
 from .results_nttestrecord import results_nttestrecord
@@ -34,7 +34,6 @@ from .results_nttestrecord import results_nttestrecord
 
 _OPEN_WINDOWS: list[DatabaseBrowser] = []
 _LAST_WINDOW: DatabaseBrowser | None = None
-_DEFAULT_TEST_DATABASE = Path(__file__).parent.parent / "test_data" / "nttestdb_examples.mat"
 _RECORD_ID_FIELDS = (
     "mouse",
     "subject",
@@ -531,11 +530,6 @@ def _show_string_values_without_quotes(window: DatabaseBrowser) -> None:
     window._refresh_view = refresh_view_with_unquoted_strings
     window._nt_unquoted_string_display = True
     window._refresh_view()
-
-
-def default_database_filename() -> Path:
-    """Return the bundled NoviTrack example database."""
-    return _DEFAULT_TEST_DATABASE
 
 
 def track_behavior_record(record: pd.Series) -> Any:
