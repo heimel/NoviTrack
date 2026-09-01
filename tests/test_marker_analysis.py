@@ -80,9 +80,24 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
     params = _params()
     measures = {
         "markers": [
-            _marker(0.5, "opto_on", duration=1.0, frequency=5.0),
+            _marker(
+                0.5,
+                "opto_on",
+                duration=1.0,
+                frequency=5.0,
+                pulse_width=0.01,
+                unused=np.array([]),
+            ),
             _marker(2, "approach"),
-            _marker(3, "opto_on", duration=2.0, frequency=30.0, power=0.002),
+            _marker(
+                3,
+                "opto_on",
+                duration=2.0,
+                frequency=30.0,
+                pulse_width=0.01,
+                power=0.002,
+                unused=np.array([]),
+            ),
         ],
         "snippets_tbins": np.array([-0.5, 0.5]),
         "min_time": 0.0,
@@ -94,6 +109,9 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
 
     event = out["event"]["opto_on"]
     assert event["parameters"]["frequency"].tolist() == [5.0, 30.0]
+    assert event["parameters"]["pulse_width"].tolist() == [0.01]
+    assert event["parameters"]["unused"].shape == (1,)
+    assert event["parameters"]["unused"][0].size == 0
     assert event["parameters"]["power"][1] == 0.002
     assert np.isnan(event["parameters"]["power"][0])
     assert event["duration"].tolist() == [1.0, 2.0]

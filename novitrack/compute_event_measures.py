@@ -67,12 +67,25 @@ def _parameter(row: Any, name: str, default: Any = None) -> Any:
 def _same_parameter(left: Any, right: Any) -> bool:
     if left is None or right is None:
         return left is right
+    if isinstance(left, np.ndarray) or isinstance(right, np.ndarray):
+        left_array = np.asarray(left)
+        right_array = np.asarray(right)
+        try:
+            return bool(np.array_equal(left_array, right_array, equal_nan=True))
+        except TypeError:
+            return bool(np.array_equal(left_array, right_array))
     try:
         if bool(pd.isna(left)) and bool(pd.isna(right)):
             return True
     except (TypeError, ValueError):
         pass
-    return left == right
+    try:
+        result = left == right
+        if isinstance(result, np.ndarray):
+            return bool(result.size and np.all(result))
+        return bool(result)
+    except (TypeError, ValueError):
+        return False
 
 
 def _matching_parameter(rows: pd.DataFrame, name: str, value: Any) -> pd.Series:
@@ -85,11 +98,17 @@ def _matching_parameter(rows: pd.DataFrame, name: str, value: Any) -> pd.Series:
 
 
 def _columnar_parameters(records: list[dict[str, Any]]) -> dict[str, np.ndarray]:
-    """Convert per-event parameter records to aligned parameter arrays."""
+    """Convert parameter records to varying arrays or singleton constants."""
     if not records:
         return {}
     table = pd.DataFrame.from_records(records)
-    return {str(name): table[name].to_numpy() for name in table.columns}
+    parameters: dict[str, np.ndarray] = {}
+    for name in table.columns:
+        values = table[name].to_numpy()
+        if values.size and all(_same_parameter(values[0], value) for value in values[1:]):
+            values = values[:1]
+        parameters[str(name)] = values
+    return parameters
 
 
 def compute_event_measures(
