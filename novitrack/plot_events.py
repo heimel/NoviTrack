@@ -15,6 +15,12 @@ from .get_events import get_events
 
 _EVENT_METADATA_KEYS = {"parameters", "duration"}
 
+_PARAMETER_UNITS = {
+    "frequency": "Hz",
+    "pulse_width": "s",
+    "power": "W",
+}
+
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
     if obj is None:
@@ -54,6 +60,101 @@ def _event_description(params: Any, event_type: str) -> str:
     if match.empty:
         return event_type
     return str(match.iloc[0].get("description", event_type))
+
+
+def _display_name(name: str) -> str:
+    """Turn a stored snake-case field name into a concise plot label."""
+    words = str(name).split("_")
+    return " ".join("ID" if word.lower() == "id" else word.capitalize() for word in words)
+
+
+def _parameter_label(name: str) -> str:
+    unit = _PARAMETER_UNITS.get(name)
+    label_name = name
+    if unit is None and "_" in name:
+        candidate_name, candidate_unit = name.rsplit("_", 1)
+        if candidate_unit.lower() in {"nm", "um", "mm", "cm", "m", "ms", "s", "hz", "w"}:
+            label_name = candidate_name
+            unit = candidate_unit
+    label = _display_name(label_name)
+    return f"{label} ({unit})" if unit else label
+
+
+def _plot_parameter_values(ax: plt.Axes, values: np.ndarray, responses: np.ndarray) -> None:
+    """Scatter aligned responses against numeric or categorical parameter values."""
+    valid_response = np.isfinite(responses)
+    try:
+        numeric_values = np.asarray(values, dtype=float)
+    except (TypeError, ValueError):
+        categories = np.asarray([str(value) for value in values], dtype=object)
+        missing = pd.isna(values)
+        valid = valid_response & ~np.asarray(missing, dtype=bool)
+        labels = list(dict.fromkeys(categories[valid]))
+        positions = {label: index for index, label in enumerate(labels)}
+        x = np.asarray([positions.get(label, np.nan) for label in categories], dtype=float)
+        ax.scatter(x[valid], responses[valid], color="black", alpha=0.75)
+        ax.set_xticks(range(len(labels)), labels)
+        return
+
+    valid = valid_response & np.isfinite(numeric_values)
+    ax.scatter(numeric_values[valid], responses[valid], color="black", alpha=0.75)
+
+
+def _plot_parameter_figures(
+    event_type: str,
+    event: Mapping[str, Any],
+    observables: list[str],
+    params: Any,
+    snippet_units: Mapping[str, Any],
+) -> list[plt.Figure]:
+    """Plot trial responses for each parameter stored as a varying array."""
+    parameters = _get(event, "parameters", {})
+    if not isinstance(parameters, Mapping):
+        return []
+
+    figures: list[plt.Figure] = []
+    for parameter_name, raw_values in parameters.items():
+        values = np.asarray(raw_values).reshape(-1)
+        if values.size <= 1:
+            continue
+
+        aligned_observables = [
+            observable
+            for observable in observables
+            if _as_array(event[observable].get("event_mean", [])).size == values.size
+        ]
+        if not aligned_observables:
+            continue
+
+        n_cols = min(3, len(aligned_observables))
+        n_rows = int(np.ceil(len(aligned_observables) / n_cols))
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(4.5 * n_cols, 3.8 * n_rows),
+            num=f"{event_type}: {parameter_name}",
+            constrained_layout=True,
+            squeeze=False,
+        )
+        fig.set_label(f"event_{event_type}_by_{parameter_name}")
+        fig.suptitle(f"{_event_description(params, event_type)} by {_display_name(str(parameter_name))}")
+
+        for ax, observable in zip(axes.flat, aligned_observables):
+            result = event[observable]
+            responses = _as_array(result["event_mean"])
+            _plot_parameter_values(ax, values, responses)
+            unit = snippet_units.get(observable, result.get("unit", "")) or ""
+            response_label = f"{_display_name(observable)} event mean"
+            ax.set_title(_display_name(observable))
+            ax.set_xlabel(_parameter_label(str(parameter_name)))
+            ax.set_ylabel(f"{response_label} ({unit})" if unit else response_label)
+            ax.grid(axis="both", color="0.9", linewidth=0.8)
+            ax.spines[["top", "right"]].set_visible(False)
+
+        for ax in axes.flat[len(aligned_observables) :]:
+            ax.axis("off")
+        figures.append(fig)
+    return figures
 
 
 def plot_events(
@@ -123,6 +224,15 @@ def plot_events(
             blank_ax = fig.add_subplot(grid[index // n_cols, index % n_cols])
             blank_ax.axis("off")
         figures.append(fig)
+        figures.extend(
+            _plot_parameter_figures(
+                str(event_type),
+                event,
+                observables,
+                params,
+                snippet_units,
+            )
+        )
     return figures
 
 

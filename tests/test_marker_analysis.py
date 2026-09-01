@@ -120,8 +120,21 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
     assert "duration" not in event["signal"]
 
     figures = plot_events({"measures": out}, params, snippets)
-    assert figures
-    assert all(len(figure.axes) == 2 for figure in figures)
+    figures_by_label = {figure.get_label(): figure for figure in figures}
+    assert set(figures_by_label) == {
+        "event_opto_on",
+        "event_opto_on_by_frequency",
+        "event_opto_on_by_power",
+        "event_approach",
+    }
+    assert len(figures_by_label["event_opto_on"].axes) == 2
+    parameter_ax = figures_by_label["event_opto_on_by_frequency"].axes[0]
+    assert parameter_ax.get_xlabel() == "Frequency (Hz)"
+    assert parameter_ax.get_ylabel() == "Signal event mean (zscore)"
+    assert parameter_ax.collections[0].get_offsets().tolist() == [[5.0, 0.5], [30.0, 4.5]]
+    power_ax = figures_by_label["event_opto_on_by_power"].axes[0]
+    assert power_ax.get_xlabel() == "Power (W)"
+    assert power_ax.collections[0].get_offsets().tolist() == [[0.002, 4.5]]
     for figure in figures:
         plt.close(figure)
 
