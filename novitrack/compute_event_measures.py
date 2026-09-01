@@ -132,6 +132,7 @@ def compute_event_measures(
     out.setdefault("behavior", {})
     motif_set = set(motif_list)
     stop_marker_id = str(_get(params, "nt_stop_marker_id", "stop"))
+    posttime = float(_get(params, "nt_posttime", 20))
     has_movie_bounds = "max_time" in out and "min_time" in out
     max_time = float(_get(out, "max_time", np.nan))
     min_time = float(_get(out, "min_time", np.nan))
@@ -166,8 +167,13 @@ def compute_event_measures(
                 if np.isfinite(duration) and duration > 0:
                     stim_stop = stim_start + duration
                 elif stop_candidates.size == 0:
-                    logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
-                    stim_stop = max_time
+                    if event_type == "opto_off":
+                        stim_stop = stim_start + posttime
+                        if np.isfinite(max_time):
+                            stim_stop = min(stim_stop, max_time)
+                    else:
+                        logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
+                        stim_stop = max_time
                 else:
                     stim_stop = float(events.loc[stop_candidates[0], "time"])
 

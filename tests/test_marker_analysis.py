@@ -139,6 +139,26 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
         plt.close(figure)
 
 
+def test_opto_off_uses_posttime_as_behavior_response_period(capsys):
+    params = _params()
+    measures = {
+        "markers": [
+            _marker(1.0, "opto_off", duration=0.0),
+            _marker(1.5, "approach"),
+            _marker(3.0, "approach"),
+        ],
+        "min_time": 0.0,
+        "max_time": 10.0,
+    }
+
+    out = compute_event_measures(None, measures, params)
+
+    response = out["behavior"]["opto_off"]["approach"]
+    assert response["n_occurrences_per_stimulus"] == 1
+    assert response["n_responses_per_stimulus"] == 1
+    assert "Stop marker missing for event type opto_off" not in capsys.readouterr().out
+
+
 def test_ethogram_uses_marker_id_and_allows_duration_events_to_overlap():
     record = {
         "sessionid": "test",
