@@ -202,20 +202,88 @@ def test_import_rwd_adds_opto_and_numbered_event_markers(monkeypatch, tmp_path):
     marker_import.import_rwd(record, params)
 
     markers = record["measures"]["markers"]
-    assert [marker["time"] for marker in markers] == pytest.approx([0.0, 10.0, 12.0, 20.0])
-    assert [marker["marker"] for marker in markers] == ["o1", "1", "0", "o2"]
+    assert [marker["time"] for marker in markers] == pytest.approx([10.0, 12.0, 20.0])
+    assert [marker["marker"] for marker in markers] == ["1", "0", "o1"]
     assert [marker["marker_id"] for marker in markers] == [
-        "start",
         "opto_on",
         "opto_off",
         "start",
     ]
-    assert [marker["duration"] for marker in markers] == pytest.approx([0.0, 2.0, 0.0, 0.0])
-    assert markers[0]["parameters"] == {"stimulus_id": 1}
-    assert set(markers[1]["parameters"]) == {"frequency", "pulse_width", "power"}
-    assert all(np.isnan(value) for value in markers[1]["parameters"].values())
-    assert markers[2]["parameters"] == {}
-    assert markers[3]["parameters"] == {"stimulus_id": 2}
+    assert [marker["duration"] for marker in markers] == pytest.approx([2.0, 0.0, 0.0])
+    assert set(markers[0]["parameters"]) == {"frequency", "pulse_width", "power"}
+    assert all(np.isnan(value) for value in markers[0]["parameters"].values())
+    assert markers[1]["parameters"] == {}
+    assert markers[2]["parameters"] == {"stimulus_id": 1}
+
+
+def test_import_rwd_applies_timestamped_input_parameters(monkeypatch, tmp_path):
+    params = _params(
+        [
+            {"marker_id": "start", "marker": "o", "linked": True},
+            {"marker_id": "opto_on", "marker": "1", "linked": False},
+            {"marker_id": "opto_off", "marker": "0", "linked": False},
+        ]
+    )
+    (tmp_path / "Parameters.csv").write_text(
+        "\n".join(
+            [
+                "TimeStamp,Input,Parameter,Value",
+                "0,Input1,type,sync",
+                "0,Input4,type,ignore",
+                "0,Input2,type,opto",
+                "0,Input2,wavelength_nm,1000",
+                "0,Input2,frequency,5",
+                "0,Input2,mode,pulsed",
+                "3000,Input2,frequency,10",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    record = {"measures": {"markers": [], "trigger_times": np.array([0.0])}}
+    events = pd.DataFrame(
+        [
+            {"time": 0.0, "code": "Trigger1", "duration": 0.0},
+            {"time": 1.0, "code": "Input2", "duration": 1.0},
+            {"time": 2.0, "code": "Input4", "duration": 0.0},
+            {"time": 3.0, "code": "Input2", "duration": 1.0},
+        ]
+    )
+    monkeypatch.setattr(marker_import, "photometry_folder", lambda *args: (tmp_path, True))
+    monkeypatch.setattr(
+        marker_import,
+        "load_rwd_triggers",
+        lambda *args: (np.array([0.0]), events),
+    )
+    monkeypatch.setattr(
+        marker_import,
+        "load_newstim_triggers",
+        lambda *args: (np.array([]), pd.DataFrame()),
+    )
+
+    marker_import.import_rwd(record, params)
+
+    markers = record["measures"]["markers"]
+    assert [marker["marker_id"] for marker in markers] == [
+        "opto_on",
+        "opto_off",
+        "opto_on",
+        "opto_off",
+    ]
+    assert [marker["time"] for marker in markers] == pytest.approx([1, 2, 3, 4])
+    assert markers[0]["parameters"]["frequency"] == 5
+    assert markers[2]["parameters"]["frequency"] == 10
+    assert markers[0]["parameters"]["wavelength_nm"] == 1000
+    assert markers[0]["parameters"]["mode"] == "pulsed"
+    assert markers[0]["parameters"]["type"] == "opto"
+    assert np.isnan(markers[0]["parameters"]["pulse_width"])
+    assert np.isnan(markers[0]["parameters"]["power"])
+
+
+def test_load_rwd_parameters_is_optional(tmp_path):
+    parameters = marker_import.load_rwd_parameters(tmp_path)
+
+    assert parameters.empty
+    assert parameters.columns.tolist() == ["time", "input", "parameter", "value"]
 
 
 def test_import_markers_rejects_unknown_option():

@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .marker_schema import marker_parameters
+from .marker_schema import marker_parameters, normalize_duration
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -45,7 +45,7 @@ def get_events(measures: Any, params: Any | None = None) -> pd.DataFrame:
         {
             "time": [float(_get(marker, "time")) for marker in markers],
             "event": [str(_get(marker, "marker_id", "unknown") or "unknown") for marker in markers],
-            "duration": [float(_get(marker, "duration", np.nan)) for marker in markers],
+            "duration": [normalize_duration(_get(marker, "duration", np.nan)) for marker in markers],
             "parameters": parameter_records,
         }
     )

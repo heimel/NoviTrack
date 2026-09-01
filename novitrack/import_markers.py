@@ -27,6 +27,7 @@ This is the Python counterpart of MATLAB ``nt_import_markers.m``.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -428,6 +429,130 @@ def _marker_for_id(params: Any, marker_id: str, default: str) -> str:
     return default
 
 
+def _parse_rwd_parameter_value(value: Any) -> Any:
+    """Convert numeric CSV values to numbers while retaining other strings."""
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            numeric = float(value)
+        except ValueError:
+            return value
+    elif isinstance(value, (int, float, np.integer, np.floating)):
+        numeric = float(value)
+    else:
+        return value
+    return int(numeric) if np.isfinite(numeric) and numeric.is_integer() else numeric
+
+
+def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
+    """Load optional timestamped per-input settings from ``Parameters.csv``.
+
+    Timestamps are converted from RWD milliseconds to seconds, matching the
+    unaligned event times returned by :func:`load_rwd_triggers`.
+    """
+    filename = Path(photometry_folder) / "Parameters.csv"
+    columns = ["time", "input", "parameter", "value"]
+    if not filename.exists():
+        return pd.DataFrame(columns=columns)
+
+    try:
+        table = pd.read_csv(filename)
+    except (OSError, pd.errors.ParserError) as error:
+        logmsg(f"Could not read RWD parameter file {filename}: {error}")
+        return pd.DataFrame(columns=columns)
+
+    table.columns = [str(name).strip() for name in table.columns]
+    required = {"TimeStamp", "Input", "Parameter", "Value"}
+    missing = sorted(required - set(table.columns))
+    if missing:
+        logmsg(f"Ignoring {filename}: missing column(s) {', '.join(missing)}")
+        return pd.DataFrame(columns=columns)
+
+    rows: list[dict[str, Any]] = []
+    for row_number, row in table.iterrows():
+        try:
+            time = float(row["TimeStamp"]) / 1000.0
+        except (TypeError, ValueError):
+            logmsg(f"Ignoring invalid TimeStamp on row {row_number + 2} of {filename}")
+            continue
+        input_name = str(row["Input"]).strip()
+        parameter = str(row["Parameter"]).strip()
+        value = _parse_rwd_parameter_value(row["Value"])
+        if not input_name or not parameter or value is None:
+            logmsg(f"Ignoring incomplete row {row_number + 2} of {filename}")
+            continue
+        rows.append(
+            {"time": time, "input": input_name, "parameter": parameter, "value": value}
+        )
+
+    return (
+        pd.DataFrame(rows, columns=columns)
+        .sort_values("time", kind="stable")
+        .reset_index(drop=True)
+    )
+
+
+def _rwd_event_input(code: Any) -> str:
+    """Return the RWD input name underlying an InputN or TriggerN event."""
+    match = re.fullmatch(r"(?:Input|Trigger)(\d+)", str(code), flags=re.IGNORECASE)
+    return f"Input{match.group(1)}" if match else str(code)
+
+
+def apply_rwd_parameters(events: pd.DataFrame, changes: pd.DataFrame) -> pd.DataFrame:
+    """Attach the parameter state effective at each unaligned RWD event time."""
+    annotated = events.copy()
+    if annotated.empty:
+        annotated["parameters"] = pd.Series(dtype=object)
+        return annotated
+
+    timelines: dict[str, dict[str, tuple[list[float], list[Any]]]] = {}
+    for (input_name, parameter), rows in changes.groupby(
+        ["input", "parameter"], sort=False
+    ):
+        timelines.setdefault(str(input_name).casefold(), {})[str(parameter)] = (
+            rows["time"].astype(float).tolist(),
+            rows["value"].tolist(),
+        )
+
+    parameter_states: list[dict[str, Any]] = []
+    for event in annotated.itertuples(index=False):
+        event_time = float(event.time)
+        input_timelines = timelines.get(_rwd_event_input(event.code).casefold(), {})
+        state: dict[str, Any] = {}
+        for parameter, (times, values) in input_timelines.items():
+            index = bisect_right(times, event_time) - 1
+            if index >= 0:
+                state[parameter] = values[index]
+        parameter_states.append(state)
+    annotated["parameters"] = parameter_states
+    return annotated
+
+
+def _rwd_event_type(event: Any) -> str:
+    parameters = _get(event, "parameters", {})
+    value = parameters.get("type") if isinstance(parameters, Mapping) else None
+    if value is None:
+        input_name = _rwd_event_input(_get(event, "code", ""))
+        if input_name == "Input1":
+            return "sync"
+        return "opto" if input_name == "Input3" else "event"
+    normalized = str(value).strip().casefold()
+    if normalized in {"0", "false", "ignore", "ignored"}:
+        return "ignore"
+    if normalized in {"1", "true", "opto", "optogenetic", "optogenetics"}:
+        return "opto"
+    return normalized
+
+
+def _rwd_event_parameters(event: Any) -> dict[str, Any]:
+    parameters = _get(event, "parameters", {})
+    return dict(parameters) if isinstance(parameters, Mapping) else {}
+
+
 def import_noldus_epm(
     record: Any,
     params: Any,
@@ -497,6 +622,14 @@ def import_rwd(
     if events.empty:
         return record
 
+    parameter_changes = load_rwd_parameters(folder)
+    events = apply_rwd_parameters(events, parameter_changes)
+    event_types = events.apply(_rwd_event_type, axis=1)
+    events = events.loc[~event_types.isin({"ignore", "sync"})].copy()
+    event_types = event_types.loc[events.index]
+    if events.empty:
+        return record
+
     trigger_times = np.asarray(_get(measures, "trigger_times", []), dtype=float).reshape(-1)
     if trigger_times.size == 0:
         logmsg("No record trigger_times found. Cannot align RWD events.")
@@ -506,15 +639,21 @@ def import_rwd(
     events["duration"] = events["duration"].to_numpy(dtype=float) * multiplier
 
     newstim_triggers, newstim_events = load_newstim_triggers(record, params)
-    stim_events = events.loc[events["code"] == "Trigger2"].copy() if newstim_triggers.size else events.copy()
+    stim_events = (
+        events.loc[events["code"] == "Trigger2"].copy()
+        if newstim_triggers.size
+        else events.loc[event_types != "opto"].copy()
+    )
     markers = _as_markers(measures["markers"], params)
-    for event in events.loc[events["code"] == "Input3"].itertuples(index=False):
+    for event in events.loc[event_types == "opto"].itertuples(index=False):
+        opto_parameters = unknown_opto_parameters()
+        opto_parameters.update(_rwd_event_parameters(event))
         for marker_time, marker, marker_duration, parameters in (
             (
                 float(event.time),
                 _marker_for_id(params, "opto_on", "1"),
                 float(event.duration),
-                unknown_opto_parameters(),
+                opto_parameters,
             ),
             (
                 float(event.time + event.duration),
@@ -556,9 +695,13 @@ def import_rwd(
                     params,
                     stim_id_provider=stim_id_provider,
                     duration=marker_duration,
+                    parameters=(
+                        _rwd_event_parameters(rwd_event)
+                        if marker_time == float(rwd_event.time)
+                        else None
+                    ),
                 )
     else:
-        stim_events = stim_events.loc[stim_events["code"] != "Input3"]
         unique_codes = {code: index + 1 for index, code in enumerate(sorted(stim_events["code"].astype(str).unique()))}
         for event in stim_events.itertuples(index=False):
             markers, _ = insert_marker(
@@ -568,6 +711,7 @@ def import_rwd(
                 params,
                 stim_id_provider=stim_id_provider,
                 duration=float(event.duration),
+                parameters=_rwd_event_parameters(event),
             )
 
     measures["markers"] = markers
@@ -655,9 +799,11 @@ def import_markers(
 
 __all__ = [
     "IMPORT_OPTIONS",
+    "apply_rwd_parameters",
     "import_markers",
     "insert_marker",
     "load_laser_events",
     "load_newstim_triggers",
     "load_noldus_epm_events",
+    "load_rwd_parameters",
 ]

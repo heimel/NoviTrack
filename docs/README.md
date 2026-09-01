@@ -17,6 +17,7 @@ workflows, running experiments, and reference information.
 
 ## Reference
 
+- [RWD events and parameters](rwd_events.md)
 - [NoviTrack coordinates](novitrack_coordinates.md)
 - [NoviTrack data structures](nt_data_structures.md)
 - [Neurotar data format](neurotar_data_explanation.md)

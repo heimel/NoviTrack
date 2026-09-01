@@ -12,6 +12,7 @@ import pandas as pd
 
 from inpythotools.logmsg import logmsg
 from .load_parameters import load_parameters
+from .marker_schema import normalize_duration
 from .show_markers import show_markers
 
 
@@ -81,7 +82,7 @@ def get_ethogram(
         marker_time = float(_get(marker, "time"))
         motif_index = motif_list.index(marker_id)
         marker_start = max(int(np.ceil((marker_time - min_time + 0.0001) / dt)) - 1, 0)
-        duration = float(_get(marker, "duration", np.nan))
+        duration = normalize_duration(_get(marker, "duration", np.nan))
 
         if np.isfinite(duration):
             marker_stop = min(
