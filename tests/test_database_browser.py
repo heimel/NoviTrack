@@ -211,6 +211,38 @@ def test_filter_error_shows_syntax_help_without_traceback(monkeypatch):
     assert "Traceback" not in messages[0][1]
 
 
+def test_string_values_are_displayed_and_edited_without_quotes():
+    app = QApplication.instance() or QApplication([])
+    window = DatabaseBrowser(
+        pd.DataFrame({"lab": ["heimellab"], "subject": ["mouse-1"], "sessnr": [2]})
+    )
+
+    database_browser._show_string_values_without_quotes(window)
+
+    displayed = {
+        window.table.item(row, 0).text(): window.table.item(row, 1).text()
+        for row in range(window.table.rowCount())
+    }
+    assert displayed == {
+        "lab": "heimellab",
+        "subject": "mouse-1",
+        "sessnr": "np.int64(2)",
+    }
+
+    lab_row = next(
+        row
+        for row in range(window.table.rowCount())
+        if window.table.item(row, 0).text() == "lab"
+    )
+    window.table.item(lab_row, 1).setText("anotherlab")
+
+    assert window.db.at[0, "lab"] == "anotherlab"
+    assert window.dirty is True
+
+    window.close()
+    app.processEvents()
+
+
 def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
     captured = {}
 
@@ -232,6 +264,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
     monkeypatch.setattr(database_browser, "load_mat_database", lambda filename: pd.DataFrame())
     monkeypatch.setattr(database_browser, "_install_import_button", lambda window: None)
     monkeypatch.setattr(database_browser, "_install_filter_error_help", lambda window: None)
+    monkeypatch.setattr(database_browser, "_show_string_values_without_quotes", lambda window: None)
     monkeypatch.setattr(database_browser.QApplication, "instance", lambda: None)
     monkeypatch.setattr(database_browser, "_running_in_ipython", lambda: True)
 

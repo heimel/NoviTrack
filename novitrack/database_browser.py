@@ -10,7 +10,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from PyQt6.QtCore import QEventLoop, QPoint, QRect
+from PyQt6.QtCore import QEventLoop, QPoint, QRect, Qt
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QPushButton
 
 try:
@@ -500,6 +500,39 @@ def _install_filter_error_help(window: DatabaseBrowser) -> None:
     window._show_error = show_error
 
 
+def _show_string_values_without_quotes(window: DatabaseBrowser) -> None:
+    """Render strings as editable text instead of their quoted ``repr``."""
+    if getattr(window, "_nt_unquoted_string_display", False):
+        return
+
+    original_refresh_view = window._refresh_view
+
+    def refresh_view_with_unquoted_strings() -> None:
+        original_refresh_view()
+        index = window.current_record_index()
+        if index is None:
+            return
+
+        window._updating_table = True
+        try:
+            for row in range(window.table.rowCount()):
+                item = window.table.item(row, 1)
+                if item is None:
+                    continue
+                column = item.data(Qt.ItemDataRole.UserRole)
+                if column is None:
+                    continue
+                value = window.db.at[index, column]
+                if isinstance(value, str):
+                    item.setText(value)
+        finally:
+            window._updating_table = False
+
+    window._refresh_view = refresh_view_with_unquoted_strings
+    window._nt_unquoted_string_display = True
+    window._refresh_view()
+
+
 def default_database_filename() -> Path:
     """Return the bundled NoviTrack example database."""
     return _DEFAULT_TEST_DATABASE
@@ -643,6 +676,7 @@ def experiment_db(
         block=False,
     )
     window.filter_box.setPlaceholderText("subject == '123456'")
+    _show_string_values_without_quotes(window)
     _install_import_button(window)
     _install_filter_error_help(window)
     _install_navigation_button_states(window)
