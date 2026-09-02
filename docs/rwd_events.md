@@ -53,16 +53,17 @@ and wavelength are added to every subsequent Input3 onset marker.
 
 `type` controls how NoviTrack interprets an input:
 
-- `ignore` (or numeric `0`) skips events from that input.
-- `opto` (or numeric `1`) creates separate `opto_on` and `opto_off` markers.
+- `ignore` skips events from that input.
+- `opto` creates separate `opto_on` and `opto_off` markers.
 - `sync` uses the input for clock synchronization but does not create markers.
 
 The `type` setting itself is also retained in the onset marker's `parameters`
-dictionary. Other type values are treated as ordinary RWD events. Input1
-defaults to `sync`, even when `Parameters.csv` is absent or has no Input1 type
-row. Input3 similarly defaults to `opto`; other inputs default to ordinary
-events. Declaring `0,Input1,type,sync` is therefore recommended for clarity but
-is not required.
+dictionary. Unknown type values produce a warning and are treated as ordinary
+RWD events. Numeric values such as `0` and `1` are not aliases for `ignore` and
+`opto`. Input1 defaults to `sync`, even when `Parameters.csv` is absent or has
+no Input1 type row. Input3 similarly defaults to `opto`; other inputs default
+to ordinary events. Declaring `0,Input1,type,sync` is therefore recommended for
+clarity but is not required.
 
 Optogenetic marker parameters use NoviTrack's normal unit convention. Thus
 `frequency` is in Hz, `pulse_width` is in seconds, and `power` is in watts.

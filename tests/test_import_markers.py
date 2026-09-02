@@ -316,6 +316,35 @@ def test_load_rwd_parameters_accepts_case_insensitive_headers_and_names(tmp_path
     assert parameters["value"].tolist() == pytest.approx([470e-9, 560e-9, 0.01])
 
 
+def test_load_rwd_parameters_warns_for_unknown_type_and_rejects_numeric_aliases(
+    tmp_path, capsys
+):
+    (tmp_path / "Parameters.csv").write_text(
+        "TimeStamp,Input,Parameter,Value\n0,Input2,type,0\n0,Input3,type,1\n"
+        "0,Input4,type,mystery\n",
+        encoding="utf-8",
+    )
+
+    parameters = marker_import.load_rwd_parameters(tmp_path)
+    events = pd.DataFrame(
+        [
+            {"time": 0.0, "code": row.input, "parameters": {"type": row.value}}
+            for row in parameters.itertuples(index=False)
+        ]
+    )
+
+    assert events.apply(marker_import._rwd_event_type, axis=1).tolist() == [
+        "0",
+        "1",
+        "mystery",
+    ]
+    output = capsys.readouterr().out
+    assert "Unknown RWD event type 0" in output
+    assert "Unknown RWD event type 1" in output
+    assert "Unknown RWD event type 'mystery'" in output
+    assert output.count("treated as ordinary events") == 3
+
+
 def test_import_markers_rejects_unknown_option():
     with pytest.raises(ValueError, match="Unknown marker import option"):
         marker_import.import_markers({}, "Other log", params=SimpleNamespace())

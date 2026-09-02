@@ -462,6 +462,17 @@ def _normalize_rwd_parameter(name: Any, value: Any) -> tuple[str, Any]:
     return parameter, value
 
 
+_KNOWN_RWD_EVENT_TYPES = {
+    "event",
+    "ignore",
+    "ignored",
+    "opto",
+    "optogenetic",
+    "optogenetics",
+    "sync",
+}
+
+
 def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
     """Load optional timestamped per-input settings from ``Parameters.csv``.
 
@@ -499,6 +510,11 @@ def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
         if not input_name or not parameter or value is None:
             logmsg(f"Ignoring incomplete row {row_number + 2} of {filename}")
             continue
+        if parameter == "type" and str(value).strip().casefold() not in _KNOWN_RWD_EVENT_TYPES:
+            logmsg(
+                f"Unknown RWD event type {value!r} on row {row_number + 2} of "
+                f"{filename}; events with this type will be treated as ordinary events."
+            )
         rows.append(
             {"time": time, "input": input_name, "parameter": parameter, "value": value}
         )
@@ -555,9 +571,9 @@ def _rwd_event_type(event: Any) -> str:
             return "sync"
         return "opto" if input_name == "Input3" else "event"
     normalized = str(value).strip().casefold()
-    if normalized in {"0", "false", "ignore", "ignored"}:
+    if normalized in {"ignore", "ignored"}:
         return "ignore"
-    if normalized in {"1", "true", "opto", "optogenetic", "optogenetics"}:
+    if normalized in {"opto", "optogenetic", "optogenetics"}:
         return "opto"
     return normalized
 
