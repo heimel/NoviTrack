@@ -256,6 +256,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
 
     def fake_browse_database(*args, **kwargs):
         captured["block"] = kwargs["block"]
+        captured["actions"] = kwargs["actions"]
         captured["action_icons"] = kwargs["action_icons"]
         return FakeWindow()
 
@@ -272,10 +273,11 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
 
     assert window is not None
     assert captured["block"] is False
+    assert list(captured["actions"]) == ["Track", "Analyze", "Results"]
     assert captured["action_icons"] == {
+        "Track": "route",
         "Analyze": "microscope",
         "Results": "chart-line",
-        "Track": "route",
     }
 
 

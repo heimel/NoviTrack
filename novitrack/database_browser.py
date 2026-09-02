@@ -48,9 +48,9 @@ _RECORD_ID_FIELDS = (
     "datatype",
 )
 _DATABASE_ACTION_ICONS = {
+    "Track": "route",
     "Analyze": "microscope",
     "Results": "chart-line",
-    "Track": "route",
 }
 _RESULT_FIGURE_GAP = 8
 _NAVIGATION_BUTTON_NAMES = (
@@ -620,9 +620,9 @@ def _load_gui_params(yaml_file: str | Path | None = None) -> tuple[int | None, i
 
 def _default_actions() -> dict[str, RecordAction]:
     return {
+        "Track": track_behavior_record,
         "Analyze": analyse_nttestrecord_and_show_results,
         "Results": results_nttestrecord_from_gui,
-        "Track": track_behavior_record,
     }
 
 
