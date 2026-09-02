@@ -49,10 +49,10 @@ _ICON_SIZE = QSize(24, 24)
 _LUCIDE_ICON_DIR = Path(__file__).with_name("icons") / "lucide"
 _TRACKER_ACTIONS = (
     ("previous_marker", "Previous marker", "skip-back", "Shift+P"),
-    ("toggle_play", "Play / pause", "pause", "Space"),
-    ("next_marker", "Next marker", "skip-forward", "Shift+N"),
     ("backward_frame", "Previous video frame", "step-back", "Left"),
+    ("toggle_play", "Play / pause", "pause", "Space"),
     ("forward_frame", "Next video frame", "step-forward", "Right"),
+    ("next_marker", "Next marker", "skip-forward", "Shift+N"),
     ("speed_decrease", "Decrease playback speed", "rewind", "-"),
     ("speed_original", "Reset playback speed to 1x", "refresh-cw", "="),
     ("speed_increase", "Increase playback speed", "fast-forward", "+"),

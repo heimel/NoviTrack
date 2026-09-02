@@ -41,6 +41,16 @@ def test_tracker_toolbar_uses_selected_24_px_lucide_icons():
     app.processEvents()
 
 
+def test_tracker_toolbar_starts_with_navigation_in_playback_order():
+    assert [action[0] for action in track_behavior._TRACKER_ACTIONS[:5]] == [
+        "previous_marker",
+        "backward_frame",
+        "toggle_play",
+        "forward_frame",
+        "next_marker",
+    ]
+
+
 def test_playback_and_marker_visibility_icons_follow_state(monkeypatch):
     icon_names = []
     monkeypatch.setattr(

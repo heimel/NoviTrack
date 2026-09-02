@@ -34,6 +34,7 @@ from .results_nttestrecord import results_nttestrecord
 
 _OPEN_WINDOWS: list[DatabaseBrowser] = []
 _LAST_WINDOW: DatabaseBrowser | None = None
+_WINDOW_ICON = Path(__file__).parent / "icons" / "novitrack.ico"
 _RECORD_ID_FIELDS = (
     "mouse",
     "subject",
@@ -664,7 +665,8 @@ def experiment_db(
         actions=actions if actions is not None else _default_actions(),
         action_icons=_DATABASE_ACTION_ICONS,
         session_folder_resolver=session_path,
-        window_title_prefix="NoviTrack database browser",
+        window_title_prefix="NoviTrack",
+        window_icon=_WINDOW_ICON,
         font_size=font_size,
         spacing=spacing,
         block=False,

@@ -258,6 +258,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
         captured["block"] = kwargs["block"]
         captured["actions"] = kwargs["actions"]
         captured["action_icons"] = kwargs["action_icons"]
+        captured["window_icon"] = kwargs["window_icon"]
         return FakeWindow()
 
     monkeypatch.setattr(database_browser, "_browse_database", fake_browse_database)
@@ -274,6 +275,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
     assert window is not None
     assert captured["block"] is False
     assert list(captured["actions"]) == ["Track", "Analyze", "Results"]
+    assert captured["window_icon"] == database_browser._WINDOW_ICON
     assert captured["action_icons"] == {
         "Track": "route",
         "Analyze": "microscope",
