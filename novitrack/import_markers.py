@@ -452,6 +452,16 @@ def _parse_rwd_parameter_value(value: Any) -> Any:
     return int(numeric) if np.isfinite(numeric) and numeric.is_integer() else numeric
 
 
+def _normalize_rwd_parameter(name: Any, value: Any) -> tuple[str, Any]:
+    """Return the case-insensitive internal name and SI value of a parameter."""
+    parameter = str(name).strip().casefold()
+    if parameter == "wavelength_nm":
+        parameter = "wavelength"
+        if isinstance(value, (int, float, np.integer, np.floating)):
+            value = value * 1e-9
+    return parameter, value
+
+
 def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
     """Load optional timestamped per-input settings from ``Parameters.csv``.
 
@@ -469,8 +479,8 @@ def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
         logmsg(f"Could not read RWD parameter file {filename}: {error}")
         return pd.DataFrame(columns=columns)
 
-    table.columns = [str(name).strip() for name in table.columns]
-    required = {"TimeStamp", "Input", "Parameter", "Value"}
+    table.columns = [str(name).strip().casefold() for name in table.columns]
+    required = {"timestamp", "input", "parameter", "value"}
     missing = sorted(required - set(table.columns))
     if missing:
         logmsg(f"Ignoring {filename}: missing column(s) {', '.join(missing)}")
@@ -479,13 +489,13 @@ def load_rwd_parameters(photometry_folder: str | Path) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for row_number, row in table.iterrows():
         try:
-            time = float(row["TimeStamp"]) / 1000.0
+            time = float(row["timestamp"]) / 1000.0
         except (TypeError, ValueError):
             logmsg(f"Ignoring invalid TimeStamp on row {row_number + 2} of {filename}")
             continue
-        input_name = str(row["Input"]).strip()
-        parameter = str(row["Parameter"]).strip()
-        value = _parse_rwd_parameter_value(row["Value"])
+        input_name = str(row["input"]).strip()
+        value = _parse_rwd_parameter_value(row["value"])
+        parameter, value = _normalize_rwd_parameter(row["parameter"], value)
         if not input_name or not parameter or value is None:
             logmsg(f"Ignoring incomplete row {row_number + 2} of {filename}")
             continue

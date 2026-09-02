@@ -241,11 +241,11 @@ def test_import_rwd_applies_timestamped_input_parameters(monkeypatch, tmp_path):
         "\n".join(
             [
                 "TimeStamp,Input,Parameter,Value",
-                "0,Input1,type,sync",
-                "0,Input4,type,ignore",
-                "0,Input2,type,opto",
-                "0,Input2,wavelength_nm,1000",
-                "0,Input2,frequency,5",
+                "0,Input1,TYPE,sync",
+                "0,Input4,Type,ignore",
+                "0,Input2,tYpE,opto",
+                "0,Input2,Wavelength_nm,1000",
+                "0,Input2,Frequency,5",
                 "0,Input2,mode,pulsed",
                 "3000,Input2,frequency,10",
             ]
@@ -285,7 +285,7 @@ def test_import_rwd_applies_timestamped_input_parameters(monkeypatch, tmp_path):
     assert [marker["time"] for marker in markers] == pytest.approx([1, 2, 3, 4])
     assert markers[0]["parameters"]["frequency"] == 5
     assert markers[2]["parameters"]["frequency"] == 10
-    assert markers[0]["parameters"]["wavelength_nm"] == 1000
+    assert markers[0]["parameters"]["wavelength"] == pytest.approx(1e-6)
     assert markers[0]["parameters"]["mode"] == "pulsed"
     assert markers[0]["parameters"]["type"] == "opto"
     assert np.isnan(markers[0]["parameters"]["pulse_width"])
@@ -297,6 +297,23 @@ def test_load_rwd_parameters_is_optional(tmp_path):
 
     assert parameters.empty
     assert parameters.columns.tolist() == ["time", "input", "parameter", "value"]
+
+
+def test_load_rwd_parameters_accepts_case_insensitive_headers_and_names(tmp_path):
+    (tmp_path / "Parameters.csv").write_text(
+        "timestamp,INPUT,parameter,value\n0,Input3,wavelength_nm,470\n"
+        "1000,Input3,Wavelength_nm,560\n1000,Input3,PULSE_WIDTH,0.01\n",
+        encoding="utf-8",
+    )
+
+    parameters = marker_import.load_rwd_parameters(tmp_path)
+
+    assert parameters["parameter"].tolist() == [
+        "wavelength",
+        "wavelength",
+        "pulse_width",
+    ]
+    assert parameters["value"].tolist() == pytest.approx([470e-9, 560e-9, 0.01])
 
 
 def test_import_markers_rejects_unknown_option():

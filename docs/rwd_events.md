@@ -35,7 +35,7 @@ The columns have the following meanings:
 - `TimeStamp`: time in RWD milliseconds, using the same clock as `Events.csv`.
 - `Input`: input to which the setting applies, for example `Input3`.
 - `Parameter`: the parameter name stored in the marker's `parameters`
-  dictionary.
+  dictionary. Names are case-insensitive and are normalized to lowercase.
 - `Value`: a numeric or text value. Numeric values are imported as numbers;
   other values remain strings.
 
@@ -43,7 +43,7 @@ Each row changes one parameter from that timestamp onward. The value remains
 active for subsequent events on the same input until another row changes that
 parameter. A change at exactly the event timestamp applies to that event.
 Parameters are tracked independently, so changing `frequency` does not clear
-an earlier `wavelength_nm` value.
+an earlier wavelength value.
 
 For example, the rows above give Input3 a frequency of 0 Hz initially, 5 Hz
 from 395442.042 ms, and 10 Hz from 1610625.724 ms. The applicable frequency
@@ -66,6 +66,8 @@ is not required.
 
 Optogenetic marker parameters use NoviTrack's normal unit convention. Thus
 `frequency` is in Hz, `pulse_width` is in seconds, and `power` is in watts.
-Names containing an explicit unit, such as `wavelength_nm`, retain that unit.
-Unknown `frequency`, `pulse_width`, and `power` values remain `NaN` unless the
-parameter file supplies them.
+For convenience, wavelength is written as `wavelength_nm` in `Parameters.csv`;
+the importer converts it to the internal `wavelength` parameter in metres.
+`wavelength_nm` and spellings such as `Wavelength_nm` are equivalent. Unknown
+`frequency`, `pulse_width`, and `power` values remain `NaN` unless the parameter
+file supplies them.
