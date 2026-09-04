@@ -63,7 +63,10 @@ def add_surgery_info(record: Any, params: Any | None = None) -> dict[str, Any]:
 
     filename = session_folder.parent.parent / "Surgery" / "Surgery_sites.xlsx"
     if not filename.exists():
-        logmsg(f"Cannot find surgery log for {_get(out, 'sessionid', 'record')}")
+        logmsg(
+            f"Cannot find surgery log for {_get(out, 'sessionid', 'record')}. "
+            f"Looked for {filename}"
+        )
         return out
 
     try:

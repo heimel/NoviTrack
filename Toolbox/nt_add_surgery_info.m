@@ -9,7 +9,7 @@ folder = fullfile(nt_session_path(record),'..','..','Surgery');
 filename = fullfile(folder,'Surgery_sites.xlsx');
 
 if ~exist(filename,'file')
-    logmsg(['Cannot find surgery log for ' recordfilter(record)]);
+    logmsg(['Cannot find surgery log for ' recordfilter(record) '. Looked for ' filename]);
     return
 end
 

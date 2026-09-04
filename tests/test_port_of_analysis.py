@@ -1,7 +1,7 @@
 from inpythotools import load_mat_database
 from novitrack import analyse_nttestrecord, results_nttestrecord
 from novitrack.get_ethogram import get_ethogram
-from novitrack.plot_photometry import _channel_label
+from novitrack.plot_photometry import _channel_label, channel_metadata_lines
 import numpy as np
 from pathlib import Path
 import importlib
@@ -41,6 +41,23 @@ def test_photometry_channel_label_accepts_matlab_empty_arrays():
     }
 
     assert _channel_label(channel) == "GCaMP"
+
+
+def test_channel_metadata_lines_include_location_and_sensors():
+    channel = {
+        "channel": "Channel1",
+        "hemisphere": "left",
+        "location": "central iSC",
+        "green_sensor": "dLight3.8",
+        "red_sensor": "jRGECO1a",
+    }
+
+    assert channel_metadata_lines(channel) == [
+        "Channel1",
+        "left central iSC",
+        "green = dLight3.8",
+        "red = jRGECO1a",
+    ]
 
 
 def test_missing_session_path_warning_points_to_local_config(monkeypatch, tmp_path):

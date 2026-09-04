@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .get_events import get_events
+from .plot_photometry import channel_metadata_lines
 
 
 _EVENT_METADATA_KEYS = {"parameters", "duration"}
@@ -180,16 +181,43 @@ def plot_events(
             continue
         n_cols = min(3, len(observables))
         n_rows = int(np.ceil(len(observables) / n_cols))
-        fig = plt.figure(figsize=(4.5 * n_cols, 4.2 * n_rows), num=str(event_type), constrained_layout=True)
+        channels = list(_get(measures, "channels", []))
+        info_height = 0.25 + 0.14 * sum(len(channel_metadata_lines(channel)) for channel in channels)
+        fig = plt.figure(
+            figsize=(4.5 * n_cols, 4.2 * n_rows + info_height),
+            num=str(event_type),
+            constrained_layout=True,
+        )
         fig.set_label(f"event_{event_type}")
         fig.suptitle(_event_description(params, str(event_type)))
         event_indices = events.index[events["event"] == str(event_type)].to_numpy()
-        grid = GridSpec(n_rows, n_cols, figure=fig)
+        if channels:
+            grid = GridSpec(
+                n_rows + 1,
+                n_cols,
+                figure=fig,
+                height_ratios=[max(info_height, 0.6)] + [4.2] * n_rows,
+            )
+            info_ax = fig.add_subplot(grid[0, :])
+            channel_blocks = ["\n".join(channel_metadata_lines(channel)) for channel in channels]
+            info_ax.text(
+                0.0,
+                1.0,
+                f"{_get(record, 'sessionid', '')}\n\n" + "\n\n".join(channel_blocks),
+                ha="left",
+                va="top",
+                transform=info_ax.transAxes,
+            )
+            info_ax.axis("off")
+            plot_row_offset = 1
+        else:
+            grid = GridSpec(n_rows, n_cols, figure=fig)
+            plot_row_offset = 0
 
         for index, observable in enumerate(observables):
             row = index // n_cols
             col = index % n_cols
-            subgrid = grid[row, col].subgridspec(2, 1, height_ratios=[2.0, 1.0], hspace=0.05)
+            subgrid = grid[row + plot_row_offset, col].subgridspec(2, 1, height_ratios=[2.0, 1.0], hspace=0.05)
             heat_ax = fig.add_subplot(subgrid[0])
             trace_ax = fig.add_subplot(subgrid[1], sharex=heat_ax)
             result = event[observable]
@@ -221,7 +249,7 @@ def plot_events(
             trace_ax.spines[["top", "right"]].set_visible(False)
 
         for index in range(len(observables), n_rows * n_cols):
-            blank_ax = fig.add_subplot(grid[index // n_cols, index % n_cols])
+            blank_ax = fig.add_subplot(grid[index // n_cols + plot_row_offset, index % n_cols])
             blank_ax.axis("off")
         figures.append(fig)
         figures.extend(

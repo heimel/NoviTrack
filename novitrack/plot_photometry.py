@@ -61,6 +61,25 @@ def _channel_label(channel: Mapping[str, Any]) -> str:
     return label or _as_label_text(_get(channel, "channel", "Channel"))
 
 
+def channel_metadata_lines(channel: Mapping[str, Any]) -> list[str]:
+    """Return display lines for a channel's fiber location and sensors."""
+    channel_name = _as_label_text(_get(channel, "channel", "Channel"))
+    hemisphere = _as_label_text(_get(channel, "hemisphere", ""))
+    location = _as_label_text(_get(channel, "location", ""))
+    green_sensor = _as_label_text(_get(channel, "green_sensor", ""))
+    red_sensor = _as_label_text(_get(channel, "red_sensor", ""))
+
+    lines = [channel_name]
+    fiber_location = " ".join(part for part in (hemisphere, location) if part)
+    if fiber_location:
+        lines.append(fiber_location)
+    if green_sensor:
+        lines.append(f"green = {green_sensor}")
+    if red_sensor:
+        lines.append(f"red = {red_sensor}")
+    return lines
+
+
 def plot_channel_correlation(
     record: Mapping[str, Any],
     photometry: Mapping[str, Any],
@@ -173,7 +192,8 @@ def plot_photometry(
         ax.set_ylabel("Fluorescence (a.u.)")
         ax.set_xlabel("Time (s)")
         ax.legend(loc="upper right")
-        ax.set_title(f"{_record_label(record)} - {channel_name}")
+        metadata = channel_metadata_lines(channel)
+        ax.set_title("\n".join([_record_label(record), ", ".join(metadata)]))
 
         if snippets and heat_lights and len(events):
             sorted_indices = events.sort_values("event").index.to_numpy()
@@ -202,4 +222,4 @@ def plot_photometry(
     return figures
 
 
-__all__ = ["plot_photometry", "plot_channel_correlation"]
+__all__ = ["channel_metadata_lines", "plot_photometry", "plot_channel_correlation"]

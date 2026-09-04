@@ -119,7 +119,16 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
     assert "parameters" not in event["signal"]
     assert "duration" not in event["signal"]
 
-    figures = plot_events({"measures": out}, params, snippets)
+    out["channels"] = [
+        {
+            "channel": "Channel1",
+            "hemisphere": "left",
+            "location": "central iSC",
+            "green_sensor": "dLight3.8",
+            "red_sensor": "",
+        }
+    ]
+    figures = plot_events({"sessionid": "session01", "measures": out}, params, snippets)
     figures_by_label = {figure.get_label(): figure for figure in figures}
     assert set(figures_by_label) == {
         "event_opto_on",
@@ -127,7 +136,11 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
         "event_opto_on_by_power",
         "event_approach",
     }
-    assert len(figures_by_label["event_opto_on"].axes) == 2
+    event_figure = figures_by_label["event_opto_on"]
+    assert len(event_figure.axes) == 3
+    assert event_figure.axes[0].texts[0].get_text() == (
+        "session01\n\nChannel1\nleft central iSC\ngreen = dLight3.8"
+    )
     parameter_ax = figures_by_label["event_opto_on_by_frequency"].axes[0]
     assert parameter_ax.get_xlabel() == "Frequency (Hz)"
     assert parameter_ax.get_ylabel() == "Signal event mean (zscore)"
