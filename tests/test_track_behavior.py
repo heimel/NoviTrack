@@ -289,6 +289,28 @@ def test_delete_all_markers_clears_markers_after_confirmation(monkeypatch):
     assert statuses == ["Deleted all markers"]
 
 
+def test_delete_next_marker_logs_same_line_as_matlab(monkeypatch):
+    window, statuses, refreshes, changes = _window_stub(
+        [{"time": 1.0, "marker": "o"}, {"time": 2.5, "marker": "t1"}]
+    )
+    window.master_time = 1.0
+    messages = []
+    monkeypatch.setattr(
+        track_behavior.QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(track_behavior, "logmsg", messages.append)
+
+    track_behavior.NTTrackBehaviorWindow.delete_next_marker(window)
+
+    assert messages == ["Deleting marker 't1' at time 2.5"]
+    assert window.measures["markers"] == [{"time": 1.0, "marker": "o"}]
+    assert refreshes == [True]
+    assert changes == [window.record]
+    assert statuses == ["Deleted marker t1 at 2.50 s"]
+
+
 def test_delete_all_markers_keeps_markers_when_cancelled(monkeypatch):
     markers = [{"time": 1.0, "marker": "o"}]
     window, statuses, refreshes, changes = _window_stub(markers)

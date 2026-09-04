@@ -890,6 +890,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         if answer != QMessageBox.StandardButton.Yes:
             self._report_status("Marker deletion cancelled")
             return
+        logmsg(f"Deleting marker '{marker.get('marker')}' at time {float(marker.get('time')):g}")
         del markers[index]
         self.measures["markers"] = markers
         self._refresh_marker_items()
