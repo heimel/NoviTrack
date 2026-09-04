@@ -318,7 +318,12 @@ class NTTrackBehaviorWindow(QMainWindow):
         if not self.active_cameras:
             raise FileNotFoundError(_missing_movies_message(self.record, self.params))
 
-        self.nt_data, trigger_times = load_tracking_data(self.record, self.params, recompute=False)
+        self.nt_data, trigger_times = load_tracking_data(
+            self.record,
+            self.params,
+            recompute=False,
+            video_info=self.video_info,
+        )
         if not self.nt_data:
             raise FileNotFoundError("No Neurotar/tracking data were found for this record.")
         self.measures["trigger_times"] = _as_array(trigger_times, [0.0])

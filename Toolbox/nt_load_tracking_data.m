@@ -202,4 +202,5 @@ if ~isfield(nt_data,'Object_distance')
 end
 
 % Save data
+nt_data.schema_version = 1;
 save(filename,'nt_data');

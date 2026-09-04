@@ -1,5 +1,25 @@
 # Data structures
 
+## Tracking data
+
+Per-session tracking data are stored in `nt_tracking_data.mat` as the MATLAB
+struct `nt_data`. This is the shared interchange and cache format for the
+MATLAB and Python implementations. Python writes a MATLAB v5 compatible file;
+the physical MAT-file encoding does not need to be byte-identical between the
+two implementations.
+
+`nt_data.Time` is an n-sample vector in seconds in master time. Spatial sample
+vectors (`X`, `Y`, `CoM_X`, `CoM_Y`, `tailbase_X`, and `tailbase_Y`) have the
+same length. Missing measurements are represented by `NaN`. `Coordinates`
+identifies their coordinate system. Derived vectors include `Speed`,
+`Forward_speed`, `alpha`, `Angular_velocity`, `Abs_angular_velocity`,
+`Distance_to_center`, and `Object_distance`.
+
+New files may contain the scalar `nt_data.schema_version`. Version 1 describes
+the fields above. Files without this field are legacy version 1 files and must
+remain readable. Trigger times are kept in the session record rather than in
+the tracking cache.
+
 ## Database
 
 Databases contain records with session information for a specific study dossier.
