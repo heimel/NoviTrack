@@ -342,7 +342,9 @@ def test_record_changed_notifies_database_callback():
 def test_add_marker_logs_marker_and_time(monkeypatch):
     window, statuses, refreshes, changes = _window_stub([])
     window.params = SimpleNamespace(
-        markers=pd.DataFrame([{"marker": "o", "linked": False}]),
+        markers=pd.DataFrame(
+            [{"marker_id": "start", "marker": "o", "linked": False}]
+        ),
         nt_stop_marker="t",
     )
     window.master_time = 12.5
@@ -351,11 +353,38 @@ def test_add_marker_logs_marker_and_time(monkeypatch):
 
     track_behavior.NTTrackBehaviorWindow.add_marker(window, "o")
 
-    assert window.measures["markers"] == [{"time": 12.5, "marker": "o"}]
+    assert len(window.measures["markers"]) == 1
+    marker = window.measures["markers"][0]
+    assert marker["time"] == 12.5
+    assert marker["marker"] == "o"
+    assert marker["marker_id"] == "start"
+    assert np.isnan(marker["duration"])
+    assert marker["parameters"] == {}
     assert logs == ["Inserting marker 'o' at time 12.5"]
     assert refreshes == [True]
     assert changes == [window.record]
     assert statuses == ["Added marker o at 12.50 s"]
+
+
+def test_add_marker_dialog_saves_selected_marker_id(monkeypatch):
+    selections = []
+    window = SimpleNamespace(
+        params=SimpleNamespace(
+            markers=pd.DataFrame(
+                [{"marker_id": "escape", "marker": "e", "linked": False}]
+            )
+        ),
+        add_marker=lambda marker, **kwargs: selections.append((marker, kwargs)),
+    )
+    monkeypatch.setattr(
+        track_behavior.QInputDialog,
+        "getItem",
+        lambda *args: ("escape", True),
+    )
+
+    track_behavior.NTTrackBehaviorWindow.add_marker_dialog(window)
+
+    assert selections == [("e", {"marker_id": "escape"})]
 
 
 class _FakePlot:

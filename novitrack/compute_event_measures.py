@@ -166,14 +166,15 @@ def compute_event_measures(
                 ].to_numpy()
                 if np.isfinite(duration) and duration > 0:
                     stim_stop = stim_start + duration
+                elif event_type in {"opto_off", stop_marker_id}:
+                    # These markers describe an instant rather than the start of
+                    # an interval. Use the standard post-event response window.
+                    stim_stop = stim_start + posttime
+                    if np.isfinite(max_time):
+                        stim_stop = min(stim_stop, max_time)
                 elif stop_candidates.size == 0:
-                    if event_type == "opto_off":
-                        stim_stop = stim_start + posttime
-                        if np.isfinite(max_time):
-                            stim_stop = min(stim_stop, max_time)
-                    else:
-                        logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
-                        stim_stop = max_time
+                    logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
+                    stim_stop = max_time
                 else:
                     stim_stop = float(events.loc[stop_candidates[0], "time"])
 

@@ -456,7 +456,7 @@ def _show_import_dialog(window: DatabaseBrowser) -> None:
 
 
 def _install_import_button(window: DatabaseBrowser) -> None:
-    """Add the NoviTrack import control beside the generic browser's Load button."""
+    """Add the NoviTrack import control after the generic browser's Save button."""
     layout = window.centralWidget().layout().itemAt(0).layout()
     button = QPushButton(window)
     if window.load_button is not None:
@@ -468,8 +468,8 @@ def _install_import_button(window: DatabaseBrowser) -> None:
         tooltip="Import a database or session JSON records after the current record",
     )
     button.clicked.connect(lambda _checked=False: _show_import_dialog(window))
-    load_position = layout.indexOf(window.load_button)
-    layout.insertWidget(load_position + 1 if load_position >= 0 else 0, button)
+    save_position = layout.indexOf(window.save_button)
+    layout.insertWidget(save_position + 1 if save_position >= 0 else 0, button)
     window.import_button = button
 
 

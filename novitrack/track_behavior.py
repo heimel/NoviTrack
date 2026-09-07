@@ -40,6 +40,7 @@ from .change_times import change_times
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
 from .load_tracking_data import load_tracking_data
+from .marker_schema import make_marker_record
 from .open_videos import OpenCVVideoReader, VideoInfo, movie_search_locations, open_videos
 
 
@@ -761,10 +762,16 @@ class NTTrackBehaviorWindow(QMainWindow):
             self._report_status(f"Jumped to {self.master_time:.2f} s")
 
     def add_marker_dialog(self) -> None:
-        keys = [str(row["marker"]) for _, row in _get(self.params, "markers", pd.DataFrame()).iterrows()]
-        key, ok = QInputDialog.getItem(self, "Add marker", "Marker:", keys, 0, False)
-        if ok and key:
-            self.add_marker(key)
+        definitions = _get(self.params, "markers", pd.DataFrame())
+        marker_keys = {
+            str(row["marker_id"]): str(row["marker"])
+            for _, row in definitions.iterrows()
+        }
+        marker_id, ok = QInputDialog.getItem(
+            self, "Add marker", "Marker:", list(marker_keys), 0, False
+        )
+        if ok and marker_id:
+            self.add_marker(marker_keys[marker_id], marker_id=marker_id)
 
     def import_markers_dialog(self) -> None:
         was_playing = self.playing
@@ -846,7 +853,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         else:
             self._report_status("No markers imported")
 
-    def add_marker(self, marker_key: str) -> None:
+    def add_marker(self, marker_key: str, *, marker_id: str | None = None) -> None:
         definition = _marker_definition(self.params, marker_key)
         if definition is None:
             self._report_status(f"Unknown marker key {marker_key!r}")
@@ -867,7 +874,14 @@ class NTTrackBehaviorWindow(QMainWindow):
             logmsg(f"Marker {marker_text} already present at t = {self.master_time:g}.")
             self._report_status(f"Marker {marker_text} already present at {self.master_time:.2f} s")
             return
-        markers.append({"time": float(self.master_time), "marker": marker_text})
+        markers.append(
+            make_marker_record(
+                self.master_time,
+                marker_text,
+                self.params,
+                marker_id=marker_id,
+            )
+        )
         self.measures["markers"] = sorted(markers, key=lambda item: float(item["time"]))
         logmsg(f"Inserting marker '{marker_text}' at time {self.master_time:g}")
         if marker_key[0] == str(_get(self.params, "nt_stop_marker", "t")):

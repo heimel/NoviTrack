@@ -69,6 +69,9 @@ def test_import_button_uses_shared_24_px_icon():
     assert not button.icon().isNull()
     assert button.width() == button.height()
 
+    layout = window.centralWidget().layout().itemAt(0).layout()
+    assert layout.indexOf(window.import_button) == layout.indexOf(window.save_button) + 1
+
     window.close()
     app.processEvents()
 
