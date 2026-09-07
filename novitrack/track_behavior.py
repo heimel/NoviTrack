@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import time
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,12 +18,16 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -66,6 +71,27 @@ _TRACKER_ACTIONS = (
     ("show_help", "Help", "circle-help", "Shift+H"),
     ("close", "Stop / close tracker", "square", "Shift+Q"),
 )
+
+
+@dataclass(frozen=True)
+class _ObservableSpec:
+    field: str
+    y_range: tuple[float, float]
+
+
+_OBSERVABLES: dict[str, _ObservableSpec] = {
+    "Speed": _ObservableSpec("Speed", (-0.25, 0.25)),
+    "Rotation": _ObservableSpec("Angular_velocity", (-360.0, 360.0)),
+    "Distance": _ObservableSpec("Object_distance", (0.0, 300.0)),
+    "Absolute rotation": _ObservableSpec("Abs_angular_velocity", (0.0, 360.0)),
+    "Distance to center": _ObservableSpec("Distance_to_center", (0.0, 300.0)),
+    "Heading": _ObservableSpec("alpha", (-180.0, 180.0)),
+    "Total speed": _ObservableSpec("Speed", (0.0, 0.375)),
+    "Forward speed": _ObservableSpec("Forward_speed", (-0.25, 0.25)),
+    "X position": _ObservableSpec("CoM_X", (0.0, 1000.0)),
+    "Y position": _ObservableSpec("CoM_Y", (0.0, 1000.0)),
+}
+_DEFAULT_OBSERVABLE_PANELS = ("Speed", "Rotation", "Distance")
 
 
 def _lucide_icon(name: str) -> QIcon:
@@ -281,6 +307,128 @@ def _missing_movies_message(record: Any, params: Any) -> str:
     return "\n".join(lines)
 
 
+def _ask_y_range(
+    parent: QWidget,
+    observable_name: str,
+    current_range: tuple[float, float],
+) -> tuple[float, float] | None:
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(f"{observable_name} y-axis range")
+    form = QFormLayout(dialog)
+    minimum = QDoubleSpinBox(dialog)
+    maximum = QDoubleSpinBox(dialog)
+    for control, value in zip((minimum, maximum), current_range):
+        control.setDecimals(6)
+        control.setRange(-1.0e12, 1.0e12)
+        control.setValue(float(value))
+    form.addRow("Minimum:", minimum)
+    form.addRow("Maximum:", maximum)
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+        parent=dialog,
+    )
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    form.addRow(buttons)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return None
+    y_range = (minimum.value(), maximum.value())
+    if y_range[0] >= y_range[1]:
+        QMessageBox.warning(parent, "Invalid range", "The minimum must be smaller than the maximum.")
+        return None
+    return y_range
+
+
+class _ObservablePanel(QWidget):
+    """One configurable time-course panel in the bottom tracker row."""
+
+    def __init__(self, owner: "NTTrackBehaviorWindow", observable_name: str) -> None:
+        super().__init__(owner)
+        self.owner = owner
+        self.observable_name = observable_name
+        self.y_range = _OBSERVABLES[observable_name].y_range
+        self.setMinimumWidth(80)
+        self.setMaximumWidth(450)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        header = QWidget(self)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(6, 0, 2, 0)
+        header_layout.setSpacing(2)
+        self.title_label = QLabel(self)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(self.title_label, 1)
+        self.delete_button = QToolButton(self)
+        self.delete_button.setText("×")
+        self.delete_button.setToolTip("Delete this observable panel")
+        self.delete_button.setAccessibleName("Delete observable panel")
+        self.delete_button.clicked.connect(lambda: self.owner._delete_observable_panel(self))
+        header_layout.addWidget(self.delete_button)
+        layout.addWidget(header)
+
+        self.plot = pg.PlotWidget()
+        self.plot.setBackground("w")
+        self.plot.setMenuEnabled(False)
+        layout.addWidget(self.plot, 1)
+
+        self.cursor = pg.InfiniteLine(0, angle=90, pen=pg.mkPen((230, 40, 40), width=2))
+        self.cursor.setZValue(1000)
+        self.plot.addItem(self.cursor)
+
+        for widget in (self, header, self.title_label, self.plot):
+            widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            widget.customContextMenuRequested.connect(
+                lambda position, source=widget: self._show_context_menu(source.mapToGlobal(position))
+            )
+        self.set_observable(observable_name)
+
+    def set_observable(self, observable_name: str) -> None:
+        self.observable_name = observable_name
+        self.y_range = _OBSERVABLES[observable_name].y_range
+        self.title_label.setText(observable_name)
+        self.plot.clear()
+        self.plot.plot(
+            self.owner.time_values,
+            self.owner._observable_values(observable_name),
+            pen=pg.mkPen("k"),
+        )
+        self.plot.setYRange(*self.y_range, padding=0)
+        self.plot.addItem(self.cursor)
+        self.owner._update_trace_ranges()
+        self.owner._refresh_marker_items()
+        self.owner._update_panel_controls()
+
+    def set_y_range(self, y_range: tuple[float, float]) -> None:
+        self.y_range = y_range
+        self.plot.setYRange(*y_range, padding=0)
+
+    def _show_context_menu(self, global_position: Any) -> None:
+        menu = QMenu(self)
+        observable_menu = menu.addMenu("Show observable")
+        available = set(self.owner._available_observable_names())
+        for name in _OBSERVABLES:
+            action = observable_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(name == self.observable_name)
+            action.setEnabled(name in available)
+            action.triggered.connect(lambda checked=False, selected=name: self.set_observable(selected))
+        menu.addSeparator()
+        range_action = menu.addAction("Set y-axis range…")
+        range_action.triggered.connect(self._change_y_range)
+        reset_action = menu.addAction("Reset y-axis range")
+        reset_action.triggered.connect(
+            lambda: self.set_y_range(_OBSERVABLES[self.observable_name].y_range)
+        )
+        menu.exec(global_position)
+
+    def _change_y_range(self) -> None:
+        y_range = _ask_y_range(self, self.observable_name, self.y_range)
+        if y_range is not None:
+            self.set_y_range(y_range)
+
+
 class NTTrackBehaviorWindow(QMainWindow):
     """First usable PyQt6 port of MATLAB ``track_behavior``."""
 
@@ -389,6 +537,35 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.rotation_values = _as_array(self.nt_data.get("Angular_velocity"), np.full_like(self.time_values, np.nan))
         self.distance_values = _as_array(self.nt_data.get("Object_distance"), np.full_like(self.time_values, np.nan))
 
+    def _observable_values(self, observable_name: str) -> np.ndarray:
+        spec = _OBSERVABLES[observable_name]
+        field = spec.field
+        if observable_name == "Speed" and bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)):
+            field = "Forward_speed"
+        return _as_array(self.nt_data.get(field), np.full_like(self.time_values, np.nan))
+
+    def _available_observable_names(self) -> list[str]:
+        return [
+            name
+            for name in _OBSERVABLES
+            if self._observable_values(name).size == self.time_values.size
+        ]
+
+    def _initial_observable_names(self) -> list[str]:
+        configured = _get(self.params, "nt_tracking_observable_panels", _DEFAULT_OBSERVABLE_PANELS)
+        if isinstance(configured, str):
+            configured = [configured]
+        try:
+            requested = [str(name) for name in configured]
+        except TypeError:
+            requested = list(_DEFAULT_OBSERVABLE_PANELS)
+        available_names = self._available_observable_names()
+        available = set(available_names)
+        names = [name for name in requested if name in available]
+        if not names:
+            names = [available_names[0] if available_names else "Speed"]
+        return names
+
     def _build_ui(self) -> None:
         self.setWindowTitle(f"Tracking - {_record_title(self.record)}")
         root = QWidget(self)
@@ -487,14 +664,19 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.timeline.scene().sigMouseClicked.connect(self._timeline_clicked)
         layout.addWidget(self.timeline, stretch=1)
 
-        traces = QHBoxLayout()
-        layout.addLayout(traces, stretch=2)
-        self.speed_plot = self._make_trace_plot("Speed", self.speed_values, (-0.25, 0.25))
-        traces.addWidget(self.speed_plot)
-        self.rotation_plot = self._make_trace_plot("Rotation", self.rotation_values, (-360, 360))
-        traces.addWidget(self.rotation_plot)
-        self.distance_plot = self._make_trace_plot("Distance", self.distance_values, (0, 300))
-        traces.addWidget(self.distance_plot)
+        self.trace_row = QHBoxLayout()
+        self.trace_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addLayout(self.trace_row, stretch=2)
+        self.trace_panels: list[_ObservablePanel] = []
+        for observable_name in self._initial_observable_names():
+            self._add_observable_panel(observable_name)
+        self.add_panel_button = QToolButton(root)
+        self.add_panel_button.setText("+")
+        self.add_panel_button.setToolTip("Add an observable panel")
+        self.add_panel_button.setAccessibleName("Add observable panel")
+        self.add_panel_button.clicked.connect(self._add_next_observable_panel)
+        self.trace_row.addWidget(self.add_panel_button, alignment=Qt.AlignmentFlag.AlignTop)
+        self._update_panel_controls()
 
         self.resize(1200, 820)
         QTimer.singleShot(0, self._fit_video_views_to_height)
@@ -548,23 +730,66 @@ class NTTrackBehaviorWindow(QMainWindow):
         if callback is not None:
             callback(self.record)
 
-    def _make_trace_plot(self, title: str, values: np.ndarray, y_range: tuple[float, float]) -> pg.PlotWidget:
-        plot = pg.PlotWidget(title=title)
-        plot.setBackground("w")
-        plot.plot(self.time_values, values, pen=pg.mkPen("k"))
-        plot.setYRange(*y_range)
-        plot.setXRange(-3, 3, padding=0)
-        cursor = pg.InfiniteLine(0, angle=90, pen=pg.mkPen((230, 40, 40), width=2))
-        cursor.setZValue(1000)
-        plot.addItem(cursor)
-        setattr(self, f"_{title.lower()}_cursor", cursor)
-        return plot
+    def _add_observable_panel(self, observable_name: str) -> _ObservablePanel:
+        panel = _ObservablePanel(self, observable_name)
+        self.trace_panels.append(panel)
+        add_button = getattr(self, "add_panel_button", None)
+        if add_button is None:
+            self.trace_row.addWidget(panel, stretch=1)
+        else:
+            self.trace_row.insertWidget(self.trace_row.indexOf(add_button), panel, stretch=1)
+        self._update_panel_controls()
+        self._refresh_marker_items()
+        return panel
+
+    def _add_next_observable_panel(self) -> None:
+        used = {panel.observable_name for panel in self.trace_panels}
+        observable_name = next(
+            (name for name in self._available_observable_names() if name not in used),
+            None,
+        )
+        if observable_name is not None:
+            self._add_observable_panel(observable_name)
+            self._report_status(f"Added {observable_name} panel")
+
+    def _delete_observable_panel(self, panel: _ObservablePanel) -> None:
+        if len(self.trace_panels) <= 1 or panel not in self.trace_panels:
+            return
+        observable_name = panel.observable_name
+        self.trace_panels.remove(panel)
+        self.trace_row.removeWidget(panel)
+        panel.deleteLater()
+        self._update_panel_controls()
+        self._report_status(f"Deleted {observable_name} panel")
+
+    def _update_panel_controls(self) -> None:
+        panels = getattr(self, "trace_panels", [])
+        can_delete = len(panels) > 1
+        for panel in panels:
+            panel.delete_button.setEnabled(can_delete)
+        add_button = getattr(self, "add_panel_button", None)
+        if add_button is not None:
+            used = {panel.observable_name for panel in panels}
+            add_button.setEnabled(any(name not in used for name in self._available_observable_names()))
+
+    def _bottom_trace_plots(self) -> list[Any]:
+        panels = getattr(self, "trace_panels", None)
+        if panels is not None:
+            return [panel.plot for panel in panels]
+        # Compatibility for lightweight test doubles and callers created before
+        # observable panels became dynamic.
+        return [
+            plot
+            for name in ("speed_plot", "rotation_plot", "distance_plot")
+            if (plot := getattr(self, name, None)) is not None
+        ]
 
     def _refresh_marker_items(self) -> None:
         markers = _markers_as_records(self.measures.get("markers"))
         self.measures["markers"] = markers
 
-        timeline_plots = (self.timeline, self.speed_plot, self.rotation_plot, self.distance_plot)
+        bottom_plots = NTTrackBehaviorWindow._bottom_trace_plots(self)
+        timeline_plots = [self.timeline, *bottom_plots]
         for plot in timeline_plots:
             for item in list(plot.items()):
                 if getattr(item, "_nt_marker", False):
@@ -575,7 +800,7 @@ class NTTrackBehaviorWindow(QMainWindow):
 
         marker_plots = [self.timeline]
         if bool(_get(self.params, "nt_show_markers_in_bottom_panels", True)):
-            marker_plots.extend((self.speed_plot, self.rotation_plot, self.distance_plot))
+            marker_plots.extend(bottom_plots)
 
         marker_definitions: dict[str, Mapping[str, Any]] = {}
         marker_table = _get(self.params, "markers", pd.DataFrame())
@@ -691,11 +916,9 @@ class NTTrackBehaviorWindow(QMainWindow):
         half_window = float(_get(self.params, "nt_mouse_trace_window", 3.0))
         x0 = self.master_time - half_window
         x1 = self.master_time + half_window
-        for plot in (self.speed_plot, self.rotation_plot, self.distance_plot):
-            plot.setXRange(x0, x1, padding=0)
-        self._speed_cursor.setValue(self.master_time)
-        self._rotation_cursor.setValue(self.master_time)
-        self._distance_cursor.setValue(self.master_time)
+        for panel in getattr(self, "trace_panels", []):
+            panel.plot.setXRange(x0, x1, padding=0)
+            panel.cursor.setValue(self.master_time)
 
     def toggle_play(self) -> None:
         self._set_playing(not self.playing)

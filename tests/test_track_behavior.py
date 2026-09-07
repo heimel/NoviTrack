@@ -477,3 +477,53 @@ def test_toggle_behavior_markers_refreshes_marker_items():
     assert window.params.nt_show_behavior_markers is False
     assert refreshes == [True]
     assert statuses == ["Behavior markers hidden"]
+
+
+def test_initial_observable_panels_follow_parameter_order_and_ignore_unknown_names():
+    window = SimpleNamespace(
+        params=SimpleNamespace(nt_tracking_observable_panels=["Distance", "unknown", "Speed"]),
+        _available_observable_names=lambda: list(track_behavior._OBSERVABLES),
+    )
+
+    names = track_behavior.NTTrackBehaviorWindow._initial_observable_names(window)
+
+    assert names == ["Distance", "Speed"]
+
+
+def test_observable_panel_uses_fixed_range_and_can_change_observable():
+    app = QApplication.instance() or QApplication([])
+    owner = QMainWindow()
+    owner.time_values = np.array([0.0, 1.0, 2.0])
+    owner._observable_values = lambda name: np.arange(3, dtype=float)
+    owner._update_trace_ranges = lambda: None
+    owner._refresh_marker_items = lambda: None
+    owner._update_panel_controls = lambda: None
+    owner._delete_observable_panel = lambda panel: None
+    owner._available_observable_names = lambda: list(track_behavior._OBSERVABLES)
+
+    panel = track_behavior._ObservablePanel(owner, "Speed")
+    assert panel.observable_name == "Speed"
+    assert panel.y_range == (-0.25, 0.25)
+    assert panel.maximumWidth() == 450
+
+    panel.set_observable("Rotation")
+    assert panel.observable_name == "Rotation"
+    assert panel.y_range == (-360.0, 360.0)
+    assert panel.title_label.text() == "Rotation"
+
+    panel.set_y_range((-90.0, 90.0))
+    assert panel.y_range == (-90.0, 90.0)
+    panel.close()
+    owner.close()
+    app.processEvents()
+
+
+def test_delete_panel_keeps_at_least_one_panel():
+    statuses = []
+    only_panel = SimpleNamespace(observable_name="Speed")
+    window = SimpleNamespace(trace_panels=[only_panel], _report_status=statuses.append)
+
+    track_behavior.NTTrackBehaviorWindow._delete_observable_panel(window, only_panel)
+
+    assert window.trace_panels == [only_panel]
+    assert statuses == []

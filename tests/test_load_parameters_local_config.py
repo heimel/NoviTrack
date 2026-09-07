@@ -40,3 +40,20 @@ def test_bottom_panel_markers_are_enabled_by_default():
     params = load_parameters(apply_local_overrides=False)
 
     assert params.nt_show_markers_in_bottom_panels is True
+
+
+def test_observable_panels_have_an_ordered_default_and_allow_local_override(tmp_path):
+    params = load_parameters(apply_local_overrides=False)
+    assert params.nt_tracking_observable_panels == ["Speed", "Rotation", "Distance"]
+    assert "nt_show_distance_trace" not in params
+    assert "nt_show_rotation_trace" not in params
+
+    local_config = tmp_path / "processparams_local.py"
+    local_config.write_text(
+        "def processparams_local(params):\n"
+        "    params.nt_tracking_observable_panels = ['Heading', 'Speed']\n"
+        "    return params\n",
+        encoding="utf-8",
+    )
+    overridden = load_parameters(local_config_file=local_config)
+    assert overridden.nt_tracking_observable_panels == ["Heading", "Speed"]

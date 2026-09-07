@@ -320,8 +320,8 @@ nt_mouse_trace_window: 3 # s
 nt_show_leave_wall_boundary: true
 nt_forward_speed_in_speed_trace: true
 nt_show_mouse_keypoints: true # true is nice, but slow
-nt_show_distance_trace: false
-nt_show_rotation_trace: false
+# Ordered display names from the tracking panel's right-click menu.
+nt_tracking_observable_panels: [Speed, Rotation, Distance]
 nt_show_bridge: false
 nt_show_horizon: false
 nt_show_arena_panel: false
@@ -329,8 +329,6 @@ nt_show_arena_panel: false
 # tracking visuals presets with setup specific overrides 
 tracking_presets:
     neurotar:
-        nt_show_distance_trace: true
-        nt_show_rotation_trace: true
         nt_show_bridge: true
         nt_show_horizon: true
         nt_show_arena_panel: true
