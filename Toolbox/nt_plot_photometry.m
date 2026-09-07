@@ -6,6 +6,9 @@ function nt_plot_photometry(record)
 % 2025, Alexander
 
 measures = record.measures;
+if ~isfield(measures,'channels') || isempty(measures.channels)
+    return
+end
 params = nt_load_parameters(record);
 
 filename = fullfile(nt_photometry_folder(record),'nt_photometry.mat');

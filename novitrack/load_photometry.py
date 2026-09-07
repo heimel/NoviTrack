@@ -361,6 +361,12 @@ def load_photometry(
     channels: list[dict[str, Any]] = []
     for channel_name in channel_names:
         fiber = channel_mapping.get(channel_name, _default_channel_mapping([channel_name])[channel_name])
+        if re.sub(r"[\s_-]+", "", fiber) in {"notconnected", "disconnected", "none", "nc"}:
+            # Remove cached results too, including when every channel is excluded.
+            for field in ("maps", "correlation"):
+                if isinstance(measures.get(field), dict):
+                    measures[field].pop(channel_name, None)
+            continue
         info = _fiber_info(measures, fiber)
         lights = [{"wavelength": int(wavelength), "type": _light_type(wavelength), "median": np.nan} for wavelength in wavelengths]
         channels.append(

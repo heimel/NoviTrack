@@ -3,6 +3,13 @@
 The Python implementation in `novitrack` is the primary NoviTrack development
 path.
 
+Channel-to-fiber mappings can be set in a record's comment, for example
+`channel1=fiber1,channel2=fiber2`. To exclude an unconnected channel, use
+`channel1=fiber1,channel2=not connected`. The values `none`, `disconnected`, and
+`nc` are also accepted, regardless of capitalization. Unspecified channels
+keep the default mapping (`channelX=fiberX`). Reanalyze the record after changing
+its comment to update the analysis and results. This also applies to MATLAB.
+
 ## Installation
 
 Create a conda environment with Python 3.11 and PyQt6:

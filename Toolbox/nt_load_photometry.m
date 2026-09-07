@@ -59,9 +59,22 @@ if isempty(result)
     end
 end
 
+measures.channels = struct([]);
 for c = 1:length(channel_names)
     channel_name = channel_names{c};
-    fiber = result.(channel_name);
+    if isfield(result,channel_name)
+        fiber = result.(channel_name);
+    else
+        fiber = ['fiber' channel_name(8:end)];
+    end
+    if ismember(regexprep(fiber,'[\s_-]+',''),{'notconnected','disconnected','none','nc'})
+        for field = {'maps','correlation'}
+            if isfield(measures,field{1}) && isstruct(measures.(field{1})) && isfield(measures.(field{1}),channel_name)
+                measures.(field{1}) = rmfield(measures.(field{1}),channel_name);
+            end
+        end
+        continue
+    end
     if isfield(measures,'fiber_info') && isfield(measures.fiber_info,fiber)
         fiber_info = measures.fiber_info.(fiber);
     else
@@ -84,7 +97,7 @@ for c = 1:length(channel_names)
                 lights(i).type = 'unknown';
         end
     end
-    measures.channels(c) = struct('channel',channel_name,...
+    measures.channels(end+1) = struct('channel',channel_name,...
         'hemisphere',fiber_info.hemisphere,...
         'location',fiber_info.location,...
         'green_sensor',fiber_info.green_sensor,...

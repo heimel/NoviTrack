@@ -7,6 +7,7 @@ import pytest
 from novitrack.load_photometry import (
     _import_rwd_markers,
     parse_channels,
+    load_photometry,
     select_rwd_sync_triggers,
 )
 from novitrack.measures_schema import CURRENT_MEASURES_VERSION
@@ -22,6 +23,42 @@ def test_parse_channels_accepts_native_string():
         "Channel1": "signal",
         "Channel2": "isosbestic",
     }
+
+
+@pytest.mark.parametrize("comment, expected", [
+    ("channel1=fiber1,channel2=not connected", ["Channel1"]),
+    ("CHANNEL1=Not Connected.,channel2=fiber2", ["Channel2"]),
+    ("channel2=none", ["Channel1"]),
+    ("channel2=NC", ["Channel1"]),
+    ("channel2=disconnected", ["Channel1"]),
+    ("channel1=not_connected,channel2=not-connected", []),
+    ("", ["Channel1", "Channel2"]),
+])
+def test_load_excludes_disconnected_channels(tmp_path, comment, expected):
+    pd.DataFrame({
+        "TimeStamp": np.arange(20) * 100,
+        "Lights": [410, 470] * 10,
+        "Channel1": np.arange(20) + 100,
+        "Channel2": np.arange(20) + 200,
+    }).to_csv(tmp_path / "Fluorescence-unaligned.csv", index=False)
+    record = {"comment": comment, "measures": {
+        "channels": [{"channel": "Channel1"}, {"channel": "Channel2"}],
+        "maps": {"Channel1": {}, "Channel2": {}},
+        "correlation": {"Channel1": {}, "Channel2": {}},
+    }}
+    photometry, measures = load_photometry(
+        record, SimpleNamespace(), photometry_folder=tmp_path,
+    )
+    assert list(photometry) == expected
+    assert [channel["channel"] for channel in measures["channels"]] == expected
+    assert list(measures["maps"]) == expected
+    assert list(measures["correlation"]) == expected
+    for channel in expected:
+        offset = 100 if channel == "Channel1" else 200
+        np.testing.assert_array_equal(
+            photometry[channel]["green"]["signal"], np.arange(1, 20, 2) + offset,
+        )
+    assert len(record["measures"]["channels"]) == 2
 
 
 def test_sync_selection_recovers_long_input1_pulse_when_fit_is_good(capsys):
