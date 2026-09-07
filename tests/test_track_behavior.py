@@ -436,7 +436,19 @@ def test_refresh_marker_items_adds_visible_markers_to_all_time_course_panels(mon
     for plot in (window.timeline, window.speed_plot, window.rotation_plot, window.distance_plot):
         assert len(plot.items()) == 1
         assert plot.items()[0].times.tolist() == [1.0]
+        assert plot.items()[0].behavior_flags.tolist() == [False]
         assert plot.items()[0]._nt_marker
+
+
+def test_refresh_marker_items_classifies_stimulus_and_behavior_markers(monkeypatch):
+    window = _marker_window(show_behavior=True)
+    monkeypatch.setattr(track_behavior.pg, "mkPen", lambda color, width: (color, width))
+
+    track_behavior.NTTrackBehaviorWindow._refresh_marker_items(window)
+
+    overlay = window.timeline.items()[0]
+    assert overlay.times.tolist() == [1.0, 2.0]
+    assert overlay.behavior_flags.tolist() == [False, True]
 
 
 def test_refresh_marker_items_can_disable_bottom_panel_markers(monkeypatch):
@@ -461,6 +473,16 @@ def test_marker_overlay_selects_only_markers_in_view(monkeypatch):
     visible = overlay.visible_slice((500.25, 505.75))
 
     assert overlay.times[visible].tolist() == [501.0, 502.0, 503.0, 504.0, 505.0]
+
+
+def test_marker_overlay_uses_overlapping_vertical_spans():
+    y_range = (-10.0, 90.0)
+
+    stimulus_range = track_behavior._MarkerOverlay.vertical_range(y_range, False)
+    behavior_range = track_behavior._MarkerOverlay.vertical_range(y_range, True)
+
+    assert stimulus_range == pytest.approx((-10.0, 70.0))
+    assert behavior_range == pytest.approx((10.0, 90.0))
 
 
 def test_toggle_behavior_markers_refreshes_marker_items():

@@ -215,6 +215,7 @@ class _MarkerOverlay(pg.GraphicsObject if pg is not None else object):
         plot: Any,
         times: Sequence[float],
         colors: Sequence[tuple[int, int, int]],
+        behavior_flags: Sequence[bool] | None = None,
     ) -> None:
         super().__init__()
         self._plot = plot
@@ -230,6 +231,11 @@ class _MarkerOverlay(pg.GraphicsObject if pg is not None else object):
                 self._pens.append(pg.mkPen(color, width=1))
             pen_indices[index] = pen_index
         self._pen_indices = pen_indices
+        if behavior_flags is None:
+            behavior_flags = [False] * self.times.size
+        self.behavior_flags = np.asarray(behavior_flags, dtype=bool)
+        if self.behavior_flags.size != self.times.size:
+            raise ValueError("behavior_flags must have one entry per marker time")
         self._nt_marker = True
         self.setZValue(100)
 
@@ -252,6 +258,15 @@ class _MarkerOverlay(pg.GraphicsObject if pg is not None else object):
             int(np.searchsorted(self.times, x1, side="right")),
         )
 
+    @staticmethod
+    def vertical_range(y_range: Sequence[float], is_behavior: bool) -> tuple[float, float]:
+        """Return the marker span, leaving a visible overlap band by marker type."""
+        y0, y1 = sorted((float(y_range[0]), float(y_range[1])))
+        height = y1 - y0
+        if is_behavior:
+            return y0 + 0.2 * height, y1
+        return y0, y0 + 0.8 * height
+
     def paint(self, painter: Any, option: Any, widget: Any = None) -> None:
         del widget
         if self.times.size == 0:
@@ -268,13 +283,15 @@ class _MarkerOverlay(pg.GraphicsObject if pg is not None else object):
         if times.size == 0:
             return
         pen_indices = self._pen_indices[visible]
-        y0, y1 = sorted((float(y_range[0]), float(y_range[1])))
+        behavior_flags = self.behavior_flags[visible]
         for pen_index, pen in enumerate(self._pens):
-            pen_times = times[pen_indices == pen_index]
-            if pen_times.size == 0:
-                continue
-            painter.setPen(pen)
-            painter.drawLines([QLineF(float(x), y0, float(x), y1) for x in pen_times])
+            for is_behavior in (False, True):
+                pen_times = times[(pen_indices == pen_index) & (behavior_flags == is_behavior)]
+                if pen_times.size == 0:
+                    continue
+                y0, y1 = self.vertical_range(y_range, is_behavior)
+                painter.setPen(pen)
+                painter.drawLines([QLineF(float(x), y0, float(x), y1) for x in pen_times])
 
 
 def _orient_camera_frame(frame: np.ndarray) -> np.ndarray:
@@ -812,24 +829,27 @@ class NTTrackBehaviorWindow(QMainWindow):
             }
         marker_times: list[float] = []
         marker_colors: list[tuple[int, int, int]] = []
+        marker_behavior_flags: list[bool] = []
         for marker in markers:
             marker_text = str(marker.get("marker", ""))
             marker_time = float(marker.get("time", np.nan))
             if not np.isfinite(marker_time):
                 continue
             definition = marker_definitions.get(marker_text[:1])
-            if definition is not None and bool(definition.get("behavior", False)) and not bool(
+            is_behavior = bool(definition.get("behavior", False)) if definition is not None else False
+            if is_behavior and not bool(
                 _get(self.params, "nt_show_behavior_markers", True)
             ):
                 continue
             color = _qt_color(definition.get("color", [0, 0, 0]) if definition else [0, 0, 0])
             marker_times.append(marker_time)
             marker_colors.append(color)
+            marker_behavior_flags.append(is_behavior)
 
         if not marker_times:
             return
         for plot in marker_plots:
-            overlay = _MarkerOverlay(plot, marker_times, marker_colors)
+            overlay = _MarkerOverlay(plot, marker_times, marker_colors, marker_behavior_flags)
             # Markers are decoration and must not influence auto-ranging.
             try:
                 plot.addItem(overlay, ignoreBounds=True)
