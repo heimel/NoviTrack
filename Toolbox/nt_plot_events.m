@@ -27,9 +27,14 @@ events = nt_get_events(measures,params);
 for event_type = event_types(:)'
     event = measures.event.(event_type);
 
+    observables = string(fields(event));
+    observables = observables(~ismember(observables,["duration","parameters"]));
+    if isempty(observables)
+        continue
+    end
+
     figure('Name',event_type,'NumberTitle','off')
 
-    observables = string(fields(event));
     n_observables = length(observables);
 
     n_rows = floor(sqrt(n_observables));
