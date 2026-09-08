@@ -116,6 +116,9 @@ def test_event_measures_keep_aligned_event_metadata_at_marker_id_level():
     assert np.isnan(event["parameters"]["power"][0])
     assert event["duration"].tolist() == [1.0, 2.0]
     assert event["signal"]["event_mean"].shape == (2,)
+    assert event["signal"]["event_std"].tolist() == [0.5, 0.5]
+    assert event["signal"]["event_max"].tolist() == [1.0, 5.0]
+    assert event["signal"]["event_cumsum_max"].tolist() == [1.0, 9.0]
     assert "parameters" not in event["signal"]
     assert "duration" not in event["signal"]
 

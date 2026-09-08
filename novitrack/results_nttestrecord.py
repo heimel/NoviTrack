@@ -14,7 +14,7 @@ from inpythotools.logmsg import logmsg
 from .analyse_photometry import analyse_photometry
 from .get_ethogram import get_ethogram
 from .load_parameters import load_parameters
-from .load_tracking_data import load_tracking_data
+from .load_tracking_data import has_position_tracking_data, load_tracking_data
 from .photometry_folder import photometry_folder
 from .plot_events import plot_events
 from .plot_maps import plot_maps
@@ -44,6 +44,21 @@ def _is_empty_measures(measures: Any) -> bool:
         except TypeError:
             return False
     return False
+
+
+def _ensure_position_tracking_status(
+    record: Mapping[str, Any], params: Any
+) -> Mapping[str, Any]:
+    """Infer the new availability flag for legacy analyzed records."""
+    measures = _get(record, "measures", {})
+    if not isinstance(measures, Mapping) or not measures or "position_tracking_available" in measures:
+        return record
+    nt_data, _ = load_tracking_data(record, params, save_cache=False)
+    updated_record = dict(record)
+    updated_measures = dict(measures)
+    updated_measures["position_tracking_available"] = has_position_tracking_data(nt_data)
+    updated_record["measures"] = updated_measures
+    return updated_record
 
 
 def _load_mat_field(filename: Path, field_name: str) -> Any:
@@ -140,6 +155,7 @@ def results_nttestrecord(
     if params is None:
         params = load_parameters(record)
 
+    record = _ensure_position_tracking_status(record, params)
     snippets = _resolve_snippets(record, params, snippets)
     photometry, record = _resolve_photometry(record, params, photometry)
     measures = _get(record, "measures", {})

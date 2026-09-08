@@ -23,6 +23,10 @@ def _record_label(record: Mapping[str, Any]) -> str:
 def plot_session_summary(record: Mapping[str, Any]) -> plt.Figure | None:
     """Plot simple session-level running/backward-motion summary bars."""
     measures = _get(record, "measures", {})
+    # Records analyzed before this flag was introduced retain their existing
+    # summary behavior; newly analyzed records always carry an explicit value.
+    if not bool(_get(measures, "position_tracking_available", True)):
+        return None
     required = (
         "session_fraction_running_forward",
         "session_start_running_forward_per_min",

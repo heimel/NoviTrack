@@ -122,7 +122,7 @@ def _plot_parameter_figures(
         aligned_observables = [
             observable
             for observable in observables
-            if _as_array(event[observable].get("event_mean", [])).size == values.size
+            if _as_array(event[observable].get("event_cumsum_max", [])).size == values.size
         ]
         if not aligned_observables:
             continue
@@ -142,10 +142,10 @@ def _plot_parameter_figures(
 
         for ax, observable in zip(axes.flat, aligned_observables):
             result = event[observable]
-            responses = _as_array(result["event_mean"])
+            responses = _as_array(result["event_cumsum_max"])
             _plot_parameter_values(ax, values, responses)
             unit = snippet_units.get(observable, result.get("unit", "")) or ""
-            response_label = f"{_display_name(observable)} event mean"
+            response_label = f"{_display_name(observable)} event cumsum max"
             ax.set_title(_display_name(observable))
             ax.set_xlabel(_parameter_label(str(parameter_name)))
             ax.set_ylabel(f"{response_label} ({unit})" if unit else response_label)

@@ -44,7 +44,7 @@ from inpythotools.logmsg import logmsg
 from .change_times import change_times
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
-from .load_tracking_data import load_tracking_data
+from .load_tracking_data import has_position_tracking_data, load_tracking_data
 from .marker_schema import make_marker_record
 from .open_videos import OpenCVVideoReader, VideoInfo, movie_search_locations, open_videos
 
@@ -77,19 +77,20 @@ _TRACKER_ACTIONS = (
 class _ObservableSpec:
     field: str
     y_range: tuple[float, float]
+    requires_position_tracking: bool = False
 
 
 _OBSERVABLES: dict[str, _ObservableSpec] = {
     "Speed": _ObservableSpec("Speed", (-0.25, 0.25)),
-    "Rotation": _ObservableSpec("Angular_velocity", (-360.0, 360.0)),
-    "Distance": _ObservableSpec("Object_distance", (0.0, 300.0)),
-    "Absolute rotation": _ObservableSpec("Abs_angular_velocity", (0.0, 360.0)),
-    "Distance to center": _ObservableSpec("Distance_to_center", (0.0, 300.0)),
-    "Heading": _ObservableSpec("alpha", (-180.0, 180.0)),
+    "Rotation": _ObservableSpec("Angular_velocity", (-360.0, 360.0), True),
+    "Distance": _ObservableSpec("Object_distance", (0.0, 300.0), True),
+    "Absolute rotation": _ObservableSpec("Abs_angular_velocity", (0.0, 360.0), True),
+    "Distance to center": _ObservableSpec("Distance_to_center", (0.0, 300.0), True),
+    "Heading": _ObservableSpec("alpha", (-180.0, 180.0), True),
     "Total speed": _ObservableSpec("Speed", (0.0, 0.375)),
     "Forward speed": _ObservableSpec("Forward_speed", (-0.25, 0.25)),
-    "X position": _ObservableSpec("CoM_X", (0.0, 1000.0)),
-    "Y position": _ObservableSpec("CoM_Y", (0.0, 1000.0)),
+    "X position": _ObservableSpec("CoM_X", (0.0, 1000.0), True),
+    "Y position": _ObservableSpec("CoM_Y", (0.0, 1000.0), True),
 }
 _DEFAULT_OBSERVABLE_PANELS = ("Speed", "Rotation", "Distance")
 
@@ -492,6 +493,8 @@ class NTTrackBehaviorWindow(QMainWindow):
         )
         if not self.nt_data:
             raise FileNotFoundError("No Neurotar/tracking data were found for this record.")
+        self.position_tracking_available = has_position_tracking_data(self.nt_data)
+        self.measures["position_tracking_available"] = self.position_tracking_available
         self.measures["trigger_times"] = _as_array(trigger_times, [0.0])
 
         self._prepare_time_alignment()
@@ -564,8 +567,9 @@ class NTTrackBehaviorWindow(QMainWindow):
     def _available_observable_names(self) -> list[str]:
         return [
             name
-            for name in _OBSERVABLES
+            for name, spec in _OBSERVABLES.items()
             if self._observable_values(name).size == self.time_values.size
+            and (self.position_tracking_available or not spec.requires_position_tracking)
         ]
 
     def _initial_observable_names(self) -> list[str]:
@@ -664,6 +668,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.timeline = pg.PlotWidget()
         self.timeline.setBackground("w")
         self.timeline.setMouseEnabled(y=False)
+        self.timeline.hideAxis("left")
         self.timeline.setYRange(0, float(_get(self.params, "nt_track_timeline_max_speed", 0.375)))
         self.timeline.setXRange(self.min_time, self.max_time, padding=0)
         self.timeline.plot(self.time_values, np.nan_to_num(np.abs(self.speed_values), nan=0.0), pen=pg.mkPen((140, 140, 140)))

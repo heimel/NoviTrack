@@ -38,6 +38,8 @@ measures is array of struct with fields:
 
     period_of_interest = [1x2] with start and stop time of period of interest in master time
 
+    position_tracking_available = boolean indicating whether finite paired position samples were available during Python analysis
+
 
 
 ## Snippets

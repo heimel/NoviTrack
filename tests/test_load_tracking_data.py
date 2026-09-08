@@ -3,7 +3,12 @@ from types import SimpleNamespace
 import numpy as np
 from scipy.io import loadmat, savemat
 
-from novitrack.load_tracking_data import TRACKING_SCHEMA_VERSION, load_tracking_data
+from novitrack.load_tracking_data import (
+    TRACKING_SCHEMA_VERSION,
+    _complete_tracking_fields,
+    has_position_tracking_data,
+    load_tracking_data,
+)
 
 
 def _params(**overrides):
@@ -15,6 +20,25 @@ def _params(**overrides):
     }
     values.update(overrides)
     return SimpleNamespace(**values)
+
+
+def test_position_tracking_requires_a_finite_paired_position_sample():
+    assert not has_position_tracking_data({})
+    assert not has_position_tracking_data({"X": [np.nan, 1.0], "Y": [np.nan, np.nan]})
+    assert has_position_tracking_data({"X": [np.nan, 1.0], "Y": [np.nan, 2.0]})
+    assert has_position_tracking_data({"CoM_X": [3.0], "CoM_Y": [4.0]})
+
+
+def test_completion_does_not_create_positions_in_all_missing_tracking_data():
+    missing = np.full(100, np.nan)
+    completed = _complete_tracking_fields(
+        {"Time": np.arange(100, dtype=float), "X": missing, "Y": missing},
+        _params(nt_pose_temporal_filter_width=20),
+    )
+
+    assert np.isnan(completed["X"]).all()
+    assert np.isnan(completed["Y"]).all()
+    assert not has_position_tracking_data(completed)
 
 
 def test_constructs_and_saves_matlab_compatible_timeline(monkeypatch, tmp_path):

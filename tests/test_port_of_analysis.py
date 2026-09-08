@@ -2,11 +2,13 @@ from inpythotools import load_mat_database
 from novitrack import analyse_nttestrecord, results_nttestrecord
 from novitrack.get_ethogram import get_ethogram
 from novitrack.plot_photometry import _channel_label, channel_metadata_lines
+from novitrack.plot_session_summary import plot_session_summary
 import numpy as np
 from pathlib import Path
 import importlib
 
 analyse_module = importlib.import_module("novitrack.analyse_nttestrecord")
+results_module = importlib.import_module("novitrack.results_nttestrecord")
 
 
 def test_ethogram_uses_white_background():
@@ -79,11 +81,57 @@ def test_missing_session_path_warning_points_to_local_config(monkeypatch, tmp_pa
     assert "edit_local_config()" in errors[0]
 
 
+def test_missing_position_tracking_is_stored_and_clears_stale_session_measures():
+    measures = {
+        "session_fraction_running_forward": 0.2,
+        "session_start_running_forward_per_min": 3.0,
+    }
+
+    available = analyse_module._set_position_tracking_status(
+        measures,
+        {"X": [np.nan], "Y": [np.nan]},
+    )
+
+    assert available is False
+    assert measures["position_tracking_available"] is False
+    assert "session_fraction_running_forward" not in measures
+    assert "session_start_running_forward_per_min" not in measures
+
+
+def test_session_summary_is_suppressed_without_position_tracking():
+    record = {
+        "measures": {
+            "position_tracking_available": False,
+            "session_fraction_running_forward": 0.2,
+            "session_start_running_forward_per_min": 3.0,
+            "session_fraction_moving_backward": 0.1,
+            "session_start_moving_backward_per_min": 1.0,
+        }
+    }
+
+    assert plot_session_summary(record) is None
+
+
+def test_results_infers_position_tracking_status_for_legacy_measures(monkeypatch):
+    record = {"measures": {"session_fraction_running_forward": 0.0}}
+    monkeypatch.setattr(
+        results_module,
+        "load_tracking_data",
+        lambda record, params, save_cache: ({"X": [np.nan], "Y": [np.nan]}, np.array([])),
+    )
+
+    updated = results_module._ensure_position_tracking_status(record, object())
+
+    assert updated["measures"]["position_tracking_available"] is False
+    assert "position_tracking_available" not in record["measures"]
+
+
 def test_analysis():
     filename = Path(__file__).resolve().parent.parent / "test_data" / "nttestdb_examples.mat"
     db = load_mat_database(filename)
     for record_index in (0, 1):
         out = analyse_nttestrecord(db.iloc[record_index], verbose=False)
+        assert "position_tracking_available" in out["measures"]
         results = results_nttestrecord(out, show=False)
         assert results
 

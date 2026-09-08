@@ -512,6 +512,20 @@ def test_initial_observable_panels_follow_parameter_order_and_ignore_unknown_nam
     assert names == ["Distance", "Speed"]
 
 
+def test_position_dependent_observables_are_unavailable_without_position_tracking():
+    window = SimpleNamespace(
+        position_tracking_available=False,
+        time_values=np.arange(3, dtype=float),
+        _observable_values=lambda name: np.arange(3, dtype=float),
+    )
+
+    names = track_behavior.NTTrackBehaviorWindow._available_observable_names(window)
+
+    assert names == ["Speed", "Total speed", "Forward speed"]
+    assert "Rotation" not in names
+    assert "Distance" not in names
+
+
 def test_observable_panel_uses_fixed_range_and_can_change_observable():
     app = QApplication.instance() or QApplication([])
     owner = QMainWindow()

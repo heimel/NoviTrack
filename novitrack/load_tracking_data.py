@@ -9,7 +9,7 @@ import tempfile
 from typing import Any
 
 import numpy as np
-from scipy import signal
+import pandas as pd
 from scipy.io import loadmat, savemat
 
 from inpythotools.mat_database import _convert_mat_value
@@ -41,6 +41,18 @@ def _as_array(value: Any) -> np.ndarray:
         return np.array([], dtype=float)
 
 
+def has_position_tracking_data(nt_data: Mapping[str, Any] | None) -> bool:
+    """Return whether at least one paired tracked position sample is finite."""
+    if not isinstance(nt_data, Mapping):
+        return False
+    for x_name, y_name in (("X", "Y"), ("CoM_X", "CoM_Y")):
+        x = _as_array(nt_data.get(x_name, []))
+        y = _as_array(nt_data.get(y_name, []))
+        if x.size and x.size == y.size and np.any(np.isfinite(x) & np.isfinite(y)):
+            return True
+    return False
+
+
 def _median_filter_omitnan(x: np.ndarray, width: int) -> np.ndarray:
     """Median filter roughly matching MATLAB ``medfilt1(...,'omitnan')``."""
     x = _as_array(x)
@@ -49,7 +61,11 @@ def _median_filter_omitnan(x: np.ndarray, width: int) -> np.ndarray:
 
     if width % 2 == 0:
         width += 1
-    return signal.medfilt(x, kernel_size=width)
+    # scipy.signal.medfilt zero-pads both ends. For an all-NaN position
+    # vector, that padding creates finite zero-valued samples and makes absent
+    # tracking look available. A centered pandas window ignores NaNs and uses
+    # truncated edge windows instead, matching the intended omit-NaN behavior.
+    return pd.Series(x).rolling(width, center=True, min_periods=1).median().to_numpy()
 
 
 def _ensure_field(nt_data: dict[str, Any], field: str, value: Any) -> None:

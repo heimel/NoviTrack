@@ -23,12 +23,29 @@ from .check_markers import check_markers
 from .compute_event_measures import compute_event_measures
 from .compute_locations import compute_locations
 from .load_parameters import load_parameters
-from .load_tracking_data import load_tracking_data
+from .load_tracking_data import has_position_tracking_data, load_tracking_data
 from .make_motion_snippets import make_motion_snippets
 from .make_photometry_snippets import make_photometry_snippets
 from .session_path import session_path as resolve_session_path
 
 _MISSING_SESSION_PATH_DIALOG_SHOWN = False
+_POSITION_SESSION_MEASURES = (
+    "session_speed_mean",
+    "session_speed_std",
+    "session_speed_max",
+    "session_forward_speed_mean",
+    "session_forward_speed_std",
+    "session_forward_speed_max",
+    "session_angular_velocity_mean",
+    "session_angular_velocity_std",
+    "session_angular_velocity_max",
+    "session_fraction_running_forward",
+    "session_count_start_running_forward",
+    "session_start_running_forward_per_min",
+    "session_fraction_moving_backward",
+    "session_count_start_moving_backward",
+    "session_start_moving_backward_per_min",
+)
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -60,6 +77,17 @@ def _warn_missing_session_path(folder: Path) -> None:
     else:
         _MISSING_SESSION_PATH_DIALOG_SHOWN = True
         errormsg(message)
+
+
+def _set_position_tracking_status(
+    measures: dict[str, Any], nt_data: Mapping[str, Any] | None
+) -> bool:
+    available = has_position_tracking_data(nt_data)
+    measures["position_tracking_available"] = available
+    if not available:
+        for name in _POSITION_SESSION_MEASURES:
+            measures.pop(name, None)
+    return available
 
 
 def _session_measures(measures: dict[str, Any], nt_data: Mapping[str, Any], params: Any) -> dict[str, Any]:
@@ -156,6 +184,7 @@ def analyse_nttestrecord(
     measures = dict(_get(out, "measures", {}))
     measures["event"] = {}
     measures.pop("events", None)
+    position_tracking_available = _set_position_tracking_status(measures, nt_data)
     if trigger_times.size:
         measures["trigger_times"] = trigger_times
 
@@ -196,7 +225,7 @@ def analyse_nttestrecord(
 
     measures = compute_event_measures(snippets, measures, params)
 
-    if nt_data:
+    if nt_data and position_tracking_available:
         measures = _session_measures(measures, nt_data, params)
         out["measures"] = measures
         if not bool(_get(params, "neurotar", False)):

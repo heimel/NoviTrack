@@ -284,6 +284,9 @@ def compute_event_measures(
         for field, values in data.items():
             arr = np.asarray(values, dtype=float)
             event_data = arr[event_indices, :]
+            event_cumsum = np.nancumsum(event_data, axis=1)
+            event_cumsum_max = np.max(event_cumsum, axis=1)
+            event_cumsum_max[np.all(np.isnan(event_data), axis=1)] = np.nan
             snippet_mean = np.nanmean(event_data, axis=0)
             snippet_sem = (
                 ivt_sem(event_data, axis=0)
@@ -300,6 +303,9 @@ def compute_event_measures(
                 "min": float(np.nanmin(snippet_mean[mask_post])),
                 "n": int(len(event_indices)),
                 "event_mean": np.nanmean(event_data, axis=1),
+                "event_std": np.nanstd(event_data, axis=1, ddof=0),
+                "event_max": np.nanmax(event_data, axis=1),
+                "event_cumsum_max": event_cumsum_max,
                 "unit": _get(units, field, None),
             }
 
