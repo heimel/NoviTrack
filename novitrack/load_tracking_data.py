@@ -16,7 +16,7 @@ from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
 from .load_neurotar_data import load_neurotar_data
 from .session_path import session_path as resolve_session_path
-
+from .load_parameters import load_parameters
 
 TRACKING_SCHEMA_VERSION = 1
 
@@ -212,8 +212,8 @@ def _video_timeline(video_info: Any, params: Any) -> tuple[dict[str, Any], np.nd
 
 def load_tracking_data(
     record: Any,
-    params: Any,
     *,
+    params: Any | None = None,
     recompute: bool | None = None,
     session_path: str | Path | None = None,
     video_info: Any = None,
@@ -222,6 +222,9 @@ def load_tracking_data(
     """Load or construct tracking data in the shared NoviTrack MAT format."""
     if recompute is None:
         recompute = bool(_get(params, "nt_recompute_tracking_data", False))
+
+    if params is None:
+        params = load_parameters(record)
 
     if session_path is None:
         folder, exists = resolve_session_path(record, params)

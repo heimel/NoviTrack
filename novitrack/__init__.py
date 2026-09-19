@@ -13,7 +13,7 @@ from .database_browser import (
 from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
 from .session_path import session_path
-
+from .load_tracking_data import load_tracking_data
 
 __all__ = [
     "NTDatabaseBrowser",
@@ -22,6 +22,7 @@ __all__ = [
     "experiment_db",
     "load_mat_database",
     "load_parameters",
+    "load_tracking_data",
     "results_nttestrecord",
     "save_mat_database",
     "session_path",
