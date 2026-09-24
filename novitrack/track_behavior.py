@@ -53,6 +53,7 @@ _OPEN_WINDOWS: list["NTTrackBehaviorWindow"] = []
 _SPEEDS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 8.0, 16.0]
 _ICON_SIZE = QSize(24, 24)
 _LUCIDE_ICON_DIR = Path(__file__).with_name("icons") / "lucide"
+_MAX_CLOCK_MULTIPLIER_DEVIATION = 0.01
 _TRACKER_ACTIONS = (
     ("previous_marker", "Previous marker", "skip-back", "Shift+P"),
     ("backward_frame", "Previous video frame", "step-back", "Left"),
@@ -503,7 +504,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._refresh_marker_items()
         self._seek(0.0, force=True)
 
-        fps = max(1.0, min(float(self.video_info[self.active_cameras[0]].framerate), 60.0))
+        fps = max(1.0, min(self._base_fps(), 60.0))
         self.timer = QTimer(self)
         self.timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer.timeout.connect(self._tick)
@@ -516,20 +517,52 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.measures["trigger_times"] = trigger_times
         max_time = 0.0
         min_time = 0.0
-        for camera_index in self.active_cameras:
+        valid_cameras: list[int] = []
+        invalid_cameras: list[tuple[VideoInfo, float]] = []
+        for camera_index in list(self.active_cameras):
             info = self.video_info[camera_index]
             assert info is not None
             video_triggers = _as_array(info.trigger_times, [0.0])
             if video_triggers.size == 0:
                 video_triggers = np.array([0.0], dtype=float)
-            _, offset, multiplier = change_times(0.0, video_triggers, trigger_times)
+
+            video_bounds, offset, multiplier = change_times(
+                np.array([0.0, info.duration]), video_triggers, trigger_times
+            )
+            if (
+                not np.isfinite(multiplier)
+                or abs(multiplier - 1.0) > _MAX_CLOCK_MULTIPLIER_DEVIATION
+            ):
+                invalid_cameras.append((info, multiplier))
+                reader = self.readers[camera_index]
+                if reader is not None:
+                    reader.close()
+                    self.readers[camera_index] = None
+                continue
+
+            valid_cameras.append(camera_index)
             self._video_to_master[camera_index] = (offset, multiplier)
             _, offset, multiplier = change_times(0.0, trigger_times, video_triggers)
             self._master_to_video[camera_index] = (offset, multiplier)
-            video_end, _, _ = change_times(info.duration, video_triggers, trigger_times)
-            video_start, _, _ = change_times(0.0, video_triggers, trigger_times)
-            max_time = max(max_time, float(np.asarray(video_end)))
-            min_time = min(min_time, float(np.asarray(video_start)))
+            min_time = min(min_time, float(video_bounds[0]))
+            max_time = max(max_time, float(video_bounds[1]))
+
+        self.active_cameras = valid_cameras
+        if invalid_cameras:
+            details = "\n".join(
+                f"- {info.camera_name}: {info.filename} "
+                f"(clock multiplier {multiplier:.6g})"
+                for info, multiplier in invalid_cameras
+            )
+            message = (
+                "Trigger-pulse matching failed for the following video(s):\n\n"
+                f"{details}\n\n"
+                "Each clock multiplier differs from 1 by more than 1%. The affected "
+                "video(s) will not be shown and will not be used to determine the "
+                "session start or end time. Check the corresponding trigger CSV file(s)."
+            )
+            logmsg(message)
+            QMessageBox.critical(self, "Video trigger alignment failed", message)
 
         time_values = _as_array(self.nt_data.get("Time"), [0.0])
         finite = time_values[np.isfinite(time_values)]
@@ -984,6 +1017,8 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._report_status(f"Stepped forward to {self.master_time:.2f} s")
 
     def _base_fps(self) -> float:
+        if not self.active_cameras:
+            return 30.0
         info = self.video_info[self.active_cameras[0]]
         return float(info.framerate if info is not None else 30.0)
 

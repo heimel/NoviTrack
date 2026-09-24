@@ -1,3 +1,4 @@
+import importlib
 from types import SimpleNamespace
 
 import numpy as np
@@ -9,6 +10,8 @@ from novitrack.load_tracking_data import (
     has_position_tracking_data,
     load_tracking_data,
 )
+
+load_tracking_data_module = importlib.import_module("novitrack.load_tracking_data")
 
 
 def _params(**overrides):
@@ -43,7 +46,7 @@ def test_completion_does_not_create_positions_in_all_missing_tracking_data():
 
 def test_constructs_and_saves_matlab_compatible_timeline(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "novitrack.load_tracking_data.load_neurotar_data", lambda record, params: ({}, None)
+        load_tracking_data_module, "load_neurotar_data", lambda record, params: ({}, None)
     )
     video_info = [
         SimpleNamespace(n_frames=99, framerate=10.0, trigger_times=np.array([1.0])),
@@ -70,7 +73,8 @@ def test_loads_legacy_mat_file_without_schema_version(monkeypatch, tmp_path):
         {"nt_data": {"Time": np.array([0.0, 1.0]), "CoM_X": [2.0, 3.0], "CoM_Y": [4.0, 5.0]}},
     )
     monkeypatch.setattr(
-        "novitrack.load_tracking_data.load_neurotar_data",
+        load_tracking_data_module,
+        "load_neurotar_data",
         lambda record, params: (_ for _ in ()).throw(AssertionError("cache should be used")),
     )
 
@@ -101,7 +105,7 @@ def test_cached_data_uses_video_triggers_when_record_has_none(tmp_path):
 
 def test_can_construct_without_writing_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "novitrack.load_tracking_data.load_neurotar_data", lambda record, params: ({}, None)
+        load_tracking_data_module, "load_neurotar_data", lambda record, params: ({}, None)
     )
     video_info = [SimpleNamespace(n_frames=2, framerate=2.0, trigger_times=np.array([]))]
 
@@ -116,3 +120,24 @@ def test_can_construct_without_writing_cache(monkeypatch, tmp_path):
     np.testing.assert_allclose(nt_data["Time"], [0.0, 0.5])
     assert trigger_times.size == 0
     assert not (tmp_path / "nt_tracking_data.mat").exists()
+
+
+def test_loads_parameters_when_they_are_omitted(monkeypatch, tmp_path):
+    loaded_params = _params(nt_overhead_camera=1)
+    record = {"measures": {}}
+    calls = []
+
+    def fake_load_parameters(received_record):
+        calls.append(received_record)
+        return loaded_params
+
+    monkeypatch.setattr(load_tracking_data_module, "load_parameters", fake_load_parameters)
+    monkeypatch.setattr(
+        load_tracking_data_module, "load_neurotar_data", lambda received_record, params: ({}, None)
+    )
+    video_info = [SimpleNamespace(n_frames=2, framerate=2.0, trigger_times=np.array([]))]
+
+    nt_data, _ = load_tracking_data(record, session_path=tmp_path, video_info=video_info)
+
+    assert calls == [record]
+    np.testing.assert_allclose(nt_data["Time"], [0.0, 0.5])

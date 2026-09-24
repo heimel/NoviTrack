@@ -248,6 +248,7 @@ def test_string_values_are_displayed_and_edited_without_quotes():
 
 def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
     captured = {}
+    messages = []
 
     class FakeApp:
         def exec(self):
@@ -272,6 +273,7 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
     monkeypatch.setattr(database_browser, "_show_string_values_without_quotes", lambda window: None)
     monkeypatch.setattr(database_browser.QApplication, "instance", lambda: None)
     monkeypatch.setattr(database_browser, "_running_in_ipython", lambda: True)
+    monkeypatch.setattr(database_browser, "logmsg", messages.append)
 
     window = database_browser.experiment_db(filename="dummy.mat", block=None)
 
@@ -284,6 +286,10 @@ def test_experiment_db_defaults_to_nonblocking_in_ipython(monkeypatch):
         "Analyze": "microscope",
         "Results": "chart-line",
     }
+    assert messages == [
+        "Tip: assign browser = experiment_db(), then use db = browser.db and "
+        "record = browser.current_record() in your interactive session."
+    ]
 
 
 def test_track_behavior_marks_open_database_dirty_on_marker_change(monkeypatch):

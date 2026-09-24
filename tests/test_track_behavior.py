@@ -252,6 +252,70 @@ def test_orient_camera_y_matches_vertically_flipped_frame():
     )
 
 
+def test_bad_video_trigger_alignment_is_reported_and_excluded(monkeypatch, tmp_path):
+    class FakeReader:
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    good_reader = FakeReader()
+    bad_reader = FakeReader()
+    good_info = SimpleNamespace(
+        camera_name="overhead",
+        filename=tmp_path / "overhead.mp4",
+        duration=20.0,
+        framerate=30.0,
+        trigger_times=np.array([1.0, 11.0]),
+    )
+    bad_info = SimpleNamespace(
+        camera_name="side",
+        filename=tmp_path / "side.mp4",
+        duration=20.0,
+        framerate=30.0,
+        trigger_times=np.array([2.0, 2.001]),
+    )
+    window = SimpleNamespace(
+        measures={"trigger_times": np.array([0.0, 10.0])},
+        active_cameras=[0, 1],
+        video_info=[good_info, bad_info],
+        readers=[good_reader, bad_reader],
+        nt_data={"Time": np.array([-0.5, 15.0])},
+        _video_to_master={},
+        _master_to_video={},
+    )
+    dialogs = []
+    monkeypatch.setattr(
+        track_behavior.QMessageBox,
+        "critical",
+        lambda parent, title, message: dialogs.append((parent, title, message)),
+    )
+
+    track_behavior.NTTrackBehaviorWindow._prepare_time_alignment(window)
+
+    assert window.active_cameras == [0]
+    assert good_reader.closed is False
+    assert bad_reader.closed is True
+    assert window.readers == [good_reader, None]
+    assert window.min_time == pytest.approx(-1.0)
+    assert window.max_time == pytest.approx(19.0)
+    assert set(window._video_to_master) == {0}
+    assert set(window._master_to_video) == {0}
+    assert len(dialogs) == 1
+    assert dialogs[0][0] is window
+    assert dialogs[0][1] == "Video trigger alignment failed"
+    assert "side" in dialogs[0][2]
+    assert str(bad_info.filename) in dialogs[0][2]
+    assert "10000" in dialogs[0][2]
+
+
+def test_base_fps_falls_back_when_all_videos_are_rejected():
+    window = SimpleNamespace(active_cameras=[], video_info=[])
+
+    assert track_behavior.NTTrackBehaviorWindow._base_fps(window) == 30.0
+
+
 def _window_stub(markers):
     measures = {"markers": markers}
     statuses = []

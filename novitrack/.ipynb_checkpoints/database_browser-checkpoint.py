@@ -24,7 +24,6 @@ from inpythotools.database_browser import (
     _normalize_action_result,
     browse_database as _browse_database,
 )
-from inpythotools.logmsg import logmsg
 
 from .analyse_nttestrecord import analyse_nttestrecord
 from .mat_database import default_database_filename, load_mat_database
@@ -680,11 +679,6 @@ def experiment_db(
     _position_browser_top_left(window)
     _OPEN_WINDOWS.append(window)
     _LAST_WINDOW = window
-
-    logmsg(
-        "Tip: assign browser = experiment_db(), then use db = browser.db and "
-        "record = browser.current_record() in your interactive session."
-    )
 
     if should_block:
         app = QApplication.instance()

@@ -212,19 +212,23 @@ def _video_timeline(video_info: Any, params: Any) -> tuple[dict[str, Any], np.nd
 
 def load_tracking_data(
     record: Any,
-    *,
     params: Any | None = None,
+    *,
     recompute: bool | None = None,
     session_path: str | Path | None = None,
     video_info: Any = None,
     save_cache: bool = True,
 ) -> tuple[dict[str, Any], np.ndarray]:
-    """Load or construct tracking data in the shared NoviTrack MAT format."""
-    if recompute is None:
-        recompute = bool(_get(params, "nt_recompute_tracking_data", False))
+    """Load or construct tracking data in the shared NoviTrack MAT format.
 
+    ``params`` may be supplied positionally or by keyword.  When omitted, the
+    parameters for ``record`` are loaded with :func:`load_parameters`.
+    """
     if params is None:
         params = load_parameters(record)
+
+    if recompute is None:
+        recompute = bool(_get(params, "nt_recompute_tracking_data", False))
 
     if session_path is None:
         folder, exists = resolve_session_path(record, params)

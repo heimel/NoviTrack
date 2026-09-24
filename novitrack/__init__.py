@@ -10,6 +10,7 @@ from .database_browser import (
     NTDatabaseBrowser,
     experiment_db,
 )
+from .get_ethogram import get_ethogram
 from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
 from .session_path import session_path
@@ -20,6 +21,7 @@ __all__ = [
     "analyse_nttestrecord",
     "default_database_filename",
     "experiment_db",
+    "get_ethogram",
     "load_mat_database",
     "load_parameters",
     "load_tracking_data",
