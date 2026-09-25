@@ -72,6 +72,37 @@ _TRACKER_ACTIONS = (
     ("show_help", "Help", "circle-help", "Shift+H"),
     ("close", "Stop / close tracker", "square", "Shift+Q"),
 )
+_TRACKER_WINDOW_GAP = 8
+
+
+def _position_tracker_window(window: Any, parent: Any) -> None:
+    """Place the tracker in the remaining work area beside its parent."""
+    if parent is None:
+        return
+    try:
+        screen = parent.screen()
+        available = screen.availableGeometry()
+        parent_frame = parent.frameGeometry()
+        if hasattr(window, "winId"):
+            window.winId()
+        geometry = window.geometry()
+        frame = window.frameGeometry()
+        left = geometry.left() - frame.left()
+        top = geometry.top() - frame.top()
+        right = frame.right() - geometry.right()
+        bottom = frame.bottom() - geometry.bottom()
+        target_x = parent_frame.right() + 1 + _TRACKER_WINDOW_GAP
+        target_width = available.right() - target_x + 1
+        if target_width < 1:
+            return
+        window.setGeometry(
+            target_x + left,
+            available.y() + top,
+            max(1, target_width - left - right),
+            max(1, available.height() - top - bottom),
+        )
+    except (AttributeError, RuntimeError):
+        return
 
 
 @dataclass(frozen=True)
@@ -1341,6 +1372,7 @@ def track_behavior(
         # being activated above the tracker while a video seek is busy.
         window.setWindowFlag(Qt.WindowType.Window, True)
         window.setWindowModality(Qt.WindowModality.WindowModal)
+    _position_tracker_window(window, parent)
     _OPEN_WINDOWS.append(window)
     window.show()
     window.raise_()

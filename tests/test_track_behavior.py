@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PyQt6")
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QRect, QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QToolBar
 
 from novitrack import track_behavior
@@ -231,6 +231,23 @@ def test_owned_tracker_is_modal_and_activated_above_parent(monkeypatch):
         "activated",
     ]
     assert window is track_behavior._OPEN_WINDOWS.pop()
+
+
+def test_tracker_fills_work_area_to_right_of_parent_on_secondary_monitor():
+    screen = SimpleNamespace(availableGeometry=lambda: QRect(-1920, 0, 1920, 1080))
+    parent = SimpleNamespace(
+        screen=lambda: screen,
+        frameGeometry=lambda: QRect(-1880, 40, 700, 800),
+    )
+    tracker = SimpleNamespace(
+        geometry=lambda: QRect(-1000, 100, 600, 400),
+        frameGeometry=lambda: QRect(-1008, 70, 616, 460),
+        setGeometry=lambda *args: setattr(tracker, "geometry_call", args),
+    )
+
+    track_behavior._position_tracker_window(tracker, parent)
+
+    assert tracker.geometry_call == (-1164, 30, 1156, 1020)
 
 
 def test_orient_camera_frame_flips_every_camera_top_to_bottom():
