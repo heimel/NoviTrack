@@ -14,10 +14,19 @@ from .get_ethogram import get_ethogram
 from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
 from .session_path import session_path
-from .load_tracking_data import load_tracking_data
+from .load_tracking_data import load_tracking_data, load_tracking_streams
+from .tracking_stream import (
+    TrackingSample,
+    TrackingStream,
+    TrackingStreamCollection,
+    tracking_stream_from_nt_data,
+)
 
 __all__ = [
     "NTDatabaseBrowser",
+    "TrackingSample",
+    "TrackingStream",
+    "TrackingStreamCollection",
     "analyse_nttestrecord",
     "default_database_filename",
     "experiment_db",
@@ -25,7 +34,9 @@ __all__ = [
     "load_mat_database",
     "load_parameters",
     "load_tracking_data",
+    "load_tracking_streams",
     "results_nttestrecord",
     "save_mat_database",
     "session_path",
+    "tracking_stream_from_nt_data",
 ]

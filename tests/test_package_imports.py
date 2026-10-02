@@ -9,6 +9,8 @@ def test_novitrack_namespace_exports_core_functions() -> None:
     assert nt.get_ethogram.__name__ == "get_ethogram"
     assert nt.experiment_db.__name__ == "experiment_db"
     assert nt.session_path.__name__ == "session_path"
+    assert nt.load_tracking_streams.__name__ == "load_tracking_streams"
+    assert nt.TrackingStream.__name__ == "TrackingStream"
     assert not hasattr(nt, "browse_database")
 
 

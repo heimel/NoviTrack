@@ -20,6 +20,14 @@ the fields above. Files without this field are legacy version 1 files and must
 remain readable. Trigger times are kept in the session record rather than in
 the tracking cache.
 
+Python exposes tracking data through `TrackingStream` objects. Each stream
+retains its native timestamps or video-frame indices, clock identity, optional
+`ClockTransform` to session reference time, coordinate system, associated
+camera, capabilities, and source-specific fields. A `TrackingStreamCollection`
+holds the independently sampled streams for one session. Legacy `nt_data`
+structures remain supported through an adapter and continue to use their
+existing `Time` values as reference time.
+
 ## Database
 
 Databases contain records with session information for a specific study dossier.

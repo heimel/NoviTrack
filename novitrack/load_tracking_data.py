@@ -17,6 +17,7 @@ from inpythotools.logmsg import logmsg
 from .load_neurotar_data import load_neurotar_data
 from .session_path import session_path as resolve_session_path
 from .load_parameters import load_parameters
+from .tracking_stream import TrackingStreamCollection, tracking_stream_from_nt_data
 
 TRACKING_SCHEMA_VERSION = 1
 
@@ -278,3 +279,59 @@ def load_tracking_data(
 
     logmsg(f"Precomputed tracking data not found: {filename}")
     return {}, _as_array(_get(_get(record, "measures", {}), "trigger_times", []))
+
+
+def load_tracking_streams(
+    record: Any,
+    params: Any | None = None,
+    *,
+    recompute: bool | None = None,
+    session_path: str | Path | None = None,
+    video_info: Any = None,
+    save_cache: bool = True,
+) -> tuple[TrackingStreamCollection, np.ndarray]:
+    """Load current tracking data through the stream-oriented interface.
+
+    This compatibility loader intentionally delegates source parsing and cache
+    behavior to :func:`load_tracking_data`. Empty video-only timelines are not
+    exposed as tracking streams because they contain no tracking capability.
+    """
+    if params is None:
+        params = load_parameters(record)
+    nt_data, trigger_times = load_tracking_data(
+        record,
+        params,
+        recompute=recompute,
+        session_path=session_path,
+        video_info=video_info,
+        save_cache=save_cache,
+    )
+
+    streams = TrackingStreamCollection(reference_clock="reference")
+    if not nt_data:
+        return streams, trigger_times
+
+    source_type = "neurotar" if bool(_get(params, "neurotar", False)) else "novitrack"
+    stream_id = "neurotar" if source_type == "neurotar" else "legacy_tracking"
+    camera_id: int | None = None
+    coordinates = _as_array(nt_data.get("Coordinates", []))
+    if coordinates.size and coordinates[0] == float(_get(params, "OVERHEAD", 4)):
+        camera_id = int(_get(params, "nt_overhead_camera", 1)) - 1
+
+    stream = tracking_stream_from_nt_data(
+        nt_data,
+        stream_id=stream_id,
+        source_type=source_type,
+        camera_id=camera_id,
+    )
+    if stream.capabilities:
+        streams.add(stream)
+    return streams, trigger_times
+
+
+__all__ = [
+    "TRACKING_SCHEMA_VERSION",
+    "has_position_tracking_data",
+    "load_tracking_data",
+    "load_tracking_streams",
+]
