@@ -229,7 +229,7 @@ def test_string_values_are_displayed_and_edited_without_quotes():
     assert displayed == {
         "lab": "heimellab",
         "subject": "mouse-1",
-        "sessnr": "np.int64(2)",
+        "sessnr": "2",
     }
 
     lab_row = next(
