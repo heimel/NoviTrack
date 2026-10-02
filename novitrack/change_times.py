@@ -3,11 +3,77 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
 from inpythotools.logmsg import logmsg
+
+
+def _readonly_vector(value: Any) -> np.ndarray:
+    vector = np.asarray(value, dtype=float).reshape(-1).copy()
+    vector.setflags(write=False)
+    return vector
+
+
+@dataclass(frozen=True)
+class ClockTransform:
+    """Fitted affine mapping between two named clock coordinate systems."""
+
+    source_clock: str
+    target_clock: str
+    offset: float
+    multiplier: float
+    source_triggers: np.ndarray
+    target_triggers: np.ndarray
+    residuals: np.ndarray
+
+    def __post_init__(self) -> None:
+        if not np.isfinite(self.offset):
+            raise ValueError("ClockTransform offset must be finite.")
+        if not np.isfinite(self.multiplier) or self.multiplier == 0:
+            raise ValueError("ClockTransform multiplier must be finite and nonzero.")
+        object.__setattr__(self, "source_triggers", _readonly_vector(self.source_triggers))
+        object.__setattr__(self, "target_triggers", _readonly_vector(self.target_triggers))
+        object.__setattr__(self, "residuals", _readonly_vector(self.residuals))
+        if self.source_triggers.size != self.target_triggers.size:
+            raise ValueError("ClockTransform trigger arrays must have equal lengths.")
+        if self.residuals.size != self.source_triggers.size:
+            raise ValueError("ClockTransform residuals must align with its triggers.")
+
+    def apply(self, times: Any) -> np.ndarray:
+        """Convert ``times`` from the source clock to the target clock."""
+        return np.asarray(times, dtype=float) * self.multiplier + self.offset
+
+    def inverse(self) -> "ClockTransform":
+        """Return the exact analytical inverse without fitting the triggers again."""
+        inverse_multiplier = 1.0 / self.multiplier
+        inverse_offset = -self.offset * inverse_multiplier
+        inverse_residuals = self.source_triggers - (
+            self.target_triggers * inverse_multiplier + inverse_offset
+        )
+        return ClockTransform(
+            source_clock=self.target_clock,
+            target_clock=self.source_clock,
+            offset=inverse_offset,
+            multiplier=inverse_multiplier,
+            source_triggers=self.target_triggers,
+            target_triggers=self.source_triggers,
+            residuals=inverse_residuals,
+        )
+
+    @property
+    def residual_rms(self) -> float:
+        if self.residuals.size == 0:
+            return np.nan
+        return float(np.sqrt(np.mean(np.square(self.residuals))))
+
+    @property
+    def maximum_absolute_residual(self) -> float:
+        if self.residuals.size == 0:
+            return np.nan
+        return float(np.max(np.abs(self.residuals)))
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -65,12 +131,12 @@ def _log_alignment_diagnostics(
     matched_count = triggers_from.size
     logmsg(
         f"{label}: matched {matched_count}/{original_from_count} source sync pulse(s) "
-        f"to {matched_count}/{original_to_count} master sync pulse(s) "
-        f"(source -> master, s): {pairs}."
+        f"to {matched_count}/{original_to_count} reference sync pulse(s) "
+        f"(source -> reference, s): {pairs}."
     )
     clock_difference = 100.0 * (multiplier - 1.0)
     logmsg(
-        f"{label}: master_time = {multiplier:.12g} * source_time + "
+        f"{label}: reference_time = {multiplier:.12g} * source_time + "
         f"{offset:.9g} s; clock multiplier {multiplier:.12g}, "
         f"difference from 1 is {clock_difference:+.6g}%."
     )
@@ -101,27 +167,17 @@ def _log_alignment_diagnostics(
         )
 
 
-def change_times(
-    from_times: Any,
+def fit_clock_transform(
     triggers_from: Any,
     triggers_to: Any,
     multiplier_from: float | None = None,
     multiplier_to: float | None = None,
     *,
+    source_clock: str = "source",
+    target_clock: str = "reference",
     diagnostic_label: str | None = None,
-) -> tuple[np.ndarray, float, float]:
-    """Change timestamps from one reference frame to another.
-
-    This mirrors MATLAB ``change_times.m``:
-
-    ``to = multiplier * from_times + offset``
-
-    Trigger arrays are internally flattened so row/column orientation does not
-    affect the alignment, matching the recent MATLAB-side normalization.
-    """
-    from_array = np.asarray(from_times, dtype=float)
-    original_shape = from_array.shape
-    flat_from = from_array.reshape(-1)
+) -> ClockTransform:
+    """Fit an affine transform between two clocks from synchronization pulses."""
     triggers_from_vec = _as_vector(triggers_from)
     triggers_to_vec = _as_vector(triggers_to)
 
@@ -132,7 +188,7 @@ def change_times(
     multiplier_was_supplied = multiplier_from is not None and multiplier_to is not None
 
     if n_triggers_from == 0 or n_triggers_to == 0:
-        raise ValueError("change_times requires at least one trigger in both reference frames.")
+        raise ValueError("fit_clock_transform requires at least one trigger in both clocks.")
 
     if n_triggers_from == 1 and n_triggers_to > 1:
         logmsg("Detected too many triggers TO. Using only the first! May be wrong trigger. If so edit trigger log.")
@@ -164,6 +220,8 @@ def change_times(
     matched_triggers_from = triggers_from_vec.copy()
     matched_triggers_to = triggers_to_vec.copy()
 
+    fit_triggers_from = triggers_from_vec
+    fit_triggers_to = triggers_to_vec
     if n_triggers_from == 1:
         if multiplier_from is None or multiplier_to is None:
             logmsg(
@@ -172,24 +230,24 @@ def change_times(
             )
             multiplier_from = 1.0
             multiplier_to = 1.0
-        triggers_from_vec = np.array(
+        fit_triggers_from = np.array(
             [triggers_from_vec[0], triggers_from_vec[0] + 1000 * float(multiplier_from)],
             dtype=float,
         )
-        triggers_to_vec = np.array(
+        fit_triggers_to = np.array(
             [triggers_to_vec[0], triggers_to_vec[0] + 1000 * float(multiplier_to)],
             dtype=float,
         )
 
-    cc = _correlation(triggers_from_vec, triggers_to_vec)
+    cc = _correlation(fit_triggers_from, fit_triggers_to)
     if not np.isnan(cc) and cc < 0.999:
         logmsg(
             f"Only correlation of {cc:.3g} between TO and FROM triggers. "
             "This suggest missing triggers and inaccurate time change."
         )
 
-    x = np.column_stack((np.ones(triggers_from_vec.size), triggers_from_vec))
-    offset, multiplier = np.linalg.lstsq(x, triggers_to_vec, rcond=None)[0]
+    x = np.column_stack((np.ones(fit_triggers_from.size), fit_triggers_from))
+    offset, multiplier = np.linalg.lstsq(x, fit_triggers_to, rcond=None)[0]
     offset = float(offset)
     multiplier = float(multiplier)
 
@@ -208,8 +266,47 @@ def change_times(
             multiplier_was_supplied=multiplier_was_supplied,
         )
 
-    changed = (flat_from * multiplier + offset).reshape(original_shape)
-    return changed, offset, multiplier
+    residuals = matched_triggers_to - (
+        matched_triggers_from * multiplier + offset
+    )
+    return ClockTransform(
+        source_clock=source_clock,
+        target_clock=target_clock,
+        offset=offset,
+        multiplier=multiplier,
+        source_triggers=matched_triggers_from,
+        target_triggers=matched_triggers_to,
+        residuals=residuals,
+    )
+
+
+def change_times(
+    from_times: Any,
+    triggers_from: Any,
+    triggers_to: Any,
+    multiplier_from: float | None = None,
+    multiplier_to: float | None = None,
+    *,
+    diagnostic_label: str | None = None,
+) -> tuple[np.ndarray, float, float]:
+    """Change timestamps from one reference frame to another.
+
+    This mirrors MATLAB ``change_times.m``:
+
+    ``to = multiplier * from_times + offset``
+
+    Trigger arrays are internally flattened so row/column orientation does not
+    affect the alignment, matching the recent MATLAB-side normalization.
+    """
+    transform = fit_clock_transform(
+        triggers_from,
+        triggers_to,
+        multiplier_from,
+        multiplier_to,
+        diagnostic_label=diagnostic_label,
+    )
+    changed = transform.apply(from_times)
+    return changed, transform.offset, transform.multiplier
 
 
 def change_video_to_neurotar_times(video_t: Any, trigger_times: Any, params: Any) -> np.ndarray:
@@ -230,7 +327,9 @@ def change_neurotar_to_video_times(neurotar_t: Any, trigger_times: Any, params: 
 
 
 __all__ = [
+    "ClockTransform",
     "change_times",
     "change_video_to_neurotar_times",
     "change_neurotar_to_video_times",
+    "fit_clock_transform",
 ]

@@ -222,7 +222,7 @@ def test_import_rwd_adds_opto_and_numbered_event_markers(monkeypatch, tmp_path, 
 
     output = capsys.readouterr().out
     assert "1 RWD sync pulse(s), and 1 master sync pulse(s)" in output
-    assert "matched 1/1 source sync pulse(s) to 1/1 master sync pulse(s)" in output
+    assert "matched 1/1 source sync pulse(s) to 1/1 reference sync pulse(s)" in output
     assert "clock multiplier 1" in output
     assert "only one sync-pulse pair is available" in output
     assert "aligned event range 10 to 20 s" in output

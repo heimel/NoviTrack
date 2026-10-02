@@ -41,7 +41,7 @@ else:
     _PYQTGRAPH_IMPORT_ERROR = None
 
 from inpythotools.logmsg import logmsg
-from .change_times import change_times
+from .change_times import ClockTransform, fit_clock_transform
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
 from .load_tracking_data import has_position_tracking_data, load_tracking_data
@@ -510,8 +510,11 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._last_tick = time.perf_counter()
         self._fps_filtered = 0.0
         self._closed = False
-        self._video_to_master: dict[int, tuple[float, float]] = {}
-        self._master_to_video: dict[int, tuple[float, float]] = {}
+        self._video_to_reference: dict[int, ClockTransform] = {}
+        self._reference_to_video: dict[int, ClockTransform] = {}
+        # Temporary aliases for code using the former master-time terminology.
+        self._video_to_master = self._video_to_reference
+        self._master_to_video = self._reference_to_video
 
         self.readers, self.video_info, self.active_cameras = open_videos(self.record, self.params)
         if not self.active_cameras:
@@ -542,6 +545,16 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.timer.start(max(1, int(round(1000 / fps))))
 
     def _prepare_time_alignment(self) -> None:
+        video_to_reference = getattr(self, "_video_to_reference", None)
+        if video_to_reference is None:
+            video_to_reference = getattr(self, "_video_to_master", {})
+        reference_to_video = getattr(self, "_reference_to_video", None)
+        if reference_to_video is None:
+            reference_to_video = getattr(self, "_master_to_video", {})
+        self._video_to_reference = video_to_reference
+        self._reference_to_video = reference_to_video
+        self._video_to_master = video_to_reference
+        self._master_to_video = reference_to_video
         trigger_times = _as_array(self.measures.get("trigger_times"), [0.0])
         if trigger_times.size == 0:
             trigger_times = np.array([0.0], dtype=float)
@@ -557,9 +570,14 @@ class NTTrackBehaviorWindow(QMainWindow):
             if video_triggers.size == 0:
                 video_triggers = np.array([0.0], dtype=float)
 
-            video_bounds, offset, multiplier = change_times(
-                np.array([0.0, info.duration]), video_triggers, trigger_times
+            transform = fit_clock_transform(
+                video_triggers,
+                trigger_times,
+                source_clock=f"video:{info.camera_name}",
+                target_clock="reference",
             )
+            video_bounds = transform.apply(np.array([0.0, info.duration]))
+            multiplier = transform.multiplier
             if (
                 not np.isfinite(multiplier)
                 or abs(multiplier - 1.0) > _MAX_CLOCK_MULTIPLIER_DEVIATION
@@ -572,9 +590,8 @@ class NTTrackBehaviorWindow(QMainWindow):
                 continue
 
             valid_cameras.append(camera_index)
-            self._video_to_master[camera_index] = (offset, multiplier)
-            _, offset, multiplier = change_times(0.0, trigger_times, video_triggers)
-            self._master_to_video[camera_index] = (offset, multiplier)
+            video_to_reference[camera_index] = transform
+            reference_to_video[camera_index] = transform.inverse()
             min_time = min(min_time, float(video_bounds[0]))
             max_time = max(max_time, float(video_bounds[1]))
 
@@ -941,23 +958,21 @@ class NTTrackBehaviorWindow(QMainWindow):
 
     def _seek(self, master_time: float, *, force: bool = False) -> None:
         self.master_time = max(self.min_time, min(float(master_time), self.max_time))
-        camera_master_times = []
+        camera_reference_times = []
         for camera_index in self.active_cameras:
             reader = self.readers[camera_index]
             info = self.video_info[camera_index]
             if reader is None or info is None:
                 continue
-            offset, multiplier = self._master_to_video[camera_index]
-            video_time = self.master_time * multiplier + offset
+            video_time = self._reference_to_video[camera_index].apply(self.master_time)
             if force or self.playing:
                 frame = reader.read_at_time(video_time)
                 if frame is not None:
                     frame = _orient_camera_frame(frame)
                     self.video_images[camera_index].setImage(frame, autoLevels=False)
-            offset, multiplier = self._video_to_master[camera_index]
-            camera_master_times.append(video_time * multiplier + offset)
-        if camera_master_times:
-            self.master_time = float(np.nanmean(camera_master_times))
+            camera_reference_times.append(self._video_to_reference[camera_index].apply(video_time))
+        if camera_reference_times:
+            self.master_time = float(np.nanmean(camera_reference_times))
         self._update_overlays()
         self._update_trace_ranges()
         self.time_label.setText(f"{self.master_time:.2f}")

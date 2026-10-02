@@ -7,9 +7,11 @@ from unittest.mock import patch
 import numpy as np
 
 from novitrack.change_times import (
+    ClockTransform,
     change_neurotar_to_video_times,
     change_times,
     change_video_to_neurotar_times,
+    fit_clock_transform,
 )
 
 
@@ -73,7 +75,7 @@ class TestNtChangeTimes(unittest.TestCase):
 
         output = "\n".join(messages)
         self.assertIn("10 -> 100, 20 -> 120, 30 -> 140", output)
-        self.assertIn("master_time = 2 * source_time + 80 s", output)
+        self.assertIn("reference_time = 2 * source_time + 80 s", output)
         self.assertIn("clock multiplier 2", output)
         self.assertIn("sync fit correlation 1", output)
         self.assertIn("residual RMS", output)
@@ -91,6 +93,39 @@ class TestNtChangeTimes(unittest.TestCase):
         output = "\n".join(messages)
         self.assertIn("WARNING: RWD marker alignment maximum sync residual", output)
         self.assertIn("exceeds 20 ms", output)
+
+    def test_clock_transform_preserves_fit_provenance(self) -> None:
+        transform = fit_clock_transform(
+            [0.0, 10.0, 20.0],
+            [5.0, 17.0, 29.0],
+            source_clock="overhead_video",
+            target_clock="reference",
+        )
+
+        self.assertIsInstance(transform, ClockTransform)
+        self.assertEqual(transform.source_clock, "overhead_video")
+        self.assertEqual(transform.target_clock, "reference")
+        np.testing.assert_allclose(transform.apply([0.0, 5.0]), [5.0, 11.0])
+        np.testing.assert_allclose(transform.source_triggers, [0.0, 10.0, 20.0])
+        np.testing.assert_allclose(transform.target_triggers, [5.0, 17.0, 29.0])
+        np.testing.assert_allclose(transform.residuals, 0.0, atol=1e-12)
+        self.assertFalse(transform.source_triggers.flags.writeable)
+
+    def test_inverse_is_an_exact_round_trip_with_noisy_triggers(self) -> None:
+        transform = fit_clock_transform(
+            [0.0, 1.0, 2.0, 3.0],
+            [4.0, 5.1, 5.9, 7.05],
+            source_clock="camera",
+            target_clock="reference",
+        )
+        inverse = transform.inverse()
+        times = np.linspace(-10.0, 20.0, 101)
+
+        np.testing.assert_allclose(inverse.apply(transform.apply(times)), times, atol=1e-12)
+        self.assertEqual(inverse.source_clock, "reference")
+        self.assertEqual(inverse.target_clock, "camera")
+        self.assertAlmostEqual(inverse.multiplier, 1.0 / transform.multiplier)
+        self.assertAlmostEqual(inverse.offset, -transform.offset / transform.multiplier)
 
     def test_deprecated_video_neurotar_wrappers(self) -> None:
         params = SimpleNamespace(picamera_time_multiplier=2.0)

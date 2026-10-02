@@ -319,6 +319,11 @@ def test_bad_video_trigger_alignment_is_reported_and_excluded(monkeypatch, tmp_p
     assert window.max_time == pytest.approx(19.0)
     assert set(window._video_to_master) == {0}
     assert set(window._master_to_video) == {0}
+    assert window._video_to_master is window._video_to_reference
+    assert window._master_to_video is window._reference_to_video
+    transform = window._video_to_reference[0]
+    inverse = window._reference_to_video[0]
+    np.testing.assert_allclose(inverse.apply(transform.apply([0.0, 10.0])), [0.0, 10.0])
     assert len(dialogs) == 1
     assert dialogs[0][0] is window
     assert dialogs[0][1] == "Video trigger alignment failed"
