@@ -10,6 +10,84 @@ from PyQt6.QtCore import QRect, QSize, Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QToolBar
 
 from novitrack import track_behavior
+from novitrack.tracking_stream import TrackingStream, TrackingStreamCollection
+
+
+def _tracking_stream(times, data=None, *, stream_id="tracking", capabilities=()):
+    return TrackingStream(
+        stream_id=stream_id,
+        source_type="test",
+        native_times=np.asarray(times, dtype=float),
+        data={} if data is None else data,
+        capabilities=frozenset(capabilities),
+    )
+
+
+def test_select_tracking_stream_prefers_position_data():
+    heading = _tracking_stream(
+        [0.0],
+        {"alpha": [10.0]},
+        stream_id="heading",
+        capabilities={"heading"},
+    )
+    position = _tracking_stream(
+        [0.0],
+        {"X": [1.0], "Y": [2.0]},
+        stream_id="position",
+        capabilities={"position"},
+    )
+
+    selected = track_behavior._select_tracking_stream(
+        TrackingStreamCollection([heading, position])
+    )
+
+    assert selected is position
+
+
+def test_prepare_tracking_arrays_uses_stream_reference_time():
+    stream = _tracking_stream(
+        [0.0, 1.0],
+        {"X": [3.0, 4.0], "Y": [5.0, 6.0], "Speed": [7.0, 8.0]},
+    )
+    window = SimpleNamespace(
+        tracking_stream=stream,
+        params=SimpleNamespace(nt_forward_speed_in_speed_trace=False),
+    )
+
+    track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
+
+    np.testing.assert_array_equal(window.time_values, stream.reference_times)
+    np.testing.assert_array_equal(window.x_values, [3.0, 4.0])
+    np.testing.assert_array_equal(window.y_values, [5.0, 6.0])
+    np.testing.assert_array_equal(window.speed_values, [7.0, 8.0])
+
+
+def test_prepare_tracking_arrays_supports_video_only_session():
+    window = SimpleNamespace(
+        tracking_stream=None,
+        params=SimpleNamespace(nt_forward_speed_in_speed_trace=True),
+    )
+
+    track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
+
+    assert window.time_values.size == 0
+    assert window.x_values.size == 0
+    assert window.speed_values.size == 0
+
+
+def test_current_index_uses_nearest_stream_sample():
+    window = SimpleNamespace(
+        tracking_stream=_tracking_stream([0.0, 1.0, 2.0]),
+        master_time=1.8,
+    )
+
+    assert track_behavior.NTTrackBehaviorWindow._current_index(window) == 2
+
+
+def test_current_index_is_none_without_tracking_stream():
+    window = SimpleNamespace(tracking_stream=None, master_time=1.8)
+
+    assert track_behavior.NTTrackBehaviorWindow._current_index(window) is None
 
 
 def test_tracker_toolbar_uses_selected_24_px_lucide_icons():
@@ -298,7 +376,7 @@ def test_bad_video_trigger_alignment_is_reported_and_excluded(monkeypatch, tmp_p
         active_cameras=[0, 1],
         video_info=[good_info, bad_info],
         readers=[good_reader, bad_reader],
-        nt_data={"Time": np.array([-0.5, 15.0])},
+        tracking_stream=_tracking_stream([-0.5, 15.0]),
         _video_to_master={},
         _master_to_video={},
     )

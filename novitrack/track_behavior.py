@@ -44,9 +44,10 @@ from inpythotools.logmsg import logmsg
 from .change_times import ClockTransform, fit_clock_transform
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
-from .load_tracking_data import has_position_tracking_data, load_tracking_data
+from .load_tracking_data import load_tracking_streams
 from .marker_schema import make_marker_record
 from .open_videos import OpenCVVideoReader, VideoInfo, movie_search_locations, open_videos
+from .tracking_stream import TrackingStream, TrackingStreamCollection
 
 
 _OPEN_WINDOWS: list["NTTrackBehaviorWindow"] = []
@@ -193,6 +194,14 @@ def _ensure_measures(record: Any, params: Any) -> dict[str, Any]:
         measures.setdefault("overhead_arena_center", _get(params, "overhead_arena_center", [np.nan, np.nan]))
     _set_record_field(record, "measures", measures)
     return measures
+
+
+def _select_tracking_stream(streams: TrackingStreamCollection) -> TrackingStream | None:
+    """Choose the current primary stream, preferring one with tracked positions."""
+    positioned = streams.with_capability("position")
+    if positioned:
+        return positioned[0]
+    return next(iter(streams.values()), None)
 
 
 def _markers_as_records(markers: Any) -> list[dict[str, Any]]:
@@ -520,15 +529,17 @@ class NTTrackBehaviorWindow(QMainWindow):
         if not self.active_cameras:
             raise FileNotFoundError(_missing_movies_message(self.record, self.params))
 
-        self.nt_data, trigger_times = load_tracking_data(
+        self.tracking_streams, trigger_times = load_tracking_streams(
             self.record,
             self.params,
             recompute=False,
             video_info=self.video_info,
         )
-        if not self.nt_data:
-            raise FileNotFoundError("No Neurotar/tracking data were found for this record.")
-        self.position_tracking_available = has_position_tracking_data(self.nt_data)
+        self.tracking_stream = _select_tracking_stream(self.tracking_streams)
+        self.position_tracking_available = bool(
+            self.tracking_stream is not None
+            and "position" in self.tracking_stream.capabilities
+        )
         self.measures["position_tracking_available"] = self.position_tracking_available
         self.measures["trigger_times"] = _as_array(trigger_times, [0.0])
 
@@ -612,7 +623,11 @@ class NTTrackBehaviorWindow(QMainWindow):
             logmsg(message)
             QMessageBox.critical(self, "Video trigger alignment failed", message)
 
-        time_values = _as_array(self.nt_data.get("Time"), [0.0])
+        time_values = (
+            np.array([], dtype=float)
+            if self.tracking_stream is None
+            else self.tracking_stream.reference_times
+        )
         finite = time_values[np.isfinite(time_values)]
         if finite.size:
             min_time = min(min_time, float(np.nanmin(finite)))
@@ -623,27 +638,33 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.measures["max_time"] = max_time
 
     def _prepare_tracking_arrays(self) -> None:
-        self.time_values = _as_array(self.nt_data.get("Time"), [0.0])
-        self.x_values = _as_array(self.nt_data.get("X"), np.full_like(self.time_values, np.nan))
-        self.y_values = _as_array(self.nt_data.get("Y"), np.full_like(self.time_values, np.nan))
-        self.alpha_values = _as_array(self.nt_data.get("alpha"), np.full_like(self.time_values, np.nan))
-        self.com_x_values = _as_array(self.nt_data.get("CoM_X"), np.full_like(self.time_values, np.nan))
-        self.com_y_values = _as_array(self.nt_data.get("CoM_Y"), np.full_like(self.time_values, np.nan))
-        self.tail_x_values = _as_array(self.nt_data.get("tailbase_X"), np.full_like(self.time_values, np.nan))
-        self.tail_y_values = _as_array(self.nt_data.get("tailbase_Y"), np.full_like(self.time_values, np.nan))
+        data = {} if self.tracking_stream is None else self.tracking_stream.data
+        self.time_values = (
+            np.array([], dtype=float)
+            if self.tracking_stream is None
+            else self.tracking_stream.reference_times
+        )
+        self.x_values = _as_array(data.get("X"), np.full_like(self.time_values, np.nan))
+        self.y_values = _as_array(data.get("Y"), np.full_like(self.time_values, np.nan))
+        self.alpha_values = _as_array(data.get("alpha"), np.full_like(self.time_values, np.nan))
+        self.com_x_values = _as_array(data.get("CoM_X"), np.full_like(self.time_values, np.nan))
+        self.com_y_values = _as_array(data.get("CoM_Y"), np.full_like(self.time_values, np.nan))
+        self.tail_x_values = _as_array(data.get("tailbase_X"), np.full_like(self.time_values, np.nan))
+        self.tail_y_values = _as_array(data.get("tailbase_Y"), np.full_like(self.time_values, np.nan))
         self.speed_values = _as_array(
-            self.nt_data.get("Forward_speed" if bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)) else "Speed"),
+            data.get("Forward_speed" if bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)) else "Speed"),
             np.full_like(self.time_values, np.nan),
         )
-        self.rotation_values = _as_array(self.nt_data.get("Angular_velocity"), np.full_like(self.time_values, np.nan))
-        self.distance_values = _as_array(self.nt_data.get("Object_distance"), np.full_like(self.time_values, np.nan))
+        self.rotation_values = _as_array(data.get("Angular_velocity"), np.full_like(self.time_values, np.nan))
+        self.distance_values = _as_array(data.get("Object_distance"), np.full_like(self.time_values, np.nan))
 
     def _observable_values(self, observable_name: str) -> np.ndarray:
         spec = _OBSERVABLES[observable_name]
         field = spec.field
         if observable_name == "Speed" and bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)):
             field = "Forward_speed"
-        return _as_array(self.nt_data.get(field), np.full_like(self.time_values, np.nan))
+        data = {} if self.tracking_stream is None else self.tracking_stream.data
+        return _as_array(data.get(field), np.full_like(self.time_values, np.nan))
 
     def _available_observable_names(self) -> list[str]:
         return [
@@ -990,12 +1011,9 @@ class NTTrackBehaviorWindow(QMainWindow):
             self._last_tick = time.perf_counter()
 
     def _current_index(self) -> int | None:
-        if self.time_values.size == 0:
+        if self.tracking_stream is None:
             return None
-        index = int(np.searchsorted(self.time_values, self.master_time, side="right") - 1)
-        if index < 0 or index >= self.time_values.size:
-            return None
-        return index
+        return self.tracking_stream.nearest_index(self.master_time)
 
     def _update_overlays(self) -> None:
         if self.overhead_mouse_item is None or not bool(_get(self.params, "nt_show_overhead_mouse", True)):
