@@ -44,7 +44,7 @@ def test_completion_does_not_create_positions_in_all_missing_tracking_data():
     assert not has_position_tracking_data(completed)
 
 
-def test_constructs_and_saves_matlab_compatible_timeline(monkeypatch, tmp_path):
+def test_constructs_timeline_without_saving_empty_tracking_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(
         load_tracking_data_module, "load_neurotar_data", lambda record, params: ({}, None)
     )
@@ -62,9 +62,7 @@ def test_constructs_and_saves_matlab_compatible_timeline(monkeypatch, tmp_path):
     assert nt_data["schema_version"] == TRACKING_SCHEMA_VERSION
     assert np.isnan(nt_data["X"]).all()
 
-    raw = loadmat(tmp_path / "nt_tracking_data.mat", struct_as_record=False, squeeze_me=True)
-    assert raw["nt_data"].schema_version == TRACKING_SCHEMA_VERSION
-    np.testing.assert_allclose(np.asarray(raw["nt_data"].Time).reshape(-1), nt_data["Time"])
+    assert not (tmp_path / "nt_tracking_data.mat").exists()
 
 
 def test_loads_legacy_mat_file_without_schema_version(monkeypatch, tmp_path):

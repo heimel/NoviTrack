@@ -28,6 +28,22 @@ holds the independently sampled streams for one session. Legacy `nt_data`
 structures remain supported through an adapter and continue to use their
 existing `Time` values as reference time.
 
+DeepLabCut CSV and HDF5 results are discovered from the corresponding video
+stem (for example, `<video stem>DLC*.h5`) and loaded directly as independent
+streams; they are not copied into `nt_tracking_data.mat`. A DLC stream stores
+its unfiltered positions as `data["keypoints"]` with shape
+`samples x keypoints x 2`, its confidence values as `data["likelihood"]`, and
+the matching names in `metadata["keypoint_names"]`. Its native time is the
+source-video frame time, `frame_indices` retains the exact DLC frame numbers,
+and its clock transform maps those times to session reference time.
+
+When present, `DeepLabCut/<camera name>/config.yaml` in the session folder is
+the authoritative source for the stream's skeleton, likelihood cutoff, marker
+size, keypoint colormap, and skeleton color. `DeepLabCut/config.yaml` is accepted as a
+single-model fallback, and the legacy folder name `DLC` is also recognized.
+The behavior viewer uses an exact DLC frame match when available and otherwise
+falls back to the nearest sample in session reference time.
+
 ## Database
 
 Databases contain records with session information for a specific study dossier.

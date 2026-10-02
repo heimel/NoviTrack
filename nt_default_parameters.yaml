@@ -319,7 +319,10 @@ nt_show_boundaries: true # neurotar frame
 nt_mouse_trace_window: 3 # s
 nt_show_leave_wall_boundary: true
 nt_forward_speed_in_speed_trace: true
-nt_show_mouse_keypoints: true # true is nice, but slow
+nt_show_mouse_keypoints: true # show pose-estimation keypoint markers on the movie
+nt_show_mouse_skeleton: true # connect keypoints using the tracking configuration skeleton
+nt_mouse_keypoint_colormap: rainbow # default marker colormap; DLC config.yaml overrides this
+nt_mouse_skeleton_color: blue # default skeleton color; DLC config.yaml overrides this
 # Ordered display names from the tracking panel's right-click menu.
 nt_tracking_observable_panels: [Speed, Rotation, Distance]
 nt_show_bridge: false

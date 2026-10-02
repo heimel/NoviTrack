@@ -14,6 +14,7 @@ from scipy.io import loadmat, savemat
 
 from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
+from .load_deeplabcut_data import discover_deeplabcut_sources, load_deeplabcut_stream
 from .load_neurotar_data import load_neurotar_data
 from .session_path import session_path as resolve_session_path
 from .load_parameters import load_parameters
@@ -262,9 +263,9 @@ def load_tracking_data(
 
     nt_data, trigger_times = _video_timeline(video_info, params)
     if nt_data:
-        if save_cache:
-            _save_tracking_data(filename, nt_data)
-            logmsg(f"Saved tracking data to {filename}")
+        # This is a compatibility timeline, not measured tracking. Keeping it
+        # in memory supports legacy callers without creating an empty cache
+        # that can obscure newly added source-specific tracking files.
         return nt_data, trigger_times
 
     if recompute:
@@ -308,6 +309,15 @@ def load_tracking_streams(
     )
 
     streams = TrackingStreamCollection(reference_clock="reference")
+    for source in discover_deeplabcut_sources(video_info):
+        try:
+            stream = load_deeplabcut_stream(source, trigger_times)
+        except (ImportError, KeyError, OSError, TypeError, ValueError) as exc:
+            logmsg(f"Could not load DeepLabCut data from {source.filename}: {exc}")
+            continue
+        streams.add(stream)
+        logmsg(f"Loaded DeepLabCut data from {source.filename}")
+
     if not nt_data:
         return streams, trigger_times
 

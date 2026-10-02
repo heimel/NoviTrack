@@ -162,3 +162,38 @@ def test_stream_loader_wraps_legacy_loader_and_skips_empty_timelines(monkeypatch
     empty_streams, _ = module.load_tracking_streams({}, params)
 
     assert len(empty_streams) == 0
+
+
+def test_stream_loader_adds_discovered_deeplabcut_streams_first(monkeypatch) -> None:
+    module = importlib.import_module("novitrack.load_tracking_data")
+    params = SimpleNamespace(neurotar=False, OVERHEAD=4, nt_overhead_camera=1)
+    legacy_data = {
+        "Time": np.array([0.0]),
+        "Coordinates": 4,
+        "CoM_X": np.array([5.0]),
+        "CoM_Y": np.array([7.0]),
+    }
+    dlc_stream = TrackingStream(
+        stream_id="deeplabcut:overhead",
+        source_type="deeplabcut",
+        native_times=[0.0],
+        data={"keypoints": np.array([[[1.0, 2.0]]])},
+        capabilities={"position", "pose_overlay"},
+    )
+    source = SimpleNamespace(filename="tracking.h5")
+    monkeypatch.setattr(
+        module,
+        "load_tracking_data",
+        lambda *args, **kwargs: (legacy_data, np.array([0.0])),
+    )
+    monkeypatch.setattr(module, "discover_deeplabcut_sources", lambda video_info: (source,))
+    monkeypatch.setattr(
+        module,
+        "load_deeplabcut_stream",
+        lambda received_source, triggers: dlc_stream,
+    )
+    monkeypatch.setattr(module, "logmsg", lambda message: None)
+
+    streams, _ = module.load_tracking_streams({}, params, video_info=[object()])
+
+    assert list(streams) == ["deeplabcut:overhead", "legacy_tracking"]

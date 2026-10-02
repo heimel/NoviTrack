@@ -180,6 +180,33 @@ def _as_array(value: Any, default: Sequence[float] | None = None) -> np.ndarray:
         return np.asarray(default if default is not None else [], dtype=float)
 
 
+def _aligned_plot_data(times: Any, values: Any) -> tuple[np.ndarray, np.ndarray]:
+    """Return aligned plot vectors, or two empty vectors for an absent series."""
+    time_array = _as_array(times)
+    value_array = _as_array(values)
+    if time_array.size == 0 or value_array.size != time_array.size:
+        empty = np.array([], dtype=float)
+        return empty, empty
+    return time_array, value_array
+
+
+def _keypoint_colors(colormap_name: str, count: int) -> tuple[tuple[int, int, int, int], ...]:
+    """Sample a Matplotlib colormap into stable per-keypoint RGBA colors."""
+    if count <= 0:
+        return ()
+    from matplotlib import colormaps
+
+    try:
+        colormap = colormaps.get_cmap(str(colormap_name)).resampled(count)
+    except ValueError:
+        colormap = colormaps.get_cmap("rainbow").resampled(count)
+    rgba = colormap(np.linspace(0.0, 1.0, count))
+    return tuple(
+        tuple(int(round(float(channel) * 255)) for channel in color)
+        for color in rgba
+    )
+
+
 def _ensure_measures(record: Any, params: Any) -> dict[str, Any]:
     measures = _get(record, "measures", None)
     if not isinstance(measures, dict):
@@ -448,11 +475,16 @@ class _ObservablePanel(QWidget):
         self.y_range = _OBSERVABLES[observable_name].y_range
         self.title_label.setText(observable_name)
         self.plot.clear()
-        self.plot.plot(
-            self.owner.time_values,
-            self.owner._observable_values(observable_name),
+        plot_times, plot_values = _aligned_plot_data(
+            self.owner.time_values, self.owner._observable_values(observable_name)
+        )
+        trace = self.plot.plot(
+            plot_times,
+            plot_values,
             pen=pg.mkPen("k"),
         )
+        trace.setDownsampling(auto=True, method="peak")
+        trace.setClipToView(True)
         self.plot.setYRange(*self.y_range, padding=0)
         self.plot.addItem(self.cursor)
         self.owner._update_trace_ranges()
@@ -521,6 +553,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._closed = False
         self._video_to_reference: dict[int, ClockTransform] = {}
         self._reference_to_video: dict[int, ClockTransform] = {}
+        self._current_video_frames: dict[int, int] = {}
         # Temporary aliases for code using the former master-time terminology.
         self._video_to_master = self._video_to_reference
         self._master_to_video = self._reference_to_video
@@ -644,19 +677,22 @@ class NTTrackBehaviorWindow(QMainWindow):
             if self.tracking_stream is None
             else self.tracking_stream.reference_times
         )
-        self.x_values = _as_array(data.get("X"), np.full_like(self.time_values, np.nan))
-        self.y_values = _as_array(data.get("Y"), np.full_like(self.time_values, np.nan))
-        self.alpha_values = _as_array(data.get("alpha"), np.full_like(self.time_values, np.nan))
-        self.com_x_values = _as_array(data.get("CoM_X"), np.full_like(self.time_values, np.nan))
-        self.com_y_values = _as_array(data.get("CoM_Y"), np.full_like(self.time_values, np.nan))
-        self.tail_x_values = _as_array(data.get("tailbase_X"), np.full_like(self.time_values, np.nan))
-        self.tail_y_values = _as_array(data.get("tailbase_Y"), np.full_like(self.time_values, np.nan))
+        self.x_values = _as_array(data.get("X"))
+        self.y_values = _as_array(data.get("Y"))
+        self.alpha_values = _as_array(data.get("alpha"))
+        self.com_x_values = _as_array(data.get("CoM_X"))
+        self.com_y_values = _as_array(data.get("CoM_Y"))
+        self.tail_x_values = _as_array(data.get("tailbase_X"))
+        self.tail_y_values = _as_array(data.get("tailbase_Y"))
         self.speed_values = _as_array(
-            data.get("Forward_speed" if bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)) else "Speed"),
-            np.full_like(self.time_values, np.nan),
+            data.get(
+                "Forward_speed"
+                if bool(_get(self.params, "nt_forward_speed_in_speed_trace", True))
+                else "Speed"
+            )
         )
-        self.rotation_values = _as_array(data.get("Angular_velocity"), np.full_like(self.time_values, np.nan))
-        self.distance_values = _as_array(data.get("Object_distance"), np.full_like(self.time_values, np.nan))
+        self.rotation_values = _as_array(data.get("Angular_velocity"))
+        self.distance_values = _as_array(data.get("Object_distance"))
 
     def _observable_values(self, observable_name: str) -> np.ndarray:
         spec = _OBSERVABLES[observable_name]
@@ -664,13 +700,16 @@ class NTTrackBehaviorWindow(QMainWindow):
         if observable_name == "Speed" and bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)):
             field = "Forward_speed"
         data = {} if self.tracking_stream is None else self.tracking_stream.data
-        return _as_array(data.get(field), np.full_like(self.time_values, np.nan))
+        values = _as_array(data.get(field))
+        if values.size != self.time_values.size:
+            return np.array([], dtype=float)
+        return values
 
     def _available_observable_names(self) -> list[str]:
         return [
             name
             for name, spec in _OBSERVABLES.items()
-            if self._observable_values(name).size == self.time_values.size
+            if self._observable_values(name).size > 0
             and (self.position_tracking_available or not spec.requires_position_tracking)
         ]
 
@@ -741,6 +780,10 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.video_images: dict[int, pg.ImageItem] = {}
         self.video_info_by_camera: dict[int, VideoInfo] = {}
         self.overhead_mouse_item: pg.PlotDataItem | None = None
+        self.tracking_keypoint_item: Any = None
+        self.tracking_skeleton_item: Any = None
+        self.tracking_keypoint_brushes: tuple[Any, ...] = ()
+        self.tracking_overlay_camera_index: int | None = None
         for camera_index in self.active_cameras:
             info = self.video_info[camera_index]
             assert info is not None
@@ -757,8 +800,14 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.video_info_by_camera[camera_index] = info
             video_row.addWidget(plot)
 
+        keypoint_data = (
+            None
+            if self.tracking_stream is None
+            else self.tracking_stream.data.get("keypoints")
+        )
+        has_generic_pose = np.asarray(keypoint_data).ndim == 3
         overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
-        if overhead_index in self.video_views:
+        if overhead_index in self.video_views and not has_generic_pose:
             self.overhead_mouse_item = pg.PlotDataItem(
                 pen=pg.mkPen((0, 255, 0), width=2),
                 symbol="o" if bool(_get(self.params, "nt_show_mouse_keypoints", True)) else None,
@@ -767,13 +816,60 @@ class NTTrackBehaviorWindow(QMainWindow):
             )
             self.video_views[overhead_index].addItem(self.overhead_mouse_item)
 
+        if has_generic_pose and self.tracking_stream is not None:
+            camera_id = self.tracking_stream.camera_id
+            if camera_id in self.video_views:
+                self.tracking_overlay_camera_index = int(camera_id)
+            else:
+                self.tracking_overlay_camera_index = next(
+                    (
+                        index
+                        for index, info in self.video_info_by_camera.items()
+                        if info.camera_name.casefold() == str(camera_id).casefold()
+                    ),
+                    None,
+                )
+            camera_index = self.tracking_overlay_camera_index
+            if camera_index is not None:
+                metadata = self.tracking_stream.metadata
+                skeleton_color = metadata.get("skeleton_color") or _get(
+                    self.params, "nt_mouse_skeleton_color", "blue"
+                )
+                keypoint_colormap = metadata.get("keypoint_colormap") or _get(
+                    self.params, "nt_mouse_keypoint_colormap", "rainbow"
+                )
+                keypoint_count = int(np.asarray(keypoint_data).shape[1])
+                self.tracking_keypoint_brushes = tuple(
+                    pg.mkBrush(*color)
+                    for color in _keypoint_colors(str(keypoint_colormap), keypoint_count)
+                )
+                self.tracking_skeleton_item = pg.PlotDataItem(
+                    pen=pg.mkPen(str(skeleton_color), width=2),
+                    connect="finite",
+                )
+                self.tracking_keypoint_item = pg.ScatterPlotItem(
+                    pen=None,
+                    size=float(metadata.get("keypoint_size", 5.0)),
+                )
+                self.video_views[camera_index].addItem(self.tracking_skeleton_item)
+                self.video_views[camera_index].addItem(self.tracking_keypoint_item)
+
         self.timeline = pg.PlotWidget()
         self.timeline.setBackground("w")
         self.timeline.setMouseEnabled(y=False)
         self.timeline.hideAxis("left")
         self.timeline.setYRange(0, float(_get(self.params, "nt_track_timeline_max_speed", 0.375)))
         self.timeline.setXRange(self.min_time, self.max_time, padding=0)
-        self.timeline.plot(self.time_values, np.nan_to_num(np.abs(self.speed_values), nan=0.0), pen=pg.mkPen((140, 140, 140)))
+        timeline_times, timeline_speed = _aligned_plot_data(
+            self.time_values, self.speed_values
+        )
+        timeline_trace = self.timeline.plot(
+            timeline_times,
+            np.nan_to_num(np.abs(timeline_speed), nan=0.0),
+            pen=pg.mkPen((140, 140, 140)),
+        )
+        timeline_trace.setDownsampling(auto=True, method="peak")
+        timeline_trace.setClipToView(True)
         self.timeline_cursor = pg.InfiniteLine(
             self.master_time,
             angle=90,
@@ -986,6 +1082,10 @@ class NTTrackBehaviorWindow(QMainWindow):
             if reader is None or info is None:
                 continue
             video_time = self._reference_to_video[camera_index].apply(self.master_time)
+            frame_index = int(round(float(video_time) * info.framerate))
+            self._current_video_frames[camera_index] = max(
+                0, min(frame_index, max(0, info.n_frames - 1))
+            )
             if force or self.playing:
                 frame = reader.read_at_time(video_time)
                 if frame is not None:
@@ -1013,17 +1113,40 @@ class NTTrackBehaviorWindow(QMainWindow):
     def _current_index(self) -> int | None:
         if self.tracking_stream is None:
             return None
+        camera_index = getattr(self, "tracking_overlay_camera_index", None)
+        if camera_index is None and isinstance(self.tracking_stream.camera_id, int):
+            camera_index = self.tracking_stream.camera_id
+        frame_index = getattr(self, "_current_video_frames", {}).get(camera_index)
+        if frame_index is not None:
+            exact_index = self.tracking_stream.index_for_frame(frame_index)
+            if exact_index is not None:
+                return exact_index
         return self.tracking_stream.nearest_index(self.master_time)
 
     def _update_overlays(self) -> None:
+        if (
+            getattr(self, "tracking_keypoint_item", None) is not None
+            or getattr(self, "tracking_skeleton_item", None) is not None
+        ):
+            self._update_keypoint_overlays()
+            return
         if self.overhead_mouse_item is None or not bool(_get(self.params, "nt_show_overhead_mouse", True)):
             return
         index = self._current_index()
         if index is None:
             self.overhead_mouse_item.setData([], [])
             return
-        x = np.asarray([self.x_values[index], self.com_x_values[index], self.tail_x_values[index]], dtype=float)
-        y = np.asarray([self.y_values[index], self.com_y_values[index], self.tail_y_values[index]], dtype=float)
+        def value_at(values: np.ndarray) -> float:
+            return float(values[index]) if index < values.size else np.nan
+
+        x = np.asarray(
+            [value_at(self.x_values), value_at(self.com_x_values), value_at(self.tail_x_values)],
+            dtype=float,
+        )
+        y = np.asarray(
+            [value_at(self.y_values), value_at(self.com_y_values), value_at(self.tail_y_values)],
+            dtype=float,
+        )
         overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
         overhead_info = self.video_info[overhead_index]
         if overhead_info is not None:
@@ -1033,6 +1156,70 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.overhead_mouse_item.setData([], [])
             return
         self.overhead_mouse_item.setData(x[finite], y[finite])
+
+    def _update_keypoint_overlays(self) -> None:
+        def clear() -> None:
+            if self.tracking_keypoint_item is not None:
+                self.tracking_keypoint_item.setData([], [])
+            if self.tracking_skeleton_item is not None:
+                self.tracking_skeleton_item.setData([], [])
+
+        if self.tracking_stream is None:
+            clear()
+            return
+        index = self._current_index()
+        keypoints = np.asarray(self.tracking_stream.data.get("keypoints", []), dtype=float)
+        if index is None or keypoints.ndim != 3 or index >= keypoints.shape[0]:
+            clear()
+            return
+
+        points = np.asarray(keypoints[index], dtype=float).copy()
+        valid = np.all(np.isfinite(points), axis=1)
+        likelihood = np.asarray(
+            self.tracking_stream.data.get("likelihood", []), dtype=float
+        )
+        if likelihood.ndim == 2 and likelihood.shape[:2] == keypoints.shape[:2]:
+            cutoff = float(self.tracking_stream.metadata.get("likelihood_cutoff", 0.6))
+            valid &= np.isfinite(likelihood[index]) & (likelihood[index] >= cutoff)
+
+        camera_index = self.tracking_overlay_camera_index
+        info = None if camera_index is None else self.video_info[camera_index]
+        if info is not None:
+            points[:, 1] = _orient_camera_y(points[:, 1], info.height)
+
+        if self.tracking_keypoint_item is not None:
+            if bool(_get(self.params, "nt_show_mouse_keypoints", True)):
+                visible_indices = np.flatnonzero(valid)
+                self.tracking_keypoint_item.setData(
+                    points[visible_indices, 0],
+                    points[visible_indices, 1],
+                    brush=[
+                        self.tracking_keypoint_brushes[point_index]
+                        for point_index in visible_indices
+                    ],
+                )
+            else:
+                self.tracking_keypoint_item.setData([], [])
+
+        if self.tracking_skeleton_item is None:
+            return
+        if not bool(_get(self.params, "nt_show_mouse_skeleton", True)):
+            self.tracking_skeleton_item.setData([], [])
+            return
+        names = tuple(self.tracking_stream.metadata.get("keypoint_names", ()))
+        name_to_index = {name: point_index for point_index, name in enumerate(names)}
+        segments: list[np.ndarray] = []
+        for first_name, second_name in self.tracking_stream.metadata.get("skeleton", ()):
+            first = name_to_index.get(str(first_name))
+            second = name_to_index.get(str(second_name))
+            if first is None or second is None or not (valid[first] and valid[second]):
+                continue
+            segments.extend((points[first], points[second], np.array([np.nan, np.nan])))
+        if segments:
+            segment_array = np.asarray(segments, dtype=float)
+            self.tracking_skeleton_item.setData(segment_array[:, 0], segment_array[:, 1])
+        else:
+            self.tracking_skeleton_item.setData([], [])
 
     def _update_trace_ranges(self) -> None:
         half_window = float(_get(self.params, "nt_mouse_trace_window", 3.0))
@@ -1069,6 +1256,24 @@ class NTTrackBehaviorWindow(QMainWindow):
             action.setIcon(_lucide_icon("map-pin" if visible else "map-pin-off"))
         self._refresh_marker_items()
         self._report_status(f"Behavior markers {'shown' if visible else 'hidden'}")
+
+    def toggle_mouse_keypoints(self) -> None:
+        visible = not bool(_get(self.params, "nt_show_mouse_keypoints", True))
+        if isinstance(self.params, MutableMapping):
+            self.params["nt_show_mouse_keypoints"] = visible
+        else:
+            setattr(self.params, "nt_show_mouse_keypoints", visible)
+        self._update_overlays()
+        self._report_status(f"Tracking keypoints {'shown' if visible else 'hidden'}")
+
+    def toggle_mouse_skeleton(self) -> None:
+        visible = not bool(_get(self.params, "nt_show_mouse_skeleton", True))
+        if isinstance(self.params, MutableMapping):
+            self.params["nt_show_mouse_skeleton"] = visible
+        else:
+            setattr(self.params, "nt_show_mouse_skeleton", visible)
+        self._update_overlays()
+        self._report_status(f"Tracking skeleton {'shown' if visible else 'hidden'}")
 
     def backward_frame(self) -> None:
         self._set_playing(False)
@@ -1310,6 +1515,8 @@ class NTTrackBehaviorWindow(QMainWindow):
                     "Shift+M: add marker",
                     "Shift+I: import markers",
                     "B: toggle behavior markers",
+                    "Shift+K: toggle tracking keypoints",
+                    "Shift+S: toggle tracking skeleton",
                     "Shift+G: go to time",
                     "Delete: delete next marker",
                     "Shift+D: delete all markers",
@@ -1334,6 +1541,10 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.delete_all_markers()
         elif key == Qt.Key.Key_B and modifiers == Qt.KeyboardModifier.NoModifier:
             self.toggle_behavior_markers()
+        elif key == Qt.Key.Key_K and modifiers == Qt.KeyboardModifier.ShiftModifier:
+            self.toggle_mouse_keypoints()
+        elif key == Qt.Key.Key_S and modifiers == Qt.KeyboardModifier.ShiftModifier:
+            self.toggle_mouse_skeleton()
         elif key == Qt.Key.Key_G and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.goto_dialog()
         elif key == Qt.Key.Key_Q and modifiers == Qt.KeyboardModifier.ShiftModifier:

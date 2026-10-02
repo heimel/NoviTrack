@@ -75,6 +75,52 @@ def test_prepare_tracking_arrays_supports_video_only_session():
     assert window.speed_values.size == 0
 
 
+def test_raw_keypoint_stream_does_not_allocate_missing_legacy_traces():
+    stream = _tracking_stream(
+        np.arange(100_000, dtype=float),
+        {
+            "keypoints": np.zeros((100_000, 1, 2)),
+            "likelihood": np.ones((100_000, 1)),
+        },
+        capabilities={"position", "pose_overlay"},
+    )
+    window = SimpleNamespace(
+        tracking_stream=stream,
+        position_tracking_available=True,
+        params=SimpleNamespace(nt_forward_speed_in_speed_trace=True),
+    )
+
+    track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
+    window._observable_values = lambda name: (
+        track_behavior.NTTrackBehaviorWindow._observable_values(window, name)
+    )
+    names = track_behavior.NTTrackBehaviorWindow._available_observable_names(window)
+
+    assert window.time_values.size == 100_000
+    assert window.x_values.size == 0
+    assert window.speed_values.size == 0
+    assert names == []
+
+
+def test_aligned_plot_data_skips_missing_or_misaligned_series():
+    times, values = track_behavior._aligned_plot_data([0.0, 1.0], [])
+    assert times.size == 0
+    assert values.size == 0
+
+    times, values = track_behavior._aligned_plot_data([0.0, 1.0], [2.0, 3.0])
+    np.testing.assert_array_equal(times, [0.0, 1.0])
+    np.testing.assert_array_equal(values, [2.0, 3.0])
+
+
+def test_keypoint_colors_use_requested_colormap_and_fall_back_to_rainbow():
+    colors = track_behavior._keypoint_colors("rainbow", 3)
+
+    assert len(colors) == 3
+    assert len(set(colors)) == 3
+    assert all(len(color) == 4 for color in colors)
+    assert track_behavior._keypoint_colors("not-a-colormap", 3) == colors
+
+
 def test_current_index_uses_nearest_stream_sample():
     window = SimpleNamespace(
         tracking_stream=_tracking_stream([0.0, 1.0, 2.0]),
@@ -88,6 +134,25 @@ def test_current_index_is_none_without_tracking_stream():
     window = SimpleNamespace(tracking_stream=None, master_time=1.8)
 
     assert track_behavior.NTTrackBehaviorWindow._current_index(window) is None
+
+
+def test_current_index_prefers_exact_source_video_frame():
+    stream = TrackingStream(
+        stream_id="pose",
+        source_type="test",
+        native_times=[0.0, 1.0, 2.0],
+        data={},
+        camera_id=1,
+        frame_indices=[10, 20, 30],
+    )
+    window = SimpleNamespace(
+        tracking_stream=stream,
+        tracking_overlay_camera_index=1,
+        _current_video_frames={1: 20},
+        master_time=1.8,
+    )
+
+    assert track_behavior.NTTrackBehaviorWindow._current_index(window) == 1
 
 
 def test_tracker_toolbar_uses_selected_24_px_lucide_icons():
@@ -345,6 +410,104 @@ def test_orient_camera_y_matches_vertically_flipped_frame():
         track_behavior._orient_camera_y(y, frame_height=5),
         [4.0, 3.0, 0.0],
     )
+
+
+def test_dlc_overlay_filters_likelihood_and_draws_configured_skeleton():
+    class FakeItem:
+        def setData(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+    stream = TrackingStream(
+        stream_id="deeplabcut:overhead",
+        source_type="deeplabcut",
+        native_times=[0.0],
+        data={
+            "keypoints": np.array([[[10.0, 10.0], [20.0, 20.0], [30.0, 30.0]]]),
+            "likelihood": np.array([[0.9, 0.8, 0.4]]),
+        },
+        camera_id=1,
+        frame_indices=[5],
+        metadata={
+            "keypoint_names": ("nose", "body_center", "tail_base"),
+            "skeleton": (("nose", "body_center"), ("body_center", "tail_base")),
+            "likelihood_cutoff": 0.6,
+        },
+    )
+    keypoints = FakeItem()
+    skeleton = FakeItem()
+    window = SimpleNamespace(
+        tracking_stream=stream,
+        tracking_keypoint_item=keypoints,
+        tracking_skeleton_item=skeleton,
+        tracking_keypoint_brushes=("nose", "body_center", "tail_base"),
+        tracking_overlay_camera_index=1,
+        _current_video_frames={1: 5},
+        master_time=0.0,
+        video_info=[None, SimpleNamespace(height=100)],
+        params=SimpleNamespace(
+            nt_show_mouse_keypoints=True,
+            nt_show_mouse_skeleton=True,
+        ),
+    )
+    window._current_index = lambda: (
+        track_behavior.NTTrackBehaviorWindow._current_index(window)
+    )
+
+    track_behavior.NTTrackBehaviorWindow._update_keypoint_overlays(window)
+
+    np.testing.assert_array_equal(keypoints.args[0], [10.0, 20.0])
+    np.testing.assert_array_equal(keypoints.args[1], [89.0, 79.0])
+    assert keypoints.kwargs["brush"] == ["nose", "body_center"]
+    np.testing.assert_array_equal(skeleton.args[0][:-1], [10.0, 20.0])
+    np.testing.assert_array_equal(skeleton.args[1][:-1], [89.0, 79.0])
+    assert np.isnan(skeleton.args[0][-1])
+    assert np.isnan(skeleton.args[1][-1])
+
+
+def test_tracking_overlay_visibility_toggles_are_independent():
+    updates = []
+    statuses = []
+    window = SimpleNamespace(
+        params={
+            "nt_show_mouse_keypoints": True,
+            "nt_show_mouse_skeleton": True,
+        },
+        _update_overlays=lambda: updates.append(True),
+        _report_status=statuses.append,
+    )
+
+    track_behavior.NTTrackBehaviorWindow.toggle_mouse_keypoints(window)
+    track_behavior.NTTrackBehaviorWindow.toggle_mouse_skeleton(window)
+
+    assert window.params["nt_show_mouse_keypoints"] is False
+    assert window.params["nt_show_mouse_skeleton"] is False
+    assert updates == [True, True]
+    assert statuses == ["Tracking keypoints hidden", "Tracking skeleton hidden"]
+
+
+@pytest.mark.parametrize(
+    ("key", "method_name"),
+    [
+        (Qt.Key.Key_K, "toggle_mouse_keypoints"),
+        (Qt.Key.Key_S, "toggle_mouse_skeleton"),
+    ],
+)
+def test_tracking_overlay_shortcuts(key, method_name):
+    calls = []
+    event = SimpleNamespace(
+        key=lambda: key,
+        modifiers=lambda: Qt.KeyboardModifier.ShiftModifier,
+        text=lambda: "",
+    )
+    window = SimpleNamespace(
+        toggle_mouse_keypoints=lambda: calls.append("toggle_mouse_keypoints"),
+        toggle_mouse_skeleton=lambda: calls.append("toggle_mouse_skeleton"),
+    )
+
+    track_behavior.NTTrackBehaviorWindow.keyPressEvent(window, event)
+
+    assert calls == [method_name]
 
 
 def test_bad_video_trigger_alignment_is_reported_and_excluded(monkeypatch, tmp_path):
