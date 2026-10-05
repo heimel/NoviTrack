@@ -47,6 +47,34 @@ Side-camera streams are not projected onto the arena floor without a separate
 calibration. Neurotar calibration is intentionally deferred because its
 pixels-to-arena transform depends on the time-varying cage position and angle.
 
+Calibrated pose streams compute movement measures once during loading. DLC
+likelihood first masks unreliable samples, short internal gaps are linearly
+interpolated, and each uninterrupted keypoint segment is smoothed with a
+Savitzky-Golay filter before differentiation. The duration and smoothing
+parameters are stored in `metadata["derived_measures"]` together with the exact
+keypoint definitions and units. No interpolation, smoothing, or derivative is
+performed across a long missing-data interval.
+
+The default definitions are:
+
+- `position_arena`: `body_center`, in m. If unavailable, NoviTrack tries a
+  `com`/`center_of_mass` keypoint, then `head_center`, then the midpoint of
+  `nose` and `tail_base` for older two-point tracking.
+- `Speed`: magnitude of body-centre velocity, in m/s and always non-negative.
+- `body_direction`: `tail_base` to `neck`, in degrees. It falls back to
+  `tail_base` to `head_center`, or to `nose` for older tracking.
+- `Forward_speed`: body-centre velocity projected onto body direction, in m/s;
+  positive is forward and negative is backward.
+- `head_direction`: `head_center` to `nose`, in degrees.
+- `movement_direction`: direction of body-centre velocity, in degrees.
+- `head_body_angle`: wrapped `head_direction - body_direction`, in degrees.
+- `body_angular_velocity`: derivative of unwrapped body direction, in deg/s.
+
+All directions use the canonical arena convention: right is 0 degrees,
+counter-clockwise is positive, and stored directions are in `[-180, 180)`.
+The legacy aliases `CoM_X`, `CoM_Y`, `alpha`, `Angular_velocity`, and
+`Abs_angular_velocity` remain available to existing viewers and analyses.
+
 When present, `DeepLabCut/<camera name>/config.yaml` in the session folder is
 the authoritative source for the stream's skeleton, likelihood cutoff, marker
 size, keypoint colormap, and skeleton color. `DeepLabCut/config.yaml` is accepted as a

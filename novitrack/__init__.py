@@ -10,6 +10,7 @@ from .database_browser import (
     NTDatabaseBrowser,
     experiment_db,
 )
+from .derive_tracking_measures import derive_pose_measures
 from .get_ethogram import get_ethogram
 from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
@@ -31,6 +32,7 @@ __all__ = [
     "TrackingStreamCollection",
     "analyse_nttestrecord",
     "default_database_filename",
+    "derive_pose_measures",
     "experiment_db",
     "get_ethogram",
     "load_mat_database",

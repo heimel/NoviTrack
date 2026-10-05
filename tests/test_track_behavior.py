@@ -51,7 +51,7 @@ def test_prepare_tracking_arrays_uses_stream_reference_time():
     )
     window = SimpleNamespace(
         tracking_stream=stream,
-        params=SimpleNamespace(nt_forward_speed_in_speed_trace=False),
+        params=SimpleNamespace(),
     )
 
     track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
@@ -65,7 +65,7 @@ def test_prepare_tracking_arrays_uses_stream_reference_time():
 def test_prepare_tracking_arrays_supports_video_only_session():
     window = SimpleNamespace(
         tracking_stream=None,
-        params=SimpleNamespace(nt_forward_speed_in_speed_trace=True),
+        params=SimpleNamespace(),
     )
 
     track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
@@ -87,7 +87,7 @@ def test_raw_keypoint_stream_does_not_allocate_missing_legacy_traces():
     window = SimpleNamespace(
         tracking_stream=stream,
         position_tracking_available=True,
-        params=SimpleNamespace(nt_forward_speed_in_speed_trace=True),
+        params=SimpleNamespace(),
     )
 
     track_behavior.NTTrackBehaviorWindow._prepare_tracking_arrays(window)
@@ -848,7 +848,7 @@ def test_position_dependent_observables_are_unavailable_without_position_trackin
 
     names = track_behavior.NTTrackBehaviorWindow._available_observable_names(window)
 
-    assert names == ["Speed", "Total speed", "Forward speed"]
+    assert names == ["Speed", "Forward speed"]
     assert "Rotation" not in names
     assert "Distance" not in names
 
@@ -866,7 +866,7 @@ def test_observable_panel_uses_fixed_range_and_can_change_observable():
 
     panel = track_behavior._ObservablePanel(owner, "Speed")
     assert panel.observable_name == "Speed"
-    assert panel.y_range == (-0.25, 0.25)
+    assert panel.y_range == (0.0, 0.375)
     assert panel.maximumWidth() == 450
 
     panel.set_observable("Rotation")

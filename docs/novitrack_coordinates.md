@@ -88,6 +88,13 @@ arena moves relative to the camera, so pixels-to-arena conversion also requires
 the time-aligned cage position and angle and cannot use a fixed
 `SpatialTransform` alone.
 
+Spatial derivatives must be calculated after this transformation. Transforming
+pixel-space speeds would be incorrect for nonlinear camera models because the
+metres-per-pixel scale varies across the image. Accordingly, calibrated pose
+positions are filtered in arena metres and differentiated using their actual
+session-reference timestamps. Linear velocities are stored in m/s, directions
+in degrees, and angular velocities in deg/s.
+
 ## Temporal coordinate systems
 
 Each acquisition system, e.g. video, fiber photometry or neurotar, has its own clock in which their signals are 

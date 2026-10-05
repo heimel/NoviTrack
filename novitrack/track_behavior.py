@@ -114,13 +114,16 @@ class _ObservableSpec:
 
 
 _OBSERVABLES: dict[str, _ObservableSpec] = {
-    "Speed": _ObservableSpec("Speed", (-0.25, 0.25)),
+    "Speed": _ObservableSpec("Speed", (0.0, 0.375)),
     "Rotation": _ObservableSpec("Angular_velocity", (-360.0, 360.0), True),
     "Distance": _ObservableSpec("Object_distance", (0.0, 300.0), True),
     "Absolute rotation": _ObservableSpec("Abs_angular_velocity", (0.0, 360.0), True),
     "Distance to center": _ObservableSpec("Distance_to_center", (0.0, 300.0), True),
     "Heading": _ObservableSpec("alpha", (-180.0, 180.0), True),
-    "Total speed": _ObservableSpec("Speed", (0.0, 0.375)),
+    "Body direction": _ObservableSpec("body_direction", (-180.0, 180.0), True),
+    "Head direction": _ObservableSpec("head_direction", (-180.0, 180.0), True),
+    "Movement direction": _ObservableSpec("movement_direction", (-180.0, 180.0), True),
+    "Head-body angle": _ObservableSpec("head_body_angle", (-180.0, 180.0), True),
     "Forward speed": _ObservableSpec("Forward_speed", (-0.25, 0.25)),
     "X position": _ObservableSpec("CoM_X", (0.0, 1000.0), True),
     "Y position": _ObservableSpec("CoM_Y", (0.0, 1000.0), True),
@@ -684,21 +687,13 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.com_y_values = _as_array(data.get("CoM_Y"))
         self.tail_x_values = _as_array(data.get("tailbase_X"))
         self.tail_y_values = _as_array(data.get("tailbase_Y"))
-        self.speed_values = _as_array(
-            data.get(
-                "Forward_speed"
-                if bool(_get(self.params, "nt_forward_speed_in_speed_trace", True))
-                else "Speed"
-            )
-        )
+        self.speed_values = _as_array(data.get("Speed"))
         self.rotation_values = _as_array(data.get("Angular_velocity"))
         self.distance_values = _as_array(data.get("Object_distance"))
 
     def _observable_values(self, observable_name: str) -> np.ndarray:
         spec = _OBSERVABLES[observable_name]
         field = spec.field
-        if observable_name == "Speed" and bool(_get(self.params, "nt_forward_speed_in_speed_trace", True)):
-            field = "Forward_speed"
         data = {} if self.tracking_stream is None else self.tracking_stream.data
         values = _as_array(data.get(field))
         if values.size != self.time_values.size:

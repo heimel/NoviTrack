@@ -14,6 +14,7 @@ from scipy.io import loadmat, savemat
 
 from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
+from .derive_tracking_measures import derive_pose_measures
 from .load_deeplabcut_data import (
     calibrate_deeplabcut_stream,
     discover_deeplabcut_sources,
@@ -316,10 +317,17 @@ def load_tracking_streams(
     for source in discover_deeplabcut_sources(video_info):
         try:
             stream = load_deeplabcut_stream(source, trigger_times)
-            stream = calibrate_deeplabcut_stream(stream, source, params)
         except (ImportError, KeyError, OSError, TypeError, ValueError) as exc:
             logmsg(f"Could not load DeepLabCut data from {source.filename}: {exc}")
             continue
+        try:
+            stream = calibrate_deeplabcut_stream(stream, source, params)
+        except (KeyError, TypeError, ValueError) as exc:
+            logmsg(f"Could not calibrate DeepLabCut data from {source.filename}: {exc}")
+        try:
+            stream = derive_pose_measures(stream, params)
+        except (KeyError, TypeError, ValueError) as exc:
+            logmsg(f"Could not derive DeepLabCut measures from {source.filename}: {exc}")
         streams.add(stream)
         logmsg(f"Loaded DeepLabCut data from {source.filename}")
 

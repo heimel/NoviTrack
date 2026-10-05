@@ -197,3 +197,32 @@ def test_stream_loader_adds_discovered_deeplabcut_streams_first(monkeypatch) -> 
     streams, _ = module.load_tracking_streams({}, params, video_info=[object()])
 
     assert list(streams) == ["deeplabcut:overhead", "legacy_tracking"]
+
+
+def test_stream_loader_retains_dlc_overlay_when_derivation_fails(monkeypatch) -> None:
+    module = importlib.import_module("novitrack.load_tracking_data")
+    params = SimpleNamespace(neurotar=False, OVERHEAD=4, nt_overhead_camera=1)
+    dlc_stream = TrackingStream(
+        stream_id="deeplabcut:overhead",
+        source_type="deeplabcut",
+        native_times=[0.0],
+        data={"keypoints": np.array([[[1.0, 2.0]]])},
+        capabilities={"position", "pose_overlay"},
+    )
+    source = SimpleNamespace(filename="tracking.h5", camera_id=0)
+    messages = []
+    monkeypatch.setattr(module, "load_tracking_data", lambda *args, **kwargs: ({}, np.array([])))
+    monkeypatch.setattr(module, "discover_deeplabcut_sources", lambda video_info: (source,))
+    monkeypatch.setattr(module, "load_deeplabcut_stream", lambda received_source, triggers: dlc_stream)
+    monkeypatch.setattr(module, "calibrate_deeplabcut_stream", lambda stream, source, params: stream)
+    monkeypatch.setattr(
+        module,
+        "derive_pose_measures",
+        lambda stream, params: (_ for _ in ()).throw(ValueError("bad derivation")),
+    )
+    monkeypatch.setattr(module, "logmsg", messages.append)
+
+    streams, _ = module.load_tracking_streams({}, params, video_info=[object()])
+
+    assert streams["deeplabcut:overhead"] is dlc_stream
+    assert any("Could not derive DeepLabCut measures" in message for message in messages)
