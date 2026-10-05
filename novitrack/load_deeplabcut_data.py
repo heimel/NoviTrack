@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,7 @@ import pandas as pd
 import yaml
 
 from .change_times import fit_clock_transform
+from .spatial_transform import SpatialTransform
 from .tracking_stream import TrackingStream
 
 
@@ -303,9 +304,53 @@ def load_deeplabcut_stream(
     )
 
 
+def calibrate_deeplabcut_stream(
+    stream: TrackingStream,
+    source: DeepLabCutSource,
+    params: Any,
+) -> TrackingStream:
+    """Add fixed-arena keypoints in metres when this is the overhead stream.
+
+    Raw ``data["keypoints"]`` always remains unchanged in source-video pixels.
+    A skipped or invalid calibration is recorded in metadata so callers can
+    distinguish unavailable calibration from an import failure.
+    """
+    metadata = dict(stream.metadata)
+    calibration: dict[str, Any] = {"status": "skipped"}
+
+    overhead_index = int(_get(params, "nt_overhead_camera", 1)) - 1
+    if _get(source, "camera_id") != overhead_index:
+        calibration["reason"] = "not_overhead_camera"
+    elif bool(_get(params, "neurotar", False)):
+        calibration["reason"] = "neurotar_transform_is_time_dependent"
+    else:
+        try:
+            transform = SpatialTransform.from_parameters(params)
+            keypoints = np.asarray(stream.data["keypoints"], dtype=float)
+            arena_keypoints = transform.overhead_pixels_to_arena_m(keypoints)
+        except (KeyError, TypeError, ValueError) as exc:
+            calibration["reason"] = "invalid_or_incomplete_parameters"
+            calibration["error"] = str(exc)
+        else:
+            data = dict(stream.data)
+            data["keypoints_arena"] = arena_keypoints
+            calibration = {"status": "calibrated", **transform.metadata()}
+            metadata["spatial_calibration"] = calibration
+            return replace(
+                stream,
+                data=data,
+                capabilities=stream.capabilities | {"arena_position"},
+                metadata=metadata,
+            )
+
+    metadata["spatial_calibration"] = calibration
+    return replace(stream, metadata=metadata)
+
+
 __all__ = [
     "DLC_EXTENSIONS",
     "DeepLabCutSource",
+    "calibrate_deeplabcut_stream",
     "discover_deeplabcut_sources",
     "load_deeplabcut_stream",
 ]

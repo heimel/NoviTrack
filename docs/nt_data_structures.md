@@ -37,6 +37,16 @@ the matching names in `metadata["keypoint_names"]`. Its native time is the
 source-video frame time, `frame_indices` retains the exact DLC frame numbers,
 and its clock transform maps those times to session reference time.
 
+For a fixed arena, an overhead-camera DLC stream also stores calibrated points
+as `data["keypoints_arena"]`. These have the same shape as the raw keypoints and
+use the canonical arena frame: metres, origin at arena centre, x right, y up.
+The raw pixel coordinates are retained unchanged. The stream metadata contains
+the full spatial calibration contract and parameters, and the
+`arena_position` capability indicates that calibrated points are available.
+Side-camera streams are not projected onto the arena floor without a separate
+calibration. Neurotar calibration is intentionally deferred because its
+pixels-to-arena transform depends on the time-varying cage position and angle.
+
 When present, `DeepLabCut/<camera name>/config.yaml` in the session folder is
 the authoritative source for the stream's skeleton, likelihood cutoff, marker
 size, keypoint colormap, and skeleton color. `DeepLabCut/config.yaml` is accepted as a

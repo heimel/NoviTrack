@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from novitrack.load_deeplabcut_data import (
+    calibrate_deeplabcut_stream,
     discover_deeplabcut_sources,
     load_deeplabcut_stream,
 )
@@ -137,3 +138,54 @@ def test_loads_camera_specific_skeleton_configuration(tmp_path):
         ("nose", "body_center"),
         ("body_center", "tail_base"),
     )
+
+
+def test_calibrates_overhead_keypoints_to_arena_metres_without_changing_pixels(tmp_path):
+    video = _video(tmp_path)
+    filename = tmp_path / "session_overheadDLC_model.h5"
+    _dlc_table().to_hdf(filename, key="df_with_missing")
+    source = discover_deeplabcut_sources([video])[0]
+    stream = load_deeplabcut_stream(source, [0.0, 10.0])
+    raw_keypoints = stream.data["keypoints"].copy()
+    params = SimpleNamespace(
+        neurotar=False,
+        nt_overhead_camera=2,
+        overhead_camera_width=100,
+        overhead_camera_height=80,
+        overhead_camera_image_offset=[0, 0],
+        overhead_camera_distortion_method="normal",
+        overhead_camera_distortion=[2.0, np.nan],
+        overhead_camera_shear=[1, 1],
+        overhead_camera_angle=0.0,
+        overhead_arena_center=[50, 40],
+    )
+
+    calibrated = calibrate_deeplabcut_stream(stream, source, params)
+
+    np.testing.assert_array_equal(calibrated.data["keypoints"], raw_keypoints)
+    np.testing.assert_allclose(
+        calibrated.data["keypoints_arena"][0, 0], [-0.0245, 0.019]
+    )
+    assert "arena_position" in calibrated.capabilities
+    assert calibrated.metadata["spatial_calibration"]["status"] == "calibrated"
+    assert calibrated.metadata["spatial_calibration"]["units"] == "m"
+
+
+def test_records_why_neurotar_keypoints_are_not_statically_calibrated(tmp_path):
+    video = _video(tmp_path)
+    filename = tmp_path / "session_overheadDLC_model.h5"
+    _dlc_table().to_hdf(filename, key="df_with_missing")
+    source = discover_deeplabcut_sources([video])[0]
+    stream = load_deeplabcut_stream(source, [0.0, 10.0])
+
+    calibrated = calibrate_deeplabcut_stream(
+        stream,
+        source,
+        SimpleNamespace(neurotar=True, nt_overhead_camera=2),
+    )
+
+    assert "keypoints_arena" not in calibrated.data
+    assert calibrated.metadata["spatial_calibration"] == {
+        "status": "skipped",
+        "reason": "neurotar_transform_is_time_dependent",
+    }

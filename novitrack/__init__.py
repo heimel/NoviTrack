@@ -15,6 +15,7 @@ from .load_parameters import load_parameters
 from .results_nttestrecord import results_nttestrecord
 from .session_path import session_path
 from .load_tracking_data import load_tracking_data, load_tracking_streams
+from .spatial_transform import SpatialTransform
 from .tracking_stream import (
     TrackingSample,
     TrackingStream,
@@ -24,6 +25,7 @@ from .tracking_stream import (
 
 __all__ = [
     "NTDatabaseBrowser",
+    "SpatialTransform",
     "TrackingSample",
     "TrackingStream",
     "TrackingStreamCollection",

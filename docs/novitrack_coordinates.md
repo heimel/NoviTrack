@@ -18,7 +18,9 @@ Two temporal coordinate systems are used in NoviTrack.
 
 The tracking defaults to using Neurotar time if it is available.
 
-IN THE MIDDLE OF TRANSITION OF mm as UNIT to m.
+New Python stream data use SI units for calibrated arena coordinates. Legacy
+MATLAB-compatible functions and `nt_data` fields can still contain millimetres;
+their units must not be inferred from an unqualified `x` or `y` field name.
 
 ## Spatial coordinate systems 
 
@@ -36,6 +38,12 @@ Only used internally as intermediate transformation.
 ### Arena 
 
 [arena_x, arena_y] (m) are coordinates in the arena. 
+
+The canonical Python arena frame is Cartesian: its origin is the arena centre,
+x increases to the right in the overhead image, and y increases upward. This is
+also the frame used for directions: right is 0 degrees and counter-clockwise is
+positive. `SpatialTransform` converts fixed-arena overhead pixels to this frame
+and provides the inverse transformation.
 
 On the neurotar setup, a physical object in the arena will have fixed arena coordinates. 
 The neurotar coordinates of the object will change if the arena is moved on the neurotar setup. 
@@ -64,6 +72,21 @@ To convert spatial coordinate frames:
 ```
 
 and more. 
+
+For fixed arenas, Python uses:
+
+```python
+transform = SpatialTransform.from_parameters(params)
+arena_xy_m = transform.overhead_pixels_to_arena_m(overhead_xy_pixels)
+overhead_xy_pixels = transform.arena_m_to_overhead_pixels(arena_xy_m)
+```
+
+The transform ports the `normal`, `fisheye_log`, `fisheye_equidistant`, and
+`fisheye_orthographic` MATLAB camera models. Camera coordinates remain an
+internal image-oriented frame in millimetres (x right, y down). On Neurotar the
+arena moves relative to the camera, so pixels-to-arena conversion also requires
+the time-aligned cage position and angle and cannot use a fixed
+`SpatialTransform` alone.
 
 ## Temporal coordinate systems
 

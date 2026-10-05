@@ -14,7 +14,11 @@ from scipy.io import loadmat, savemat
 
 from inpythotools.mat_database import _convert_mat_value
 from inpythotools.logmsg import logmsg
-from .load_deeplabcut_data import discover_deeplabcut_sources, load_deeplabcut_stream
+from .load_deeplabcut_data import (
+    calibrate_deeplabcut_stream,
+    discover_deeplabcut_sources,
+    load_deeplabcut_stream,
+)
 from .load_neurotar_data import load_neurotar_data
 from .session_path import session_path as resolve_session_path
 from .load_parameters import load_parameters
@@ -312,6 +316,7 @@ def load_tracking_streams(
     for source in discover_deeplabcut_sources(video_info):
         try:
             stream = load_deeplabcut_stream(source, trigger_times)
+            stream = calibrate_deeplabcut_stream(stream, source, params)
         except (ImportError, KeyError, OSError, TypeError, ValueError) as exc:
             logmsg(f"Could not load DeepLabCut data from {source.filename}: {exc}")
             continue
