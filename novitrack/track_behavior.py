@@ -6,6 +6,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,12 @@ else:
 
 from inpythotools.logmsg import logmsg
 from .change_times import ClockTransform, fit_clock_transform
+from .deeplabcut_queue import (
+    DeepLabCutProject,
+    discover_deeplabcut_projects,
+    enqueue_deeplabcut_job,
+    make_deeplabcut_manifest,
+)
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
 from .load_tracking_data import load_tracking_streams
@@ -224,6 +231,61 @@ def _ensure_measures(record: Any, params: Any) -> dict[str, Any]:
         measures.setdefault("overhead_arena_center", _get(params, "overhead_arena_center", [np.nan, np.nan]))
     _set_record_field(record, "measures", measures)
     return measures
+
+
+def _ask_deeplabcut_queue_decision(parent: QWidget) -> str:
+    """Ask what to do when a record has no usable position tracking."""
+    dialog = QMessageBox(parent)
+    dialog.setIcon(QMessageBox.Icon.Question)
+    dialog.setWindowTitle("No position tracking found")
+    dialog.setText(
+        "No position tracking data were found for this record. Would you like "
+        "to queue its overhead video for DeepLabCut analysis?"
+    )
+    queue_button = dialog.addButton(
+        "Yes—queue for DeepLabCut analysis", QMessageBox.ButtonRole.AcceptRole
+    )
+    later_button = dialog.addButton(
+        "Not now—ask again next time", QMessageBox.ButtonRole.RejectRole
+    )
+    never_button = dialog.addButton(
+        "Do not ask again for this record", QMessageBox.ButtonRole.DestructiveRole
+    )
+    dialog.setDefaultButton(later_button)
+    dialog.exec()
+    clicked = dialog.clickedButton()
+    if clicked is queue_button:
+        return "queue"
+    if clicked is never_button:
+        return "never"
+    return "ask_later"
+
+
+def _choose_deeplabcut_project(
+    parent: QWidget,
+    projects: Sequence[DeepLabCutProject],
+) -> DeepLabCutProject | None:
+    """Let the user select one discovered project without editing its path."""
+    labels = [project.name for project in projects]
+    selected, accepted = QInputDialog.getItem(
+        parent,
+        "Select DeepLabCut model",
+        "DeepLabCut project:",
+        labels,
+        0,
+        False,
+    )
+    if not accepted:
+        return None
+    return next((project for project in projects if project.name == selected), None)
+
+
+def _overhead_video_info(video_info: Sequence[Any], params: Any) -> Any:
+    """Return the configured overhead video, matching tracking-data loading."""
+    overhead_index = int(_get(params, "nt_overhead_camera", 1)) - 1
+    if 0 <= overhead_index < len(video_info) and video_info[overhead_index] is not None:
+        return video_info[overhead_index]
+    return next((info for info in video_info if info is not None), None)
 
 
 def _select_tracking_stream(streams: TrackingStreamCollection) -> TrackingStream | None:
@@ -590,6 +652,103 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer.timeout.connect(self._tick)
         self.timer.start(max(1, int(round(1000 / fps))))
+        QTimer.singleShot(0, self._maybe_offer_deeplabcut_processing)
+
+    def _set_tracking_processing_state(
+        self,
+        prompt_response: str,
+        *,
+        state: str,
+        **details: Any,
+    ) -> None:
+        processing = {
+            "method": "deeplabcut",
+            "prompt_response": prompt_response,
+            "state": state,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        processing.update(details)
+        self.measures["tracking_processing"] = processing
+        self._record_changed()
+
+    def _maybe_offer_deeplabcut_processing(self) -> None:
+        """Offer to enqueue the overhead movie when tracking is unavailable."""
+        if self.position_tracking_available:
+            return
+        processing = self.measures.get("tracking_processing", {})
+        if isinstance(processing, Mapping) and processing.get("method") == "deeplabcut":
+            if processing.get("prompt_response") in {"never", "queued"}:
+                return
+
+        decision = _ask_deeplabcut_queue_decision(self)
+        if decision == "never":
+            self._set_tracking_processing_state("never", state="declined")
+            return
+        if decision != "queue":
+            self._set_tracking_processing_state("ask_later", state="not_requested")
+            return
+
+        video = _overhead_video_info(self.video_info, self.params)
+        if video is None:
+            QMessageBox.warning(
+                self,
+                "Cannot queue DeepLabCut analysis",
+                "No overhead video was found for this record.",
+            )
+            self._set_tracking_processing_state("ask_later", state="queue_failed")
+            return
+
+        projects_folder = Path(str(_get(self.params, "nt_deeplabcut_projects_folder", "")))
+        try:
+            projects = discover_deeplabcut_projects(projects_folder)
+        except OSError as exc:
+            projects = ()
+            logmsg(f"Could not inspect DeepLabCut projects in {projects_folder}: {exc}")
+        if not projects:
+            QMessageBox.warning(
+                self,
+                "No DeepLabCut models found",
+                f"No DeepLabCut projects containing config.yaml were found in:\n{projects_folder}",
+            )
+            self._set_tracking_processing_state("ask_later", state="queue_failed")
+            return
+
+        project = _choose_deeplabcut_project(self, projects)
+        if project is None:
+            self._set_tracking_processing_state("ask_later", state="not_requested")
+            return
+
+        queue_folder = Path(str(_get(self.params, "nt_deeplabcut_queue_folder", "")))
+        manifest = make_deeplabcut_manifest(self.record, video, project.config_path)
+        try:
+            result = enqueue_deeplabcut_job(queue_folder, manifest)
+        except (KeyError, OSError, TypeError, ValueError) as exc:
+            logmsg(f"Could not queue DeepLabCut analysis: {exc}")
+            QMessageBox.warning(
+                self,
+                "Cannot queue DeepLabCut analysis",
+                f"The DeepLabCut job could not be written to:\n{queue_folder}\n\n{exc}",
+            )
+            self._set_tracking_processing_state(
+                "ask_later",
+                state="queue_failed",
+                model_config=str(project.config_path),
+                video_path=str(_get(video, "filename", "")),
+            )
+            return
+
+        queued = result.manifest
+        self._set_tracking_processing_state(
+            "queued",
+            state=str(queued.get("state", "pending")),
+            job_id=str(queued.get("job_id", "")),
+            model_config=str(queued.get("dlc_config_path", project.config_path)),
+            video_path=str(queued.get("video_path", _get(video, "filename", ""))),
+            queue_manifest=str(result.filename),
+            queued_at=str(queued.get("created_at", "")),
+        )
+        verb = "Queued" if result.created else "Already queued"
+        self._report_status(f"{verb} DeepLabCut analysis using {project.name}")
 
     def _prepare_time_alignment(self) -> None:
         video_to_reference = getattr(self, "_video_to_reference", None)

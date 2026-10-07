@@ -128,6 +128,28 @@ def test_default_load_upgrades_without_writing_or_backing_up(tmp_path: Path):
     assert list(tmp_path.glob("source_legacy_*.mat")) == []
 
 
+def test_deeplabcut_processing_state_round_trips_through_mat_database(tmp_path: Path):
+    database = _legacy_database()
+    database.at[0, "measures"]["tracking_processing"] = {
+        "method": "deeplabcut",
+        "prompt_response": "queued",
+        "state": "pending",
+        "job_id": "job-123",
+        "model_config": r"\\server\models\mouse\config.yaml",
+    }
+    filename = tmp_path / "queue-state.mat"
+
+    save_mat_database(database, filename)
+    loaded = load_raw_mat_database(filename)
+
+    state = loaded.iloc[0]["measures"]["tracking_processing"]
+    assert state["method"] == "deeplabcut"
+    assert state["prompt_response"] == "queued"
+    assert state["state"] == "pending"
+    assert state["job_id"] == "job-123"
+    assert state["model_config"] == r"\\server\models\mouse\config.yaml"
+
+
 def test_load_mat_database_without_filename_uses_example_database(monkeypatch):
     expected = pd.DataFrame([{"sessionid": "example"}])
     loaded_filenames = []

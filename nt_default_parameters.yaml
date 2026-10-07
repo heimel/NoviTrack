@@ -15,6 +15,12 @@ networkpathbase: '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Temp'
 # Communication between Pi's 
 root_communication_path: '\\VS03.herseninstituut.knaw.nl\VS03-CSF-1\Communication'
 
+# Shared DeepLabCut projects and client-to-GPU processing queue
+nt_deeplabcut_projects_folder: '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Heimel\DeepLabCut_projects'
+nt_deeplabcut_queue_folder: '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Communication\DeepLabCut'
+# Optional [[client path prefix, VM path prefix], ...] mappings, usually set in processparams_local.py.
+nt_deeplabcut_path_mappings: []
+
 # Debugging and testing
 nt_debug: false
 

@@ -63,3 +63,10 @@ def test_motion_snippet_observables_include_speed_and_forward_speed():
     params = load_parameters(apply_local_overrides=False)
 
     assert params.nt_motion_snippet_observables[:2] == ["Speed", "Forward_speed"]
+
+
+def test_deeplabcut_client_paths_have_shared_defaults():
+    params = load_parameters(apply_local_overrides=False)
+
+    assert str(params.nt_deeplabcut_projects_folder).endswith("Heimel\\DeepLabCut_projects")
+    assert str(params.nt_deeplabcut_queue_folder).endswith("Communication\\DeepLabCut")

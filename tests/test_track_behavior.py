@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -42,6 +43,112 @@ def test_select_tracking_stream_prefers_position_data():
     )
 
     assert selected is position
+
+
+def _dlc_prompt_window(*, position_available=False, processing=None):
+    measures = {}
+    if processing is not None:
+        measures["tracking_processing"] = processing
+    changes = []
+    statuses = []
+    window = SimpleNamespace(
+        position_tracking_available=position_available,
+        measures=measures,
+        record={"subject": "0120360", "sessionid": "session-1", "measures": measures},
+        params=SimpleNamespace(nt_overhead_camera=1),
+        video_info=[],
+        _record_changed=lambda: changes.append(True),
+        _report_status=statuses.append,
+    )
+    window._set_tracking_processing_state = lambda response, state, **details: (
+        track_behavior.NTTrackBehaviorWindow._set_tracking_processing_state(
+            window, response, state=state, **details
+        )
+    )
+    return window, changes, statuses
+
+
+def test_dlc_prompt_is_skipped_when_tracking_exists_or_record_was_handled(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        track_behavior,
+        "_ask_deeplabcut_queue_decision",
+        lambda parent: calls.append(parent),
+    )
+    available, _, _ = _dlc_prompt_window(position_available=True)
+    queued, _, _ = _dlc_prompt_window(
+        processing={"method": "deeplabcut", "prompt_response": "queued"}
+    )
+    declined, _, _ = _dlc_prompt_window(
+        processing={"method": "deeplabcut", "prompt_response": "never"}
+    )
+
+    for window in (available, queued, declined):
+        track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
+
+    assert calls == []
+
+
+def test_dlc_ask_later_decision_is_stored(monkeypatch):
+    window, changes, _ = _dlc_prompt_window()
+    monkeypatch.setattr(
+        track_behavior,
+        "_ask_deeplabcut_queue_decision",
+        lambda parent: "ask_later",
+    )
+
+    track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
+
+    state = window.measures["tracking_processing"]
+    assert state["method"] == "deeplabcut"
+    assert state["prompt_response"] == "ask_later"
+    assert state["state"] == "not_requested"
+    assert changes == [True]
+
+
+def test_dlc_queue_decision_selects_model_writes_job_and_stores_state(
+    monkeypatch, tmp_path
+):
+    projects = tmp_path / "projects"
+    project = projects / "overhead-mouse"
+    project.mkdir(parents=True)
+    config = project / "config.yaml"
+    config.write_text("Task: overhead-mouse\n", encoding="utf-8")
+    video = tmp_path / "session" / "session-1_overhead.mp4"
+    video.parent.mkdir()
+    video.write_bytes(b"video")
+    window, changes, statuses = _dlc_prompt_window()
+    window.params = SimpleNamespace(
+        nt_overhead_camera=1,
+        nt_deeplabcut_projects_folder=str(projects),
+        nt_deeplabcut_queue_folder=str(tmp_path / "queue"),
+    )
+    window.video_info = [SimpleNamespace(filename=video, camera_name="overhead")]
+    monkeypatch.setattr(
+        track_behavior,
+        "_ask_deeplabcut_queue_decision",
+        lambda parent: "queue",
+    )
+    monkeypatch.setattr(
+        track_behavior,
+        "_choose_deeplabcut_project",
+        lambda parent, choices: choices[0],
+    )
+
+    track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
+
+    manifests = list((tmp_path / "queue" / "pending").glob("*.json"))
+    assert len(manifests) == 1
+    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+    state = window.measures["tracking_processing"]
+    assert manifest["video_path"] == str(video)
+    assert manifest["dlc_config_path"] == str(config)
+    assert state["prompt_response"] == "queued"
+    assert state["state"] == "pending"
+    assert state["job_id"] == manifest["job_id"]
+    assert state["queue_manifest"] == str(manifests[0])
+    assert changes == [True]
+    assert statuses == ["Queued DeepLabCut analysis using overhead-mouse"]
 
 
 def test_prepare_tracking_arrays_uses_stream_reference_time():

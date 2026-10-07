@@ -102,6 +102,19 @@ measures is array of struct with fields:
 
     position_tracking_available = boolean indicating whether finite paired position samples were available during Python analysis
 
+    tracking_processing = workflow metadata for externally processed tracking.
+    For DeepLabCut this records the prompt response (`ask_later`, `never`, or
+    `queued`), processing state, selected model configuration, video, queue job
+    identifier, manifest location, and timestamps. It does not contain tracking
+    samples.
+
+When behavioral tracking finds no position data, NoviTrack can create an atomic
+JSON job manifest in the `pending` directory below
+`nt_deeplabcut_queue_folder`. Available models are immediate subdirectories of
+`nt_deeplabcut_projects_folder` containing a `config.yaml`. The shared manifest
+is the interface to the separate GPU worker; that worker does not modify the
+NoviTrack database.
+
 
 
 ## Snippets
