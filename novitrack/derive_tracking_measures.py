@@ -303,13 +303,18 @@ def derive_pose_measures(stream: TrackingStream, params: Any) -> TrackingStream:
         "angle_convention": "degrees; right=0; counter-clockwise positive; [-180,180)",
         "units": {
             "position_arena": "m",
+            "CoM_X": "m",
+            "CoM_Y": "m",
             "Speed": "m/s",
             "Forward_speed": "m/s",
             "body_direction": "deg",
+            "alpha": "deg",
             "head_direction": "deg",
             "movement_direction": "deg",
             "head_body_angle": "deg",
             "body_angular_velocity": "deg/s",
+            "Angular_velocity": "deg/s",
+            "Abs_angular_velocity": "deg/s",
             "Distance_to_center": "m",
         },
     }

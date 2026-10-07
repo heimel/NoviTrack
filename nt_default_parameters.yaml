@@ -226,6 +226,9 @@ automatically_track_mouse: false
 nt_replace_speed_by_luminance: false
 nt_recompute_tracking_data: true
 nt_save_snippets: true # save generated peri-event snippets to nt_snippets.mat
+# Tracking observables for which peri-event snippets and event measures are computed.
+# Names must match fields in the selected tracking stream; unavailable fields are skipped.
+nt_motion_snippet_observables: [Speed, Forward_speed, Abs_angular_velocity, Distance_to_center]
 nt_pretime: 10 # s, pre-event time (baseline)
 nt_posttime: 20 # s, post-event time (response period)
 use_clean_baseline: false # if true, then removes all following same events within pretime of event.

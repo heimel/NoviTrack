@@ -3,6 +3,7 @@ from novitrack import analyse_nttestrecord, results_nttestrecord
 from novitrack.get_ethogram import get_ethogram
 from novitrack.plot_photometry import _channel_label, channel_metadata_lines
 from novitrack.plot_session_summary import plot_session_summary
+from novitrack.tracking_stream import TrackingStream, TrackingStreamCollection
 import numpy as np
 from pathlib import Path
 import importlib
@@ -96,6 +97,50 @@ def test_missing_position_tracking_is_stored_and_clears_stale_session_measures()
     assert measures["position_tracking_available"] is False
     assert "session_fraction_running_forward" not in measures
     assert "session_start_running_forward_per_min" not in measures
+
+
+def test_analysis_prefers_stream_with_requested_derived_observables():
+    legacy = TrackingStream(
+        stream_id="legacy",
+        source_type="novitrack",
+        native_times=[0.0, 1.0],
+        data={"Speed": [0.1, 0.2]},
+        capabilities={"position", "speed"},
+    )
+    derived = TrackingStream(
+        stream_id="dlc",
+        source_type="deeplabcut",
+        native_times=[0.0, 1.0],
+        data={
+            "Speed": [0.2, 0.3],
+            "Forward_speed": [-0.1, 0.2],
+            "position_arena": [[0.0, 0.0], [0.1, 0.0]],
+            "CoM_X": [0.0, 0.1],
+            "CoM_Y": [0.0, 0.0],
+        },
+        coordinate_system="video_pixels",
+        capabilities={"position", "speed", "forward_speed"},
+        metadata={
+            "derived_measures": {
+                "status": "computed",
+                "units": {
+                    "position_arena": "m",
+                    "Speed": "m/s",
+                    "Forward_speed": "m/s",
+                },
+            }
+        },
+    )
+    streams = TrackingStreamCollection([legacy, derived])
+    params = {"nt_motion_snippet_observables": ["Speed", "Forward_speed"]}
+
+    selected = analyse_module._select_analysis_tracking_stream(streams, params)
+    nt_data = analyse_module._tracking_stream_as_nt_data(selected)
+
+    assert selected is derived
+    assert nt_data["Coordinates"] == "arena_m"
+    assert nt_data["Units"]["Speed"] == "m/s"
+    np.testing.assert_allclose(nt_data["Time"], [0.0, 1.0])
 
 
 def test_session_summary_is_suppressed_without_position_tracking():

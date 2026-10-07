@@ -10,7 +10,6 @@ import numpy as np
 
 from inpythotools.logmsg import logmsg
 from .get_events import get_events
-from .make_photometry_snippets import _interp_linear_extrap
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -34,6 +33,70 @@ def _is_empty(value: Any) -> bool:
         return len(value) == 0
     except TypeError:
         return False
+
+
+_DEFAULT_MOTION_OBSERVABLES = (
+    "Speed",
+    "Forward_speed",
+    "Abs_angular_velocity",
+    "Distance_to_center",
+)
+
+_KNOWN_UNITS = {
+    "Speed": "m/s",
+    "Forward_speed": "m/s",
+    "Angular_velocity": "deg/s",
+    "Abs_angular_velocity": "deg/s",
+    "body_angular_velocity": "deg/s",
+    "body_direction": "deg",
+    "head_direction": "deg",
+    "movement_direction": "deg",
+    "head_body_angle": "deg",
+}
+
+
+def _motion_observables(params: Any) -> tuple[str, ...]:
+    configured = _get(
+        params,
+        "nt_motion_snippet_observables",
+        _DEFAULT_MOTION_OBSERVABLES,
+    )
+    if isinstance(configured, str):
+        configured = [configured]
+    try:
+        names = [str(name) for name in configured]
+    except TypeError:
+        names = list(_DEFAULT_MOTION_OBSERVABLES)
+    return tuple(dict.fromkeys(name for name in names if name))
+
+
+def _interpolate_finite_segments(
+    time: np.ndarray,
+    values: np.ndarray,
+    target_times: np.ndarray,
+) -> np.ndarray:
+    """Interpolate within finite runs without bridging missing-data gaps."""
+    result = np.full(target_times.shape, np.nan, dtype=float)
+    finite = np.isfinite(time) & np.isfinite(values)
+    padded = np.concatenate(([False], finite, [False]))
+    changes = np.diff(padded.astype(np.int8))
+    starts = np.flatnonzero(changes == 1)
+    stops = np.flatnonzero(changes == -1)
+    for start, stop in zip(starts, stops):
+        run_time = time[start:stop]
+        run_values = values[start:stop]
+        if run_time.size < 2:
+            continue
+        keep = np.concatenate(([True], np.diff(run_time) > 0))
+        run_time = run_time[keep]
+        run_values = run_values[keep]
+        if run_time.size < 2:
+            continue
+        target_mask = (target_times >= run_time[0]) & (target_times <= run_time[-1])
+        result[target_mask] = np.interp(
+            target_times[target_mask], run_time, run_values
+        )
+    return result
 
 
 def make_motion_snippets(
@@ -66,9 +129,10 @@ def make_motion_snippets(
     posttime = float(_get(params, "nt_posttime", 20))
     bin_width = float(_get(params, "nt_photometry_bin_width", 0.1))
 
-    for observable in ("Speed", "Abs_angular_velocity", "Distance_to_center"):
+    units = _get(nt_data, "Units", {})
+    for observable in _motion_observables(params):
         values = _as_array(_get(nt_data, observable, np.array([])))
-        if values.size == 0 or np.all(np.isnan(values)):
+        if values.size != time.size or not np.any(np.isfinite(values)):
             continue
 
         data = np.full((len(events), t_bins.size), np.nan)
@@ -78,11 +142,13 @@ def make_motion_snippets(
                 time < event_time + posttime + bin_width
             )
             if np.any(mask):
-                data[event_index, :] = _interp_linear_extrap(time[mask], values[mask], event_time + t_bins)
+                data[event_index, :] = _interpolate_finite_segments(
+                    time[mask], values[mask], event_time + t_bins
+                )
             else:
                 logmsg(f"No samples for event at {event_time}")
 
         out["data"][observable] = data
-        out["unit"][observable] = "a.u."
+        out["unit"][observable] = _get(units, observable, _KNOWN_UNITS.get(observable, "a.u."))
 
     return out

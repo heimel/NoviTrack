@@ -23,10 +23,13 @@ from .check_markers import check_markers
 from .compute_event_measures import compute_event_measures
 from .compute_locations import compute_locations
 from .load_parameters import load_parameters
-from .load_tracking_data import has_position_tracking_data, load_tracking_data
+from .load_tracking_data import has_position_tracking_data, load_tracking_streams
+from .make_motion_snippets import _motion_observables
 from .make_motion_snippets import make_motion_snippets
 from .make_photometry_snippets import make_photometry_snippets
+from .open_videos import load_video_info
 from .session_path import session_path as resolve_session_path
+from .tracking_stream import TrackingStream, TrackingStreamCollection
 
 _MISSING_SESSION_PATH_DIALOG_SHOWN = False
 _POSITION_SESSION_MEASURES = (
@@ -88,6 +91,54 @@ def _set_position_tracking_status(
         for name in _POSITION_SESSION_MEASURES:
             measures.pop(name, None)
     return available
+
+
+def _select_analysis_tracking_stream(
+    streams: TrackingStreamCollection,
+    params: Any,
+) -> TrackingStream | None:
+    """Choose the stream providing the most requested motion observables."""
+    requested = _motion_observables(params)
+
+    def score(stream: TrackingStream) -> tuple[int, int, int]:
+        aligned_finite = 0
+        for name in requested:
+            values = _as_array(_get(stream.data, name, []))
+            if values.size == stream.native_times.size and np.any(np.isfinite(values)):
+                aligned_finite += 1
+        derived = int(_get(_get(stream.metadata, "derived_measures", {}), "status") == "computed")
+        has_position = int("position" in stream.capabilities)
+        return aligned_finite, derived, has_position
+
+    return max(streams.values(), key=score, default=None)
+
+
+def _tracking_stream_as_nt_data(stream: TrackingStream | None) -> dict[str, Any]:
+    """Expose one stream to analysis code through the legacy mapping interface."""
+    if stream is None:
+        return {}
+    data = dict(stream.data)
+    data["Time"] = stream.reference_times
+    derived = _get(stream.metadata, "derived_measures", {})
+    units = dict(_get(derived, "units", {}))
+    data["Coordinates"] = (
+        "arena_m"
+        if _get(derived, "status") == "computed"
+        and _get(units, "position_arena") == "m"
+        else stream.coordinate_system
+    )
+    for alias, source in (
+        ("CoM_X", "position_arena"),
+        ("CoM_Y", "position_arena"),
+        ("alpha", "body_direction"),
+        ("Angular_velocity", "body_angular_velocity"),
+        ("Abs_angular_velocity", "body_angular_velocity"),
+    ):
+        if source in units:
+            units[alias] = units[source]
+    if units:
+        data["Units"] = units
+    return data
 
 
 def _session_measures(measures: dict[str, Any], nt_data: Mapping[str, Any], params: Any) -> dict[str, Any]:
@@ -174,7 +225,26 @@ def analyse_nttestrecord(
         session_folder = Path(session_path)
         session_exists = session_folder.is_dir()
 
-    nt_data, trigger_times = load_tracking_data(out, params, recompute=False, session_path=session_folder)
+    video_info: list[Any] = []
+    if session_exists:
+        try:
+            video_info, _active_cameras = load_video_info(
+                out,
+                params,
+                session_path=session_folder,
+            )
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            logmsg(f"Could not read video metadata for tracking analysis: {exc}")
+    tracking_streams, trigger_times = load_tracking_streams(
+        out,
+        params,
+        recompute=False,
+        session_path=session_folder,
+        video_info=video_info,
+    )
+    nt_data = _tracking_stream_as_nt_data(
+        _select_analysis_tracking_stream(tracking_streams, params)
+    )
     if not nt_data:
         logmsg(f"Could not find any position data for {_record_label(out)}")
 

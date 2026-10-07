@@ -7,6 +7,7 @@ from novitrack.open_videos import (
     VIDEO_EXTENSIONS,
     _find_movie,
     _remux_h264_to_mp4,
+    load_video_info,
     movie_search_locations,
 )
 from novitrack.track_behavior import _missing_movies_message
@@ -128,3 +129,30 @@ def test_remux_uses_mp4box_when_ffmpeg_is_unavailable(monkeypatch, tmp_path):
             str(mp4_path),
         ]
     ]
+
+
+def test_load_video_info_does_not_create_playback_readers(monkeypatch, tmp_path):
+    movie = tmp_path / "session01_overhead.mp4"
+    movie.write_bytes(b"movie")
+    monkeypatch.setattr(
+        "novitrack.open_videos._metadata",
+        lambda path: (30.0, 300, 10.0, 752, 582),
+    )
+    monkeypatch.setattr(
+        "novitrack.open_videos.load_video_triggers",
+        lambda *args, **kwargs: ([1.0, 9.0], []),
+    )
+    monkeypatch.setattr(
+        "novitrack.open_videos.OpenCVVideoReader",
+        lambda info: pytest.fail("metadata loading must not open a playback reader"),
+    )
+
+    info, active = load_video_info(
+        {"sessionid": "session01"},
+        {"nt_camera_names": ["overhead"]},
+        session_path=tmp_path,
+    )
+
+    assert active == [0]
+    assert info[0].filename == movie
+    assert info[0].framerate == 30.0

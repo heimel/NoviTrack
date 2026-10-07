@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from novitrack.compute_locations import change_overhead_to_arena_coordinates
+from novitrack.compute_locations import compute_locations
 from novitrack.spatial_transform import SpatialTransform
 
 
@@ -91,3 +92,22 @@ def test_orthographic_points_outside_calibrated_view_are_nan() -> None:
 def test_neurotar_requires_a_time_dependent_transform() -> None:
     with pytest.raises(ValueError, match="time-dependent"):
         SpatialTransform.from_parameters(_params(neurotar=True))
+
+
+def test_compute_locations_accepts_canonical_arena_metres() -> None:
+    params = _params(
+        arena_shape="square",
+        arena_diameter_mm=320.0,
+        arena_radius_mm=160.0,
+        nt_max_distance_to_wall=115.0,
+    )
+    tracking = {
+        "Coordinates": "arena_m",
+        "CoM_X": np.array([0.0, 0.20]),
+        "CoM_Y": np.array([0.0, 0.0]),
+    }
+
+    record = compute_locations({"measures": {}}, tracking, params)
+
+    assert record["measures"]["frac_in_center"] == pytest.approx(0.5)
+    assert record["measures"]["frac_out_off_arena"] == pytest.approx(0.5)

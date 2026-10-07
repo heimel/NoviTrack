@@ -249,8 +249,35 @@ def open_videos(
     else:
         folder = Path(session_path)
 
+    video_info, active_cameras = load_video_info(
+        record,
+        params,
+        session_path=folder,
+    )
+    readers: list[OpenCVVideoReader | None] = [None] * len(video_info)
+    for index in active_cameras:
+        info = video_info[index]
+        assert info is not None
+        readers[index] = OpenCVVideoReader(info)
+        logmsg(f"Opened movie {info.filename}")
+    return readers, video_info, active_cameras
+
+
+def load_video_info(
+    record: Any,
+    params: Any | None = None,
+    *,
+    session_path: str | Path | None = None,
+) -> tuple[list[VideoInfo | None], list[int]]:
+    """Read movie metadata and triggers without keeping video readers open."""
+    if params is None:
+        params = load_parameters(record)
+    if session_path is None:
+        folder, _ = resolve_session_path(record, params)
+    else:
+        folder = Path(session_path)
+
     camera_names = list(_get(params, "nt_camera_names", []))
-    readers: list[OpenCVVideoReader | None] = [None] * len(camera_names)
     video_info: list[VideoInfo | None] = [None] * len(camera_names)
     active_cameras: list[int] = []
 
@@ -283,11 +310,14 @@ def open_videos(
             trigger_times=triggers,
         )
         video_info[index] = info
-        readers[index] = OpenCVVideoReader(info)
         active_cameras.append(index)
-        logmsg(f"Opened movie {movie}")
-
-    return readers, video_info, active_cameras
+    return video_info, active_cameras
 
 
-__all__ = ["OpenCVVideoReader", "VideoInfo", "movie_search_locations", "open_videos"]
+__all__ = [
+    "OpenCVVideoReader",
+    "VideoInfo",
+    "load_video_info",
+    "movie_search_locations",
+    "open_videos",
+]

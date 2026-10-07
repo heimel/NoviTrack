@@ -57,3 +57,9 @@ def test_observable_panels_have_an_ordered_default_and_allow_local_override(tmp_
     )
     overridden = load_parameters(local_config_file=local_config)
     assert overridden.nt_tracking_observable_panels == ["Heading", "Speed"]
+
+
+def test_motion_snippet_observables_include_speed_and_forward_speed():
+    params = load_parameters(apply_local_overrides=False)
+
+    assert params.nt_motion_snippet_observables[:2] == ["Speed", "Forward_speed"]

@@ -120,6 +120,14 @@ snippets is a struct with fields:
 
 For each record, the function nt\_compute\_event\_measures computes several measures using these snippets, e.g. `measures.event.(event_type).(channel_type).snippet_mean = snippet_mean`. Event occurrence metadata is stored once per event type. `measures.event.(event_type).duration` is an array aligned with the event rows and with each channel's `event_mean`. Each `measures.event.(event_type).parameters.(parameter_name)` array has the same alignment when values vary between events, but is stored as a one-element array when the parameter is constant across all events. The `parameters` and `duration` names are reserved at the event-type level. The structure event is saved in the session measures.
 
+Motion channel types are selected with `nt_motion_snippet_observables` in
+`nt_default_parameters.yaml`. The default is `Speed`, `Forward_speed`,
+`Abs_angular_velocity`, and `Distance_to_center`. Available channels receive the
+same per-event signal, baseline, and response measures as photometry channels;
+unavailable channels are skipped. Their physical units are carried over from
+the selected tracking stream (for example, m/s for speed and degrees/s for
+angular velocity).
+
 Snippets are saved per session in variable 'snippets' in a mat-file 'nt_snippets.mat' in nt_session_folder(record).
 
 Example location: \\vs03.herseninstituut.knaw.nl\\VS03-CSF-1\\Ou\\SC\_Dopamine\\Data\_collection\\24.35.02\\0115018\\0115018\_20250826\_001\\nt\_snippets.mat

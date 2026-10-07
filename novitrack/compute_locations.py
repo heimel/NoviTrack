@@ -146,7 +146,15 @@ def compute_locations(
     out = deepcopy(dict(record)) if copy else dict(record)
     measures = deepcopy(dict(_get(out, "measures", {})))
 
-    arena_x, arena_y = change_overhead_to_arena_coordinates(nt_data["CoM_X"], nt_data["CoM_Y"], params)
+    coordinates = _get(nt_data, "Coordinates")
+    if str(coordinates).casefold() in {"arena", "arena_m"}:
+        # The legacy occupancy implementation uses arena walls in mm.
+        arena_x = _as_array(nt_data["CoM_X"]) * 1000.0
+        arena_y = _as_array(nt_data["CoM_Y"]) * 1000.0
+    else:
+        arena_x, arena_y = change_overhead_to_arena_coordinates(
+            nt_data["CoM_X"], nt_data["CoM_Y"], params
+        )
     arena_walls_x, arena_walls_y = arena_walls(params)
 
     center_scale = (float(_get(params, "arena_radius_mm")) - float(_get(params, "nt_max_distance_to_wall"))) / float(
