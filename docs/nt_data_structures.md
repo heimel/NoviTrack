@@ -105,8 +105,10 @@ measures is array of struct with fields:
     tracking_processing = workflow metadata for externally processed tracking.
     For DeepLabCut this records the prompt response (`ask_later`, `never`, or
     `queued`), processing state, selected model configuration, video, queue job
-    identifier, manifest location, and timestamps. It does not contain tracking
-    samples.
+    identifier, queue folder, manifest location, retry linkage, and timestamps.
+    It does not contain tracking samples. The job identifier remains stable as
+    the VM moves its manifest between queue state directories; NoviTrack uses it
+    to synchronize failed or completed status when behavioral tracking reopens.
 
 When behavioral tracking finds no position data, NoviTrack can create an atomic
 JSON job manifest in the `pending` directory below

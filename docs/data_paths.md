@@ -31,7 +31,9 @@ The worker claims jobs atomically and moves their manifests through `running`,
 `completed`, or `failed`. It processes one video at a time, writes HDF5 and DLC
 metadata beside the source video, copies the selected configuration to
 `DLC/<camera>/config.yaml` in the session, and stores one log per job below the
-queue's `logs` directory. It does not create CSV or labeled-video output.
+queue's `logs` directory. Job paths and DeepLabCut's progress output are shown
+live in the terminal and simultaneously written to that log. It does not create
+CSV or labeled-video output.
 
 The queue path can be overridden on the VM in `processparams_local.py`:
 
@@ -56,5 +58,15 @@ def processparams_local(params):
 The worker also supports `--once`, `--job JOB_ID`, `--queue-folder`,
 `--parameters`, and `--local-config`. A failed job remains in `failed` with its
 exception and traceback; it can be queued again by the client.
+
+When behavioral tracking is reopened without readable position data, NoviTrack
+uses the job ID saved in `measures.tracking_processing` to inspect the queue.
+Pending and running jobs remain quiet. Failed jobs show their error and log
+path and offer the original three choices again; a new request uses the video
+at its current location and records the old job ID as `retry_of`. A completed
+job without readable output, or a job missing from every state directory, is
+handled in the same recoverable way. NoviTrack searches both the queue saved
+with the request and the currently configured queue, allowing the configured
+queue location to change later.
 
 Return to the [manual index](README.md).

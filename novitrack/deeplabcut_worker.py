@@ -223,6 +223,29 @@ def _log_line(stream: TextIO, message: str) -> None:
     stream.flush()
 
 
+class _TeeStream:
+    """Write live process output to both the console and a persistent log."""
+
+    def __init__(self, console: TextIO, log: TextIO) -> None:
+        self.console = console
+        self.log = log
+
+    def write(self, text: str) -> int:
+        self.console.write(text)
+        self.log.write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        self.console.flush()
+        self.log.flush()
+
+    def isatty(self) -> bool:
+        return self.console.isatty()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.console, name)
+
+
 def _process_claimed_job(
     running_file: Path,
     queue_folder: Path,
@@ -252,6 +275,7 @@ def _process_claimed_job(
         }
     )
     _write_json_atomic(running_file, manifest)
+    print(f"Starting DeepLabCut job {job_id}", flush=True)
 
     try:
         if load_error is not None:
@@ -271,17 +295,21 @@ def _process_claimed_job(
         output_folder.mkdir(parents=True, exist_ok=True)
 
         with log_file.open("a", encoding="utf-8") as log:
-            _log_line(log, f"Processing job {job_id}")
-            _log_line(log, f"Video: {video}")
-            _log_line(log, f"Configuration: {config}")
+            output = _TeeStream(sys.stdout, log)
+            errors = _TeeStream(sys.stderr, log)
+            _log_line(output, f"Processing job {job_id}")
+            _log_line(output, f"Video: {video}")
+            _log_line(output, f"Configuration: {config}")
             hdf5, metadata = _job_outputs(video, output_folder)
             skipped_existing = bool(hdf5 and metadata)
             dlc_version = "not loaded (existing output)"
-            if not skipped_existing:
+            if skipped_existing:
+                _log_line(output, "Existing HDF5 and metadata output found; skipping inference")
+            else:
                 runner = analyzer or _run_deeplabcut
                 with _effective_config(config, settings) as effective_config:
-                    _log_line(log, f"Effective configuration: {effective_config}")
-                    with redirect_stdout(log), redirect_stderr(log):
+                    _log_line(output, f"Effective configuration: {effective_config}")
+                    with redirect_stdout(output), redirect_stderr(errors):
                         dlc_version = runner(effective_config, video, output_folder)
                 hdf5, metadata = _job_outputs(video, output_folder)
             if not hdf5:
@@ -289,7 +317,7 @@ def _process_claimed_job(
             if not metadata:
                 raise RuntimeError("DeepLabCut did not produce a metadata pickle")
             provenance_config = _copy_config_for_session(config, session, camera)
-            _log_line(log, f"Completed job {job_id}")
+            _log_line(output, f"Completed job {job_id}")
 
         manifest.update(
             {
@@ -318,9 +346,10 @@ def _process_claimed_job(
     except Exception as exc:
         failure_traceback = traceback.format_exc()
         with log_file.open("a", encoding="utf-8") as log:
-            _log_line(log, f"FAILED: {exc}")
-            log.write(failure_traceback)
-            log.flush()
+            errors = _TeeStream(sys.stderr, log)
+            _log_line(errors, f"FAILED: {exc}")
+            errors.write(failure_traceback)
+            errors.flush()
         manifest.update(
             {
                 "state": "failed",
@@ -431,6 +460,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         job_id=args.job,
     )
     print(f"DeepLabCut queue: {completed} completed, {failed} failed")
+    if failed:
+        print(f"Failure details: {queue_folder / 'failed'}")
+        print(f"Job logs: {queue_folder / 'logs'}")
     return 1 if failed else 0
 
 

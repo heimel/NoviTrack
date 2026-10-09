@@ -47,6 +47,7 @@ from .deeplabcut_queue import (
     DeepLabCutProject,
     discover_deeplabcut_projects,
     enqueue_deeplabcut_job,
+    find_deeplabcut_job,
     make_deeplabcut_manifest,
 )
 from .import_markers import IMPORT_OPTIONS, import_markers
@@ -233,15 +234,19 @@ def _ensure_measures(record: Any, params: Any) -> dict[str, Any]:
     return measures
 
 
-def _ask_deeplabcut_queue_decision(parent: QWidget) -> str:
+def _ask_deeplabcut_queue_decision(
+    parent: QWidget,
+    details: str | None = None,
+) -> str:
     """Ask what to do when a record has no usable position tracking."""
     dialog = QMessageBox(parent)
     dialog.setIcon(QMessageBox.Icon.Question)
     dialog.setWindowTitle("No position tracking found")
-    dialog.setText(
+    question = (
         "No position tracking data were found for this record. Would you like "
         "to queue its overhead video for DeepLabCut analysis?"
     )
+    dialog.setText(f"{details}\n\n{question}" if details else question)
     queue_button = dialog.addButton(
         "Yes—queue for DeepLabCut analysis", QMessageBox.ButtonRole.AcceptRole
     )
@@ -286,6 +291,35 @@ def _overhead_video_info(video_info: Sequence[Any], params: Any) -> Any:
     if 0 <= overhead_index < len(video_info) and video_info[overhead_index] is not None:
         return video_info[overhead_index]
     return next((info for info in video_info if info is not None), None)
+
+
+def _deeplabcut_queue_roots(processing: Mapping[str, Any], params: Any) -> tuple[Path, ...]:
+    """Return stored and current queue roots for backward-compatible lookup."""
+    values: list[Any] = [
+        processing.get("queue_folder"),
+        _get(params, "nt_deeplabcut_queue_folder", None),
+    ]
+    manifest_value = processing.get("queue_manifest")
+    if manifest_value:
+        manifest_path = Path(str(manifest_value))
+        if manifest_path.parent.name.casefold() in {
+            "pending",
+            "running",
+            "completed",
+            "failed",
+        }:
+            values.append(manifest_path.parent.parent)
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for value in values:
+        if not value:
+            continue
+        root = Path(str(value))
+        key = str(root).casefold()
+        if key not in seen:
+            seen.add(key)
+            roots.append(root)
+    return tuple(roots)
 
 
 def _select_tracking_stream(streams: TrackingStreamCollection) -> TrackingStream | None:
@@ -676,19 +710,86 @@ class NTTrackBehaviorWindow(QMainWindow):
         if self.position_tracking_available:
             return
         processing = self.measures.get("tracking_processing", {})
-        if isinstance(processing, Mapping) and processing.get("method") == "deeplabcut":
-            if processing.get("prompt_response") in {"never", "queued"}:
-                return
-
-        decision = _ask_deeplabcut_queue_decision(self)
-        if decision == "never":
-            self._set_tracking_processing_state("never", state="declined")
-            return
-        if decision != "queue":
-            self._set_tracking_processing_state("ask_later", state="not_requested")
+        if not isinstance(processing, Mapping) or processing.get("method") != "deeplabcut":
+            processing = {}
+        if processing.get("prompt_response") == "never":
             return
 
         video = _overhead_video_info(self.video_info, self.params)
+        current_video = str(_get(video, "filename", "")) if video is not None else "not found"
+        retry_of = str(processing.get("job_id", "")) or None
+        recovery_state: str | None = None
+        recovery_fields: dict[str, Any] = {}
+        prompt_details: str | None = None
+
+        if retry_of:
+            try:
+                previous_job = find_deeplabcut_job(
+                    _deeplabcut_queue_roots(processing, self.params),
+                    retry_of,
+                )
+            except OSError as exc:
+                logmsg(f"Could not inspect DeepLabCut queue for job {retry_of}: {exc}")
+                previous_job = None
+            if previous_job is not None and previous_job.state in {"pending", "running"}:
+                return
+            if previous_job is not None:
+                recovery_state = previous_job.state
+                recovery_fields = {
+                    "job_id": retry_of,
+                    "queue_folder": str(previous_job.queue_folder),
+                    "queue_manifest": str(previous_job.filename),
+                }
+                if previous_job.state == "failed":
+                    error = str(previous_job.manifest.get("error", "Unknown error"))
+                    log_path = str(previous_job.manifest.get("log_path", "Not recorded"))
+                    recovery_fields.update({"error": error, "log_path": log_path})
+                    prompt_details = (
+                        "The previous DeepLabCut job failed.\n\n"
+                        f"Reason: {error}\n"
+                        f"Log: {log_path}\n\n"
+                        f"Current video: {current_video}"
+                    )
+                elif previous_job.state == "completed":
+                    prompt_details = (
+                        "The previous DeepLabCut job is marked completed, but no readable "
+                        "position tracking was found.\n\n"
+                        f"Manifest: {previous_job.filename}\n\n"
+                        f"Current video: {current_video}"
+                    )
+            elif processing.get("prompt_response") == "queued":
+                recovery_state = "missing"
+                recovery_fields = {"job_id": retry_of}
+                prompt_details = (
+                    "The previous DeepLabCut job could not be found in the pending, "
+                    "running, completed, or failed queue folders.\n\n"
+                    f"Job ID: {retry_of}\n\n"
+                    f"Current video: {current_video}"
+                )
+        elif processing.get("prompt_response") == "queued":
+            recovery_state = "missing"
+            prompt_details = (
+                "The record says that DeepLabCut analysis was queued, but it has no "
+                "job ID. The previous request is treated as stale.\n\n"
+                f"Current video: {current_video}"
+            )
+
+        decision = _ask_deeplabcut_queue_decision(self, prompt_details)
+        if decision == "never":
+            self._set_tracking_processing_state(
+                "never",
+                state="declined",
+                previous_job_id=retry_of or "",
+            )
+            return
+        if decision != "queue":
+            self._set_tracking_processing_state(
+                "ask_later",
+                state=recovery_state or "not_requested",
+                **recovery_fields,
+            )
+            return
+
         if video is None:
             QMessageBox.warning(
                 self,
@@ -715,11 +816,20 @@ class NTTrackBehaviorWindow(QMainWindow):
 
         project = _choose_deeplabcut_project(self, projects)
         if project is None:
-            self._set_tracking_processing_state("ask_later", state="not_requested")
+            self._set_tracking_processing_state(
+                "ask_later",
+                state=recovery_state or "not_requested",
+                **recovery_fields,
+            )
             return
 
         queue_folder = Path(str(_get(self.params, "nt_deeplabcut_queue_folder", "")))
-        manifest = make_deeplabcut_manifest(self.record, video, project.config_path)
+        manifest = make_deeplabcut_manifest(
+            self.record,
+            video,
+            project.config_path,
+            retry_of=retry_of,
+        )
         try:
             result = enqueue_deeplabcut_job(queue_folder, manifest)
         except (KeyError, OSError, TypeError, ValueError) as exc:
@@ -745,7 +855,9 @@ class NTTrackBehaviorWindow(QMainWindow):
             model_config=str(queued.get("dlc_config_path", project.config_path)),
             video_path=str(queued.get("video_path", _get(video, "filename", ""))),
             queue_manifest=str(result.filename),
+            queue_folder=str(result.filename.parent.parent),
             queued_at=str(queued.get("created_at", "")),
+            retry_of=retry_of or "",
         )
         verb = "Queued" if result.created else "Already queued"
         self._report_status(f"{verb} DeepLabCut analysis using {project.name}")

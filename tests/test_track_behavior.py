@@ -73,14 +73,23 @@ def test_dlc_prompt_is_skipped_when_tracking_exists_or_record_was_handled(monkey
     monkeypatch.setattr(
         track_behavior,
         "_ask_deeplabcut_queue_decision",
-        lambda parent: calls.append(parent),
+        lambda parent, details=None: calls.append((parent, details)),
     )
     available, _, _ = _dlc_prompt_window(position_available=True)
     queued, _, _ = _dlc_prompt_window(
-        processing={"method": "deeplabcut", "prompt_response": "queued"}
+        processing={
+            "method": "deeplabcut",
+            "prompt_response": "queued",
+            "job_id": "active-job",
+        }
     )
     declined, _, _ = _dlc_prompt_window(
         processing={"method": "deeplabcut", "prompt_response": "never"}
+    )
+    monkeypatch.setattr(
+        track_behavior,
+        "find_deeplabcut_job",
+        lambda roots, job_id: SimpleNamespace(state="pending"),
     )
 
     for window in (available, queued, declined):
@@ -94,7 +103,7 @@ def test_dlc_ask_later_decision_is_stored(monkeypatch):
     monkeypatch.setattr(
         track_behavior,
         "_ask_deeplabcut_queue_decision",
-        lambda parent: "ask_later",
+        lambda parent, details=None: "ask_later",
     )
 
     track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
@@ -127,7 +136,7 @@ def test_dlc_queue_decision_selects_model_writes_job_and_stores_state(
     monkeypatch.setattr(
         track_behavior,
         "_ask_deeplabcut_queue_decision",
-        lambda parent: "queue",
+        lambda parent, details=None: "queue",
     )
     monkeypatch.setattr(
         track_behavior,
@@ -147,6 +156,81 @@ def test_dlc_queue_decision_selects_model_writes_job_and_stores_state(
     assert state["state"] == "pending"
     assert state["job_id"] == manifest["job_id"]
     assert state["queue_manifest"] == str(manifests[0])
+    assert state["queue_folder"] == str(tmp_path / "queue")
+    assert changes == [True]
+    assert statuses == ["Queued DeepLabCut analysis using overhead-mouse"]
+
+
+def test_failed_dlc_job_is_reported_and_requeued_using_current_video(
+    monkeypatch, tmp_path
+):
+    old_queue = tmp_path / "old-queue"
+    failed_folder = old_queue / "failed"
+    failed_folder.mkdir(parents=True)
+    failed_manifest = failed_folder / "old-job.json"
+    failed_manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "job_id": "old-job",
+                "state": "failed",
+                "error": "FileNotFoundError: old video missing",
+                "log_path": str(old_queue / "logs" / "old-job.log"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    projects = tmp_path / "projects"
+    project = projects / "overhead-mouse"
+    project.mkdir(parents=True)
+    config = project / "config.yaml"
+    config.write_text("Task: overhead-mouse\n", encoding="utf-8")
+    current_video = tmp_path / "new-location" / "session_overhead.mp4"
+    current_video.parent.mkdir()
+    current_video.write_bytes(b"video")
+    processing = {
+        "method": "deeplabcut",
+        "prompt_response": "queued",
+        "state": "pending",
+        "job_id": "old-job",
+        "queue_folder": str(old_queue),
+    }
+    window, changes, statuses = _dlc_prompt_window(processing=processing)
+    new_queue = tmp_path / "new-queue"
+    window.params = SimpleNamespace(
+        nt_overhead_camera=1,
+        nt_deeplabcut_projects_folder=str(projects),
+        nt_deeplabcut_queue_folder=str(new_queue),
+    )
+    window.video_info = [
+        SimpleNamespace(filename=current_video, camera_name="overhead")
+    ]
+    prompt_details = []
+    monkeypatch.setattr(
+        track_behavior,
+        "_ask_deeplabcut_queue_decision",
+        lambda parent, details=None: prompt_details.append(details) or "queue",
+    )
+    monkeypatch.setattr(
+        track_behavior,
+        "_choose_deeplabcut_project",
+        lambda parent, choices: choices[0],
+    )
+
+    track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
+
+    new_manifests = list((new_queue / "pending").glob("*.json"))
+    assert len(new_manifests) == 1
+    retry = json.loads(new_manifests[0].read_text(encoding="utf-8"))
+    assert retry["retry_of"] == "old-job"
+    assert retry["video_path"] == str(current_video)
+    assert "old video missing" in prompt_details[0]
+    assert str(old_queue / "logs" / "old-job.log") in prompt_details[0]
+    assert str(current_video) in prompt_details[0]
+    state = window.measures["tracking_processing"]
+    assert state["job_id"] == retry["job_id"]
+    assert state["retry_of"] == "old-job"
+    assert state["queue_folder"] == str(new_queue)
     assert changes == [True]
     assert statuses == ["Queued DeepLabCut analysis using overhead-mouse"]
 

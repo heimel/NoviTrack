@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from novitrack.deeplabcut_queue import (
     discover_deeplabcut_projects,
     enqueue_deeplabcut_job,
+    find_deeplabcut_job,
     make_deeplabcut_manifest,
 )
 
@@ -65,3 +66,41 @@ def test_failed_jobs_do_not_prevent_a_retry(tmp_path):
 
     assert result.created is True
     assert result.filename.parent.name == "pending"
+
+
+def test_finds_job_by_id_after_worker_moves_it_between_state_folders(tmp_path):
+    first_queue = tmp_path / "old-queue"
+    second_queue = tmp_path / "current-queue"
+    failed = first_queue / "failed"
+    failed.mkdir(parents=True)
+    manifest = {
+        "schema_version": 1,
+        "job_id": "failed-job",
+        "state": "failed",
+        "error": "FileNotFoundError: video missing",
+        "log_path": str(first_queue / "logs" / "failed-job.log"),
+    }
+    filename = failed / "failed-job.json"
+    filename.write_text(json.dumps(manifest), encoding="utf-8")
+
+    located = find_deeplabcut_job(
+        [second_queue, first_queue, first_queue],
+        "failed-job",
+    )
+
+    assert located is not None
+    assert located.state == "failed"
+    assert located.filename == filename
+    assert located.queue_folder == first_queue
+    assert located.manifest["error"] == "FileNotFoundError: video missing"
+
+
+def test_retry_manifest_links_to_previous_job(tmp_path):
+    manifest = make_deeplabcut_manifest(
+        {"sessionid": "session-1"},
+        SimpleNamespace(filename=tmp_path / "video.mp4", camera_name="overhead"),
+        tmp_path / "model" / "config.yaml",
+        retry_of="old-job",
+    )
+
+    assert manifest["retry_of"] == "old-job"

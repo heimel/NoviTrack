@@ -12,6 +12,7 @@ from novitrack.deeplabcut_worker import (
     WorkerSettings,
     _effective_config,
     load_worker_settings,
+    main,
     process_pending_jobs,
     translate_shared_path,
 )
@@ -40,7 +41,7 @@ def _queued_job(tmp_path):
     return queue, video, config
 
 
-def test_worker_completes_job_and_writes_outputs_log_and_provenance(tmp_path):
+def test_worker_completes_job_and_writes_outputs_log_and_provenance(tmp_path, capsys):
     queue, video, config = _queued_job(tmp_path)
     calls = []
 
@@ -52,8 +53,14 @@ def test_worker_completes_job_and_writes_outputs_log_and_provenance(tmp_path):
         return "3.0.1"
 
     completed, failed = process_pending_jobs(queue, WorkerSettings(), analyzer=analyze)
+    captured = capsys.readouterr()
 
     assert (completed, failed) == (1, 0)
+    assert "Starting DeepLabCut job job-123" in captured.out
+    assert "Processing job job-123" in captured.out
+    assert f"Video: {video}" in captured.out
+    assert "DLC output captured in the job log" in captured.out
+    assert "Completed job job-123" in captured.out
     assert len(calls) == 1
     assert calls[0][1:] == (video, video.parent)
     completed_file = queue / "completed" / "job-123.json"
@@ -85,7 +92,7 @@ def test_worker_skips_inference_when_hdf5_and_metadata_already_exist(tmp_path):
     assert state["deeplabcut_version"] == "not loaded (existing output)"
 
 
-def test_worker_moves_failed_job_and_records_traceback(tmp_path):
+def test_worker_moves_failed_job_and_records_traceback(tmp_path, capsys):
     queue, _, _ = _queued_job(tmp_path)
 
     completed, failed = process_pending_jobs(
@@ -93,8 +100,12 @@ def test_worker_moves_failed_job_and_records_traceback(tmp_path):
         WorkerSettings(),
         analyzer=lambda *args: (_ for _ in ()).throw(RuntimeError("GPU unavailable")),
     )
+    captured = capsys.readouterr()
 
     assert (completed, failed) == (0, 1)
+    assert "Starting DeepLabCut job job-123" in captured.out
+    assert "FAILED: GPU unavailable" in captured.err
+    assert "RuntimeError: GPU unavailable" in captured.err
     failed_file = queue / "failed" / "job-123.json"
     state = json.loads(failed_file.read_text(encoding="utf-8"))
     assert state["state"] == "failed"
@@ -137,3 +148,28 @@ def test_path_mapping_and_processparams_local_override(tmp_path):
     assert translate_shared_path(r"C:\client\session\movie.mp4", settings) == Path(
         r"D:\vm\session\movie.mp4"
     )
+
+
+def test_cli_reports_where_to_find_failure_details_and_logs(tmp_path, capsys):
+    queue = tmp_path / "queue"
+    pending = queue / "pending"
+    pending.mkdir(parents=True)
+    manifest = {
+        "schema_version": 1,
+        "job_id": "missing-video",
+        "state": "pending",
+        "video_path": str(tmp_path / "missing.mp4"),
+        "session_path": str(tmp_path),
+        "output_path": str(tmp_path),
+        "dlc_config_path": str(tmp_path / "missing-config.yaml"),
+        "camera": "overhead",
+    }
+    (pending / "missing-video.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    exit_code = main(["--queue-folder", str(queue), "--once"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "DeepLabCut queue: 0 completed, 1 failed" in output
+    assert f"Failure details: {queue / 'failed'}" in output
+    assert f"Job logs: {queue / 'logs'}" in output

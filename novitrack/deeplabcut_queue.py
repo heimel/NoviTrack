@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import json
@@ -39,6 +39,16 @@ class QueueResult:
     manifest: dict[str, Any]
     filename: Path
     created: bool
+
+
+@dataclass(frozen=True)
+class QueueJob:
+    """One job located in a state directory of a shared queue."""
+
+    manifest: dict[str, Any]
+    filename: Path
+    queue_folder: Path
+    state: str
 
 
 def discover_deeplabcut_projects(folder: str | Path) -> tuple[DeepLabCutProject, ...]:
@@ -85,13 +95,14 @@ def make_deeplabcut_manifest(
     *,
     job_id: str | None = None,
     created_at: str | None = None,
+    retry_of: str | None = None,
 ) -> dict[str, Any]:
     """Build the versioned interchange document consumed by the GPU worker."""
     video_path = Path(str(_get(video_info, "filename", "")))
     config = Path(config_path)
     identifier = job_id or str(uuid4())
     timestamp = created_at or datetime.now(timezone.utc).isoformat()
-    return {
+    manifest = {
         "schema_version": QUEUE_SCHEMA_VERSION,
         "job_id": identifier,
         "state": "pending",
@@ -115,6 +126,9 @@ def make_deeplabcut_manifest(
         "dlc_config_path": str(config),
         "dlc_project_path": str(config.parent),
     }
+    if retry_of:
+        manifest["retry_of"] = str(retry_of)
+    return manifest
 
 
 def _path_key(value: Any) -> str:
@@ -142,6 +156,32 @@ def _matching_job(
                 and _path_key(manifest.get("dlc_config_path", "")) == wanted_config
             ):
                 return manifest, filename
+    return None
+
+
+def find_deeplabcut_job(
+    queue_folders: Sequence[str | Path],
+    job_id: str,
+) -> QueueJob | None:
+    """Locate a job by its stable ID, regardless of its current state."""
+    if not job_id:
+        return None
+    seen: set[str] = set()
+    for queue_value in queue_folders:
+        queue_folder = Path(queue_value)
+        key = _path_key(queue_folder)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        for state in ("pending", "running", "completed", "failed"):
+            filename = queue_folder / state / f"{job_id}.json"
+            if not filename.is_file():
+                continue
+            try:
+                manifest = json.loads(filename.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+            return QueueJob(manifest, filename, queue_folder, state)
     return None
 
 
@@ -188,8 +228,10 @@ def enqueue_deeplabcut_job(
 __all__ = [
     "DeepLabCutProject",
     "QUEUE_SCHEMA_VERSION",
+    "QueueJob",
     "QueueResult",
     "discover_deeplabcut_projects",
     "enqueue_deeplabcut_job",
+    "find_deeplabcut_job",
     "make_deeplabcut_manifest",
 ]
