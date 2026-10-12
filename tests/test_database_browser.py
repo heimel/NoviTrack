@@ -214,6 +214,36 @@ def test_filter_error_shows_syntax_help_without_traceback(monkeypatch):
     assert "Traceback" not in messages[0][1]
 
 
+def test_clearing_filter_preserves_current_record():
+    app = QApplication.instance() or QApplication([])
+    window = DatabaseBrowser(
+        pd.DataFrame(
+            {"sessionid": ["first", "second", "third"]},
+            index=[10, 20, 30],
+        )
+    )
+    database_browser._install_filter_position_preservation(window)
+
+    window.filter_box.setText("sessionid != 'first'")
+    window.apply_filter()
+    window.next_record()
+    assert window.current_record_index() == 30
+
+    window.disable_filter()
+    assert window.current_record_index() == 30
+    assert window.position == 2
+
+    window.apply_filter()
+    window.next_record()
+    window.clear_filter()
+    assert window.filter_box.text() == ""
+    assert window.current_record_index() == 30
+    assert window.position == 2
+
+    window.close()
+    app.processEvents()
+
+
 def test_string_values_are_displayed_and_edited_without_quotes():
     app = QApplication.instance() or QApplication([])
     window = DatabaseBrowser(

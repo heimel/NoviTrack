@@ -501,6 +501,33 @@ def _install_filter_error_help(window: DatabaseBrowser) -> None:
     window._show_error = show_error
 
 
+def _install_filter_position_preservation(window: DatabaseBrowser) -> None:
+    """Keep the displayed record selected when a filter is cleared."""
+    if getattr(window, "_nt_filter_position_preservation", False):
+        return
+    if not hasattr(window, "disable_filter") or not hasattr(window, "clear_filter"):
+        return
+
+    window._nt_filter_position_preservation = True
+
+    def clear_filter(*, clear_text: bool) -> None:
+        current_index = window.current_record_index()
+        window._active_filter_expression = None
+        if clear_text:
+            window.filter_box.clear()
+        window.filtered_index = list(window.db.index)
+        window.position = (
+            window.filtered_index.index(current_index)
+            if current_index in window.filtered_index
+            else 0
+        )
+        window._update_filter_button()
+        window._refresh_view()
+
+    window.disable_filter = lambda: clear_filter(clear_text=False)
+    window.clear_filter = lambda: clear_filter(clear_text=True)
+
+
 def _show_string_values_without_quotes(window: DatabaseBrowser) -> None:
     """Render strings as editable text instead of their quoted ``repr``."""
     if getattr(window, "_nt_unquoted_string_display", False):
@@ -676,6 +703,7 @@ def experiment_db(
     _show_string_values_without_quotes(window)
     _install_import_button(window)
     _install_filter_error_help(window)
+    _install_filter_position_preservation(window)
     _install_navigation_button_states(window)
     _position_browser_top_left(window)
     _OPEN_WINDOWS.append(window)
