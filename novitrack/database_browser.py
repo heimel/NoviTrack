@@ -102,6 +102,42 @@ def _install_navigation_button_states(browser: Any) -> None:
     _update_navigation_button_states(browser)
 
 
+def _install_novitrack_database_loader(browser: DatabaseBrowser) -> None:
+    """Make the browser's Load button apply NoviTrack schema migrations."""
+    if getattr(browser, "_nt_database_loader_installed", False):
+        return
+    load_button = getattr(browser, "load_button", None)
+    if load_button is None:
+        return
+
+    def load_database(_checked: bool = False) -> None:
+        filename, _ = QFileDialog.getOpenFileName(
+            browser,
+            "Load MATLAB database",
+            str(browser.filename.parent if browser.filename else Path.cwd()),
+            "MATLAB files (*.mat);;All files (*.*)",
+        )
+        if not filename:
+            return
+        try:
+            browser.db = load_mat_database(filename)
+            browser.filename = Path(filename)
+            browser.filtered_index = list(browser.db.index)
+            browser.position = max(0, len(browser.filtered_index) - 1)
+            browser.dirty = False
+            browser._active_filter_expression = None
+            browser.filter_box.clear()
+            browser._refresh_view()
+            browser._update_window_state()
+        except Exception as exc:  # pragma: no cover - GUI error path
+            browser._show_error("Load failed", exc)
+
+    load_button.clicked.disconnect()
+    load_button.clicked.connect(load_database)
+    browser._nt_database_loader_installed = True
+    browser._nt_load_database = load_database
+
+
 def _available_screen_geometry(window: Any) -> QRect | None:
     """Return the usable geometry of the screen containing ``window``."""
     try:
@@ -700,6 +736,7 @@ def experiment_db(
         block=False,
     )
     window.filter_box.setPlaceholderText("subject == '123456'")
+    _install_novitrack_database_loader(window)
     _show_string_values_without_quotes(window)
     _install_import_button(window)
     _install_filter_error_help(window)

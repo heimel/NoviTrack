@@ -4,9 +4,11 @@ import json
 import pandas as pd
 from PyQt6.QtCore import QPoint, QRect, QSize
 from PyQt6.QtWidgets import QApplication
+from inpythotools.mat_database import save_mat_database
 
 import novitrack.database_browser as database_browser
 from inpythotools.database_browser import DatabaseBrowser
+from novitrack.measures_schema import CURRENT_MEASURES_VERSION
 
 
 class _FakeScreen:
@@ -71,6 +73,46 @@ def test_import_button_uses_shared_24_px_icon():
 
     layout = window.centralWidget().layout().itemAt(0).layout()
     assert layout.indexOf(window.import_button) == layout.indexOf(window.save_button) + 1
+
+    window.close()
+    app.processEvents()
+
+
+def test_load_button_upgrades_legacy_novitrack_markers(monkeypatch, tmp_path):
+    app = QApplication.instance() or QApplication([])
+    filename = tmp_path / "legacy.mat"
+    save_mat_database(
+        pd.DataFrame(
+            [
+                {
+                    "sessionid": "session-1",
+                    "setup": "default",
+                    "condition": "",
+                    "stimulus": "",
+                    "measures": {
+                        "markers": [{"time": 2.0, "marker": "o2"}],
+                    },
+                }
+            ]
+        ),
+        filename,
+    )
+    window = DatabaseBrowser(pd.DataFrame({"sessionid": ["old"]}))
+    monkeypatch.setattr(
+        database_browser.QFileDialog,
+        "getOpenFileName",
+        lambda *args, **kwargs: (str(filename), "MATLAB files (*.mat)"),
+    )
+
+    database_browser._install_novitrack_database_loader(window)
+    window.load_button.click()
+
+    measures = window.db.iloc[0]["measures"]
+    assert measures["measures_version"] == CURRENT_MEASURES_VERSION
+    assert measures["markers"][0]["marker_id"] == "start"
+    assert measures["markers"][0]["parameters"] == {"stimulus_id": 2}
+    assert window.filename == filename
+    assert window.dirty is False
 
     window.close()
     app.processEvents()
