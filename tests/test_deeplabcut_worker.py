@@ -1,3 +1,4 @@
+import io
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,12 +11,25 @@ from novitrack.deeplabcut_queue import (
 )
 from novitrack.deeplabcut_worker import (
     WorkerSettings,
+    _TeeStream,
     _effective_config,
     load_worker_settings,
     main,
     process_pending_jobs,
     translate_shared_path,
 )
+
+
+def test_tee_stream_tolerates_late_output_after_log_is_closed():
+    console = io.StringIO()
+    log = io.StringIO()
+    stream = _TeeStream(console, log)
+    log.close()
+
+    assert stream.write("late shutdown output") == len("late shutdown output")
+    stream.flush()
+
+    assert console.getvalue() == "late shutdown output"
 
 
 def _queued_job(tmp_path):

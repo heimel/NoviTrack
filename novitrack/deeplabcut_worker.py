@@ -232,12 +232,14 @@ class _TeeStream:
 
     def write(self, text: str) -> int:
         self.console.write(text)
-        self.log.write(text)
+        if not self.log.closed:
+            self.log.write(text)
         return len(text)
 
     def flush(self) -> None:
         self.console.flush()
-        self.log.flush()
+        if not self.log.closed:
+            self.log.flush()
 
     def isatty(self) -> bool:
         return self.console.isatty()
