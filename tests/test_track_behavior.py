@@ -115,6 +115,29 @@ def test_dlc_ask_later_decision_is_stored(monkeypatch):
     assert changes == [True]
 
 
+def test_dlc_prompt_reports_online_worker(monkeypatch, tmp_path):
+    window, _, _ = _dlc_prompt_window()
+    window.params = SimpleNamespace(
+        nt_overhead_camera=1,
+        nt_deeplabcut_queue_folder=str(tmp_path / "queue"),
+    )
+    details = []
+    monkeypatch.setattr(
+        track_behavior,
+        "read_deeplabcut_worker_status",
+        lambda queue: SimpleNamespace(hostname="dlc-vm"),
+    )
+    monkeypatch.setattr(
+        track_behavior,
+        "_ask_deeplabcut_queue_decision",
+        lambda parent, prompt=None: details.append(prompt) or "ask_later",
+    )
+
+    track_behavior.NTTrackBehaviorWindow._maybe_offer_deeplabcut_processing(window)
+
+    assert details == ["DeepLabCut worker dlc-vm is online."]
+
+
 def test_dlc_queue_decision_selects_model_writes_job_and_stores_state(
     monkeypatch, tmp_path
 ):
@@ -158,7 +181,10 @@ def test_dlc_queue_decision_selects_model_writes_job_and_stores_state(
     assert state["queue_manifest"] == str(manifests[0])
     assert state["queue_folder"] == str(tmp_path / "queue")
     assert changes == [True]
-    assert statuses == ["Queued DeepLabCut analysis using overhead-mouse"]
+    assert statuses == [
+        "Queued DeepLabCut analysis using overhead-mouse "
+        "(no active worker detected; job will wait in the queue)"
+    ]
 
 
 def test_failed_dlc_job_is_reported_and_requeued_using_current_video(
@@ -232,7 +258,10 @@ def test_failed_dlc_job_is_reported_and_requeued_using_current_video(
     assert state["retry_of"] == "old-job"
     assert state["queue_folder"] == str(new_queue)
     assert changes == [True]
-    assert statuses == ["Queued DeepLabCut analysis using overhead-mouse"]
+    assert statuses == [
+        "Queued DeepLabCut analysis using overhead-mouse "
+        "(no active worker detected; job will wait in the queue)"
+    ]
 
 
 def test_prepare_tracking_arrays_uses_stream_reference_time():

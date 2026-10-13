@@ -24,7 +24,7 @@ DeepLabCut 3.0.1 environment and run from the NoviTrack repository:
 
 ```powershell
 conda activate deeplabcut
-python novitrack/deeplabcut_worker.py --until-empty
+python novitrack/deeplabcut_worker.py --watch
 ```
 
 The worker claims jobs atomically and moves their manifests through `running`,
@@ -33,7 +33,15 @@ metadata beside the source video, copies the selected configuration to
 `DLC/<camera>/config.yaml` in the session, and stores one log per job below the
 queue's `logs` directory. Job paths and DeepLabCut's progress output are shown
 live in the terminal and simultaneously written to that log. It does not create
-CSV or labeled-video output.
+CSV or labeled-video output. Watch mode checks for new jobs every 10 seconds by
+default and runs until stopped with `Ctrl+C`; use `--poll-interval SECONDS` to
+change that delay.
+
+While watch mode is active, the worker refreshes `worker_status.json` in the
+shared queue every five seconds, including while a video is being analyzed.
+NoviTrack clients show whether that heartbeat is active before a job is queued.
+The file is removed after a clean stop and is treated as offline after 30
+seconds if the VM or worker stops unexpectedly.
 
 The queue path can be overridden on the VM in `processparams_local.py`:
 
@@ -55,9 +63,10 @@ def processparams_local(params):
     return params
 ```
 
-The worker also supports `--once`, `--job JOB_ID`, `--queue-folder`,
-`--parameters`, and `--local-config`. A failed job remains in `failed` with its
-exception and traceback; it can be queued again by the client.
+The worker also supports `--until-empty` (the default when no mode is given),
+`--once`, `--job JOB_ID`, `--queue-folder`, `--parameters`, and
+`--local-config`. A failed job remains in `failed` with its exception and
+traceback; it can be queued again by the client.
 
 When behavioral tracking is reopened without readable position data, NoviTrack
 uses the job ID saved in `measures.tracking_processing` to inspect the queue.

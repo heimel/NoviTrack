@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from novitrack.deeplabcut_queue import (
@@ -6,6 +7,7 @@ from novitrack.deeplabcut_queue import (
     enqueue_deeplabcut_job,
     find_deeplabcut_job,
     make_deeplabcut_manifest,
+    read_deeplabcut_worker_status,
 )
 
 
@@ -104,3 +106,43 @@ def test_retry_manifest_links_to_previous_job(tmp_path):
     )
 
     assert manifest["retry_of"] == "old-job"
+
+
+def test_reads_fresh_worker_status_and_rejects_stale_heartbeat(tmp_path):
+    queue = tmp_path / "queue"
+    queue.mkdir()
+    now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    status_file = queue / "worker_status.json"
+    status_file.write_text(
+        json.dumps(
+            {
+                "state": "online",
+                "hostname": "dlc-vm",
+                "pid": 1234,
+                "started_at": (now - timedelta(hours=1)).isoformat(),
+                "heartbeat_at": (now - timedelta(seconds=5)).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = read_deeplabcut_worker_status(queue, now=now)
+
+    assert status is not None
+    assert status.hostname == "dlc-vm"
+    assert status.pid == 1234
+
+    status_file.write_text(
+        json.dumps(
+            {
+                "state": "online",
+                "hostname": "dlc-vm",
+                "pid": 1234,
+                "started_at": (now - timedelta(hours=1)).isoformat(),
+                "heartbeat_at": (now - timedelta(seconds=31)).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert read_deeplabcut_worker_status(queue, now=now) is None

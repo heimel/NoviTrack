@@ -3,7 +3,7 @@
 This file deliberately has no imports from the rest of :mod:`novitrack`, so it
 can be executed directly in a lean DeepLabCut Conda environment:
 
-    python novitrack/deeplabcut_worker.py --until-empty
+    python novitrack/deeplabcut_worker.py --watch
 """
 
 from __future__ import annotations
@@ -20,10 +20,16 @@ import shutil
 import socket
 import sys
 import tempfile
+import threading
+import time
 import traceback
 from typing import Any, Callable, Iterator, TextIO
 
 import yaml
+
+
+WORKER_STATUS_FILENAME = "worker_status.json"
+WORKER_HEARTBEAT_INTERVAL_SECONDS = 5.0
 
 
 class WorkerSettings(dict):
@@ -142,6 +148,61 @@ def _write_json_atomic(filename: Path, value: Mapping[str, Any]) -> None:
     finally:
         if temporary_name is not None:
             Path(temporary_name).unlink(missing_ok=True)
+
+
+@contextmanager
+def _worker_status_heartbeat(
+    queue_folder: Path,
+    *,
+    interval: float = WORKER_HEARTBEAT_INTERVAL_SECONDS,
+) -> Iterator[Path]:
+    """Publish a live worker heartbeat until the surrounding watch loop exits."""
+    filename = queue_folder / WORKER_STATUS_FILENAME
+    started_at = _utc_now()
+    worker_id = f"{socket.gethostname()}:{os.getpid()}:{started_at}"
+    stop = threading.Event()
+    warned = False
+
+    def publish() -> None:
+        nonlocal warned
+        try:
+            _write_json_atomic(
+                filename,
+                {
+                    "schema_version": 1,
+                    "state": "online",
+                    "worker_id": worker_id,
+                    "hostname": socket.gethostname(),
+                    "pid": os.getpid(),
+                    "started_at": started_at,
+                    "heartbeat_at": _utc_now(),
+                    "heartbeat_interval_seconds": interval,
+                },
+            )
+            warned = False
+        except OSError as exc:
+            if not warned:
+                print(f"Could not update DeepLabCut worker status: {exc}", file=sys.stderr)
+                warned = True
+
+    def heartbeat() -> None:
+        while not stop.wait(interval):
+            publish()
+
+    publish()
+    thread = threading.Thread(target=heartbeat, name="dlc-worker-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield filename
+    finally:
+        stop.set()
+        thread.join()
+        try:
+            current = json.loads(filename.read_text(encoding="utf-8"))
+            if current.get("worker_id") == worker_id:
+                filename.unlink(missing_ok=True)
+        except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
+            pass
 
 
 def _job_outputs(video: Path, output_folder: Path) -> tuple[list[Path], list[Path]]:
@@ -433,12 +494,51 @@ def process_pending_jobs(
     return completed, failed
 
 
+def watch_pending_jobs(
+    queue_folder: str | Path,
+    settings: Mapping[str, Any],
+    *,
+    poll_interval: float = 10.0,
+    analyzer: Callable[[Path, Path, Path], str] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[int, int]:
+    """Continuously process new jobs until interrupted by the operator."""
+    completed = 0
+    failed = 0
+    try:
+        while True:
+            result = process_next_job(queue_folder, settings, analyzer=analyzer)
+            if result is None:
+                sleep(poll_interval)
+            elif result:
+                completed += 1
+            else:
+                failed += 1
+    except KeyboardInterrupt:
+        return completed, failed
+
+
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Process NoviTrack DeepLabCut jobs")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--until-empty", action="store_true", help="process all pending jobs (default)")
     mode.add_argument("--once", action="store_true", help="process at most one pending job")
     mode.add_argument("--job", help="process one pending job ID")
+    mode.add_argument("--watch", action="store_true", help="wait for and process jobs until interrupted")
+    parser.add_argument(
+        "--poll-interval",
+        type=_positive_float,
+        default=10.0,
+        metavar="SECONDS",
+        help="seconds between queue checks in --watch mode (default: 10)",
+    )
     parser.add_argument("--queue-folder", help="override nt_deeplabcut_queue_folder")
     parser.add_argument("--parameters", help="override nt_default_parameters.yaml")
     parser.add_argument("--local-config", help="explicit processparams_local.py")
@@ -455,12 +555,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not queue_value:
         raise SystemExit("nt_deeplabcut_queue_folder is not configured")
     queue_folder = translate_shared_path(str(queue_value), settings)
-    completed, failed = process_pending_jobs(
-        queue_folder,
-        settings,
-        once=args.once,
-        job_id=args.job,
-    )
+    if args.watch:
+        print(
+            f"Watching DeepLabCut queue {queue_folder} "
+            f"(poll interval {args.poll_interval:g} seconds; press Ctrl+C to stop)"
+        )
+        with _worker_status_heartbeat(queue_folder):
+            completed, failed = watch_pending_jobs(
+                queue_folder,
+                settings,
+                poll_interval=args.poll_interval,
+            )
+        print("DeepLabCut queue watcher stopped")
+    else:
+        completed, failed = process_pending_jobs(
+            queue_folder,
+            settings,
+            once=args.once,
+            job_id=args.job,
+        )
     print(f"DeepLabCut queue: {completed} completed, {failed} failed")
     if failed:
         print(f"Failure details: {queue_folder / 'failed'}")

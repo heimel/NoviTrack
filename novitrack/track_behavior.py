@@ -49,6 +49,7 @@ from .deeplabcut_queue import (
     enqueue_deeplabcut_job,
     find_deeplabcut_job,
     make_deeplabcut_manifest,
+    read_deeplabcut_worker_status,
 )
 from .import_markers import IMPORT_OPTIONS, import_markers
 from .load_parameters import load_parameters
@@ -721,6 +722,13 @@ class NTTrackBehaviorWindow(QMainWindow):
         recovery_state: str | None = None
         recovery_fields: dict[str, Any] = {}
         prompt_details: str | None = None
+        queue_value = _get(self.params, "nt_deeplabcut_queue_folder", "")
+        worker_status = None
+        if queue_value:
+            try:
+                worker_status = read_deeplabcut_worker_status(Path(str(queue_value)))
+            except OSError as exc:
+                logmsg(f"Could not inspect DeepLabCut worker status: {exc}")
 
         if retry_of:
             try:
@@ -774,6 +782,17 @@ class NTTrackBehaviorWindow(QMainWindow):
                 f"Current video: {current_video}"
             )
 
+        if worker_status is None:
+            worker_details = (
+                "No active DeepLabCut worker was detected. A submitted job will remain "
+                "queued until the VM worker is started."
+            )
+        else:
+            worker_details = f"DeepLabCut worker {worker_status.hostname} is online."
+        prompt_details = (
+            f"{prompt_details}\n\n{worker_details}" if prompt_details else worker_details
+        )
+
         decision = _ask_deeplabcut_queue_decision(self, prompt_details)
         if decision == "never":
             self._set_tracking_processing_state(
@@ -823,7 +842,7 @@ class NTTrackBehaviorWindow(QMainWindow):
             )
             return
 
-        queue_folder = Path(str(_get(self.params, "nt_deeplabcut_queue_folder", "")))
+        queue_folder = Path(str(queue_value))
         manifest = make_deeplabcut_manifest(
             self.record,
             video,
@@ -860,7 +879,14 @@ class NTTrackBehaviorWindow(QMainWindow):
             retry_of=retry_of or "",
         )
         verb = "Queued" if result.created else "Already queued"
-        self._report_status(f"{verb} DeepLabCut analysis using {project.name}")
+        worker_note = (
+            f"worker {worker_status.hostname} is online"
+            if worker_status is not None
+            else "no active worker detected; job will wait in the queue"
+        )
+        self._report_status(
+            f"{verb} DeepLabCut analysis using {project.name} ({worker_note})"
+        )
 
     def _prepare_time_alignment(self) -> None:
         video_to_reference = getattr(self, "_video_to_reference", None)

@@ -13,10 +13,12 @@ from novitrack.deeplabcut_worker import (
     WorkerSettings,
     _TeeStream,
     _effective_config,
+    _worker_status_heartbeat,
     load_worker_settings,
     main,
     process_pending_jobs,
     translate_shared_path,
+    watch_pending_jobs,
 )
 
 
@@ -30,6 +32,43 @@ def test_tee_stream_tolerates_late_output_after_log_is_closed():
     stream.flush()
 
     assert console.getvalue() == "late shutdown output"
+
+
+def test_worker_status_heartbeat_is_published_and_removed_on_stop(tmp_path):
+    queue = tmp_path / "queue"
+
+    with _worker_status_heartbeat(queue, interval=60) as filename:
+        status = json.loads(filename.read_text(encoding="utf-8"))
+        assert status["state"] == "online"
+        assert status["hostname"]
+        assert status["pid"] > 0
+        assert status["heartbeat_interval_seconds"] == 60
+
+    assert not filename.exists()
+
+
+def test_watch_mode_polls_until_interrupted(monkeypatch):
+    results = iter([True, None])
+    intervals = []
+
+    monkeypatch.setattr(
+        "novitrack.deeplabcut_worker.process_next_job",
+        lambda *args, **kwargs: next(results),
+    )
+
+    def stop_after_first_wait(interval):
+        intervals.append(interval)
+        raise KeyboardInterrupt
+
+    completed, failed = watch_pending_jobs(
+        "queue",
+        WorkerSettings(),
+        poll_interval=2.5,
+        sleep=stop_after_first_wait,
+    )
+
+    assert (completed, failed) == (1, 0)
+    assert intervals == [2.5]
 
 
 def _queued_job(tmp_path):

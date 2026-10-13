@@ -14,6 +14,8 @@ from uuid import uuid4
 
 
 QUEUE_SCHEMA_VERSION = 1
+WORKER_STATUS_FILENAME = "worker_status.json"
+WORKER_STATUS_MAX_AGE_SECONDS = 30.0
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -49,6 +51,56 @@ class QueueJob:
     filename: Path
     queue_folder: Path
     state: str
+
+
+@dataclass(frozen=True)
+class DeepLabCutWorkerStatus:
+    """A recently refreshed worker heartbeat from the shared queue."""
+
+    hostname: str
+    pid: int
+    started_at: str
+    heartbeat_at: str
+    filename: Path
+
+
+def read_deeplabcut_worker_status(
+    queue_folder: str | Path,
+    *,
+    max_age_seconds: float = WORKER_STATUS_MAX_AGE_SECONDS,
+    now: datetime | None = None,
+) -> DeepLabCutWorkerStatus | None:
+    """Return the active worker heartbeat, or ``None`` when absent or stale."""
+    filename = Path(queue_folder) / WORKER_STATUS_FILENAME
+    try:
+        value = json.loads(filename.read_text(encoding="utf-8"))
+        if value.get("state") != "online":
+            return None
+        heartbeat_text = str(value["heartbeat_at"])
+        heartbeat = datetime.fromisoformat(heartbeat_text.replace("Z", "+00:00"))
+        if heartbeat.tzinfo is None:
+            heartbeat = heartbeat.replace(tzinfo=timezone.utc)
+        current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
+        if abs((current - heartbeat).total_seconds()) > max_age_seconds:
+            return None
+        return DeepLabCutWorkerStatus(
+            hostname=str(value.get("hostname", "unknown host")),
+            pid=int(value.get("pid", 0)),
+            started_at=str(value.get("started_at", "")),
+            heartbeat_at=heartbeat_text,
+            filename=filename,
+        )
+    except (
+        FileNotFoundError,
+        UnicodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        return None
 
 
 def discover_deeplabcut_projects(folder: str | Path) -> tuple[DeepLabCutProject, ...]:
@@ -226,6 +278,7 @@ def enqueue_deeplabcut_job(
 
 
 __all__ = [
+    "DeepLabCutWorkerStatus",
     "DeepLabCutProject",
     "QUEUE_SCHEMA_VERSION",
     "QueueJob",
@@ -234,4 +287,5 @@ __all__ = [
     "enqueue_deeplabcut_job",
     "find_deeplabcut_job",
     "make_deeplabcut_manifest",
+    "read_deeplabcut_worker_status",
 ]
