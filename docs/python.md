@@ -12,18 +12,22 @@ its comment to update the analysis and results. This also applies to MATLAB.
 
 ## Installation
 
-Create a conda environment with Python 3.11 and PyQt6:
+Create a dedicated environment with Python 3.12 and install all dependencies in
+one transaction from conda-forge:
 
-```bash
-conda create -n pyqt6_env python=3.11 pyqt6 -y -c conda-forge
-conda activate pyqt6_env
+```powershell
+conda create -n novitrack --override-channels -c conda-forge -y `
+    python=3.12 pyqt6 pandas scipy matplotlib statsmodels pytest `
+    openpyxl nptdms pyqtgraph opencv ffmpeg pytables `
+    spyder-kernels jupyter ipykernel pyyaml
+conda activate novitrack
 ```
 
-Install the remaining dependencies:
-
-```bash
-conda install -y -c conda-forge pandas scipy matplotlib statsmodels pytest openpyxl nptdms pyqtgraph opencv ffmpeg spyder-kernels jupyter ipykernel pyyaml
-```
+`--override-channels` prevents packages from the default Anaconda channels from
+being mixed with conda-forge packages. This is particularly important for
+compiled packages such as NumPy, OpenCV, PyTables/HDF5, FFmpeg, and Qt. Install
+future compiled dependencies from conda-forge as well, preferably together in
+one conda command rather than with `pip`.
 
 FFmpeg is used to remux raw Raspberry Pi `.h264` recordings automatically to
 seekable `.mp4` files without re-encoding them. If MP4Box from GPAC is already
@@ -43,19 +47,42 @@ For one Python session, replace `...` with the actual path:
 
 ```python
 import sys
-sys.path.append(r"C:\Users\...\InPythoTools;C:\Users\...\NoviTrack")
+sys.path.extend([
+    r"C:\Users\...\InPythoTools",
+    r"C:\Users\...\NoviTrack",
+])
 
 import novitrack as nt
 ```
 
-For persistent use in the conda environment, replace `...` with the actual path:
+For persistent use limited to the NoviTrack conda environment, replace `...`
+with the actual path:
 
 ```powershell
-conda activate pyqt6_env
+conda activate novitrack
 conda env config vars set PYTHONPATH="C:\Users\...\InPythoTools;C:\Users\...\NoviTrack"
 conda deactivate
-conda activate pyqt6_env
+conda activate novitrack
 ```
+
+Alternatively, set `PYTHONPATH` as a Windows user environment variable. This
+makes the repositories available to Python in all terminals and environments
+for that Windows account:
+
+1. Open the Start menu and search for **Edit environment variables for your
+   account**.
+2. Under **User variables**, create `PYTHONPATH`, or edit it if it already
+   exists.
+3. Add both repository folders, separated by a semicolon:
+
+   ```text
+   C:\Users\...\InPythoTools;C:\Users\...\NoviTrack
+   ```
+
+   Preserve any existing entries by appending the two folders instead of
+   replacing the current value.
+4. Restart open terminals, VS Code, Spyder, and other Python applications so
+   they receive the updated environment variable.
 
 Test the path from the NoviTrack repository root:
 
@@ -89,7 +116,7 @@ record = browser.current_record()
 
 To use a MATLAB-like interactive workflow in VS Code, install the Python and
 Jupyter extensions. First select the conda environment with Ctrl-Shift-P,
-`Python: Select Interpreter`, and choose `pyqt6_env`. Then create a Jupyter
+`Python: Select Interpreter`, and choose `novitrack`. Then create a Jupyter
 terminal with `Jupyter: Create Interactive Window`.
 
 In a fresh Interactive Window or notebook kernel, enable Qt windows before
@@ -135,7 +162,7 @@ nt.results_nttestrecord(out)
 With no filename, `load_mat_database()` loads the same bundled example database
 as `experiment_db()`. Pass a path to load a different database.
 
-When using Spyder, select the `pyqt6_env` interpreter or kernel after installing
+When using Spyder, select the `novitrack` interpreter or kernel after installing
 `spyder-kernels`.
 
 ## Tests
