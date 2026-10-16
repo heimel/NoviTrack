@@ -120,22 +120,59 @@ class _ObservableSpec:
     field: str
     y_range: tuple[float, float]
     requires_position_tracking: bool = False
+    title: str | None = None
+    unit: str = ""
+
+    @property
+    def display_title(self) -> str:
+        title = self.title or self.field.replace("_", " ")
+        return f"{title} ({self.unit})" if self.unit else title
 
 
 _OBSERVABLES: dict[str, _ObservableSpec] = {
-    "Speed": _ObservableSpec("Speed", (0.0, 0.375)),
-    "Rotation": _ObservableSpec("Angular_velocity", (-360.0, 360.0), True),
-    "Distance": _ObservableSpec("Object_distance", (0.0, 300.0), True),
-    "Absolute rotation": _ObservableSpec("Abs_angular_velocity", (0.0, 360.0), True),
-    "Distance to center": _ObservableSpec("Distance_to_center", (0.0, 300.0), True),
-    "Heading": _ObservableSpec("alpha", (-180.0, 180.0), True),
-    "Body direction": _ObservableSpec("body_direction", (-180.0, 180.0), True),
-    "Head direction": _ObservableSpec("head_direction", (-180.0, 180.0), True),
-    "Movement direction": _ObservableSpec("movement_direction", (-180.0, 180.0), True),
-    "Head-body angle": _ObservableSpec("head_body_angle", (-180.0, 180.0), True),
-    "Forward speed": _ObservableSpec("Forward_speed", (-0.25, 0.25)),
-    "X position": _ObservableSpec("CoM_X", (0.0, 1000.0), True),
-    "Y position": _ObservableSpec("CoM_Y", (0.0, 1000.0), True),
+    "Speed": _ObservableSpec("Speed", (0.0, 0.375), title="Speed", unit="m/s"),
+    "Rotation": _ObservableSpec(
+        "Angular_velocity",
+        (-360.0, 360.0),
+        True,
+        title="Angular velocity",
+        unit="deg/s",
+    ),
+    "Distance": _ObservableSpec(
+        "Object_distance", (0.0, 300.0), True, title="Distance", unit="mm"
+    ),
+    "Absolute rotation": _ObservableSpec(
+        "Abs_angular_velocity",
+        (0.0, 360.0),
+        True,
+        title="Absolute angular velocity",
+        unit="deg/s",
+    ),
+    "Distance to center": _ObservableSpec(
+        "Distance_to_center", (0.0, 300.0), True, title="Distance to center", unit="mm"
+    ),
+    "Heading": _ObservableSpec("alpha", (-180.0, 180.0), True, title="Heading", unit="deg"),
+    "Body direction": _ObservableSpec(
+        "body_direction", (-180.0, 180.0), True, title="Body direction", unit="deg"
+    ),
+    "Head direction": _ObservableSpec(
+        "head_direction", (-180.0, 180.0), True, title="Head direction", unit="deg"
+    ),
+    "Movement direction": _ObservableSpec(
+        "movement_direction", (-180.0, 180.0), True, title="Movement direction", unit="deg"
+    ),
+    "Head-body angle": _ObservableSpec(
+        "head_body_angle", (-180.0, 180.0), True, title="Head-body angle", unit="deg"
+    ),
+    "Forward speed": _ObservableSpec(
+        "Forward_speed", (-0.25, 0.25), title="Forward speed", unit="m/s"
+    ),
+    "X position": _ObservableSpec(
+        "CoM_X", (0.0, 1000.0), True, title="X position", unit="mm"
+    ),
+    "Y position": _ObservableSpec(
+        "CoM_Y", (0.0, 1000.0), True, title="Y position", unit="mm"
+    ),
 }
 _DEFAULT_OBSERVABLE_PANELS = ("Speed", "Rotation", "Distance")
 
@@ -572,8 +609,9 @@ class _ObservablePanel(QWidget):
 
     def set_observable(self, observable_name: str) -> None:
         self.observable_name = observable_name
-        self.y_range = _OBSERVABLES[observable_name].y_range
-        self.title_label.setText(observable_name)
+        spec = _OBSERVABLES[observable_name]
+        self.y_range = spec.y_range
+        self.title_label.setText(spec.display_title)
         self.plot.clear()
         plot_times, plot_values = _aligned_plot_data(
             self.owner.time_values, self.owner._observable_values(observable_name)

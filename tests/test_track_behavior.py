@@ -1087,12 +1087,13 @@ def test_observable_panel_uses_fixed_range_and_can_change_observable():
     panel = track_behavior._ObservablePanel(owner, "Speed")
     assert panel.observable_name == "Speed"
     assert panel.y_range == (0.0, 0.375)
+    assert panel.title_label.text() == "Speed (m/s)"
     assert panel.maximumWidth() == 450
 
     panel.set_observable("Rotation")
     assert panel.observable_name == "Rotation"
     assert panel.y_range == (-360.0, 360.0)
-    assert panel.title_label.text() == "Rotation"
+    assert panel.title_label.text() == "Angular velocity (deg/s)"
 
     panel.set_y_range((-90.0, 90.0))
     assert panel.y_range == (-90.0, 90.0)
