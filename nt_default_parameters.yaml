@@ -283,6 +283,13 @@ nt_tracking_interpolation_max_gap: 0.1 # s
 nt_tracking_smoothing_window: 0.2 # s, Savitzky-Golay position smoothing
 nt_tracking_smoothing_polynomial_order: 2
 nt_tracking_position_keypoint: body_center
+# Follow stable body markers across slightly longer body_center gaps. Samples
+# rejected by the speed guard remain missing; tail_center and tail_tip are
+# always excluded from the support set.
+nt_tracking_body_center_reconstruction_enabled: true
+nt_tracking_body_center_reconstruction_max_gap: 0.5 # s
+nt_tracking_body_center_reconstruction_max_speed: 2.0 # m/s
+nt_tracking_body_center_reconstruction_support_keypoints: [neck, tail_base]
 nt_tracking_body_direction_tail_keypoint: tail_base
 nt_tracking_body_direction_head_keypoint: neck
 nt_tracking_head_direction_origin_keypoint: head_center

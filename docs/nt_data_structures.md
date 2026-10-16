@@ -55,6 +55,16 @@ parameters are stored in `metadata["derived_measures"]` together with the exact
 keypoint definitions and units. No interpolation, smoothing, or derivative is
 performed across a long missing-data interval.
 
+After ordinary interpolation, a short unresolved `body_center` gap can be
+reconstructed from the motion of configured stable support keypoints (by
+default `neck` and `tail_base`). The offset between their centroid and
+`body_center` is interpolated between the reliable samples on either side of
+the gap. Reconstruction requires every support point throughout the interval
+and rejects gaps containing excessive support-point or reconstructed-position
+speed. `tail_center` and `tail_tip` are always excluded. The Boolean
+`data["body_center_reconstructed"]` vector identifies inferred samples; the
+settings and sample count are recorded in `metadata["derived_measures"]`.
+
 The default definitions are:
 
 - `position_arena`: `body_center`, in m. If unavailable, NoviTrack tries a

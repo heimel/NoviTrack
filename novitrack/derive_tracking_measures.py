@@ -90,6 +90,88 @@ def _smooth_finite_runs(values: np.ndarray, window: int, order: int) -> np.ndarr
     return result
 
 
+def _configured_keypoint_names(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        values = (value,)
+    else:
+        try:
+            values = tuple(value)
+        except TypeError:
+            values = ()
+    excluded = {"body_center", "tail_center", "tail_tip"}
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        name = _normalise_name(item)
+        if name and name not in excluded and name not in seen:
+            result.append(name)
+            seen.add(name)
+    return tuple(result)
+
+
+def _reconstruct_body_center(
+    position: np.ndarray,
+    support_points: list[np.ndarray],
+    times: np.ndarray,
+    *,
+    maximum_gap_seconds: float,
+    maximum_speed: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fill eligible body-centre gaps by following stable support keypoints."""
+    result = np.asarray(position, dtype=float).copy()
+    reconstructed = np.zeros(result.shape[0], dtype=bool)
+    if maximum_gap_seconds <= 0 or not support_points:
+        return result, reconstructed
+
+    support = np.stack(support_points, axis=1)
+    missing = ~np.all(np.isfinite(result), axis=1)
+    for start, stop in _true_runs(missing):
+        if start == 0 or stop == result.shape[0]:
+            continue
+        interval = slice(start - 1, stop + 1)
+        interval_times = times[interval]
+        time_steps = np.diff(interval_times)
+        if not (
+            np.all(np.isfinite(interval_times))
+            and np.all(time_steps > 0)
+            and interval_times[-1] - interval_times[0]
+            <= maximum_gap_seconds + 1e-12
+        ):
+            continue
+
+        interval_support = support[interval]
+        if not np.all(np.isfinite(interval_support)):
+            continue
+        if np.isfinite(maximum_speed) and maximum_speed > 0:
+            support_speeds = np.linalg.norm(
+                np.diff(interval_support, axis=0), axis=2
+            ) / time_steps[:, np.newaxis]
+            if np.any(support_speeds > maximum_speed):
+                continue
+
+        centroid = np.mean(interval_support, axis=1)
+        left_offset = result[start - 1] - centroid[0]
+        right_offset = result[stop] - centroid[-1]
+        fraction = (
+            (times[start:stop] - times[start - 1])
+            / (times[stop] - times[start - 1])
+        )[:, np.newaxis]
+        offsets = left_offset + fraction * (right_offset - left_offset)
+        candidate = centroid[1:-1] + offsets
+
+        if np.isfinite(maximum_speed) and maximum_speed > 0:
+            joined = np.vstack((result[start - 1], candidate, result[stop]))
+            joined_speeds = (
+                np.linalg.norm(np.diff(joined, axis=0), axis=1) / time_steps
+            )
+            if np.any(joined_speeds > maximum_speed):
+                continue
+
+        result[start:stop] = candidate
+        reconstructed[start:stop] = True
+    return result, reconstructed
+
+
 def _filtered_keypoint(
     keypoints: np.ndarray,
     likelihood: np.ndarray,
@@ -187,6 +269,23 @@ def derive_pose_measures(stream: TrackingStream, params: Any) -> TrackingStream:
     smoothing_window = _window_samples(smoothing_seconds, sample_interval, smoothing_order)
     likelihood_cutoff = float(stream.metadata.get("likelihood_cutoff", 0.6))
     likelihood = np.asarray(stream.data.get("likelihood", []), dtype=float)
+    reconstruction_enabled = bool(
+        _get(params, "nt_tracking_body_center_reconstruction_enabled", True)
+    )
+    reconstruction_maximum_gap = max(
+        0.0,
+        float(_get(params, "nt_tracking_body_center_reconstruction_max_gap", 0.5)),
+    )
+    reconstruction_maximum_speed = float(
+        _get(params, "nt_tracking_body_center_reconstruction_max_speed", 2.0)
+    )
+    reconstruction_support_names = _configured_keypoint_names(
+        _get(
+            params,
+            "nt_tracking_body_center_reconstruction_support_keypoints",
+            ("neck", "tail_base"),
+        )
+    )
 
     name_to_index = {_normalise_name(name): index for index, name in enumerate(names)}
     filtered: dict[str, np.ndarray] = {}
@@ -228,6 +327,28 @@ def derive_pose_measures(stream: TrackingStream, params: Any) -> TrackingStream:
         processing["reason"] = "position_keypoints_unavailable"
         metadata["derived_measures"] = processing
         return replace(stream, metadata=metadata)
+
+    body_center_reconstructed = np.zeros(times.shape, dtype=bool)
+    reconstruction_status = "disabled"
+    if reconstruction_enabled and _normalise_name(position_definition) == "body_center":
+        support_points = [
+            support
+            for name in reconstruction_support_names
+            if (support := point(name)) is not None
+        ]
+        if len(support_points) == len(reconstruction_support_names) and support_points:
+            position, body_center_reconstructed = _reconstruct_body_center(
+                position,
+                support_points,
+                times,
+                maximum_gap_seconds=reconstruction_maximum_gap,
+                maximum_speed=reconstruction_maximum_speed,
+            )
+            reconstruction_status = "computed"
+        else:
+            reconstruction_status = "support_keypoints_unavailable"
+    elif reconstruction_enabled:
+        reconstruction_status = "position_is_not_body_center"
 
     velocity = np.column_stack(
         (_gradient(position[:, 0], times), _gradient(position[:, 1], times))
@@ -275,6 +396,7 @@ def derive_pose_measures(stream: TrackingStream, params: Any) -> TrackingStream:
     data.update(
         {
             "position_arena": position,
+            "body_center_reconstructed": body_center_reconstructed,
             "CoM_X": position[:, 0],
             "CoM_Y": position[:, 1],
             "Speed": speed,
@@ -300,6 +422,13 @@ def derive_pose_measures(stream: TrackingStream, params: Any) -> TrackingStream:
         "smoothing_window_seconds": smoothing_seconds,
         "smoothing_window_samples": smoothing_window,
         "smoothing_polynomial_order": smoothing_order,
+        "body_center_reconstruction": {
+            "status": reconstruction_status,
+            "support_keypoints": reconstruction_support_names,
+            "maximum_gap_seconds": reconstruction_maximum_gap,
+            "maximum_speed_m_per_s": reconstruction_maximum_speed,
+            "reconstructed_samples": int(np.count_nonzero(body_center_reconstructed)),
+        },
         "angle_convention": "degrees; right=0; counter-clockwise positive; [-180,180)",
         "units": {
             "position_arena": "m",

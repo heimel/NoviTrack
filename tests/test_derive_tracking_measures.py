@@ -33,6 +33,13 @@ def _params(**overrides):
         "nt_tracking_smoothing_window": 0.0,
         "nt_tracking_smoothing_polynomial_order": 2,
         "nt_tracking_position_keypoint": "body_center",
+        "nt_tracking_body_center_reconstruction_enabled": True,
+        "nt_tracking_body_center_reconstruction_max_gap": 0.5,
+        "nt_tracking_body_center_reconstruction_max_speed": 2.0,
+        "nt_tracking_body_center_reconstruction_support_keypoints": [
+            "neck",
+            "tail_base",
+        ],
         "nt_tracking_body_direction_tail_keypoint": "tail_base",
         "nt_tracking_body_direction_head_keypoint": "neck",
         "nt_tracking_head_direction_origin_keypoint": "head_center",
@@ -111,6 +118,103 @@ def test_interpolates_only_short_confidence_gaps_before_differentiating() -> Non
     assert np.isnan(not_interpolated.data["position_arena"][1]).all()
     assert np.isnan(not_interpolated.data["Speed"][:2]).all()
     np.testing.assert_allclose(not_interpolated.data["Speed"][2:], 1.0)
+
+
+def test_reconstructs_body_center_from_stable_support_keypoints() -> None:
+    names = ["body_center", "neck", "tail_base"]
+    center_x = np.array([0.0, 0.02, 0.06, 0.12, 0.20, 0.30])
+    points = np.stack(
+        (
+            np.column_stack((center_x, np.zeros(center_x.size))),
+            np.column_stack((center_x + 0.02, np.zeros(center_x.size))),
+            np.column_stack((center_x - 0.02, np.zeros(center_x.size))),
+        ),
+        axis=1,
+    )
+    likelihood = np.ones((center_x.size, len(names)))
+    likelihood[2:4, 0] = 0.1
+    original_points = points.copy()
+
+    stream = derive_pose_measures(
+        _stream(np.arange(center_x.size) * 0.1, names, points, likelihood),
+        _params(
+            nt_tracking_interpolation_max_gap=0.0,
+            nt_tracking_body_center_reconstruction_max_gap=0.5,
+        ),
+    )
+
+    np.testing.assert_allclose(stream.data["position_arena"][:, 0], center_x)
+    np.testing.assert_array_equal(
+        stream.data["body_center_reconstructed"],
+        [False, False, True, True, False, False],
+    )
+    np.testing.assert_array_equal(stream.data["keypoints"], original_points)
+    assert np.all(np.isfinite(stream.data["Speed"]))
+    reconstruction = stream.metadata["derived_measures"]["body_center_reconstruction"]
+    assert reconstruction["status"] == "computed"
+    assert reconstruction["reconstructed_samples"] == 2
+
+    over_limit = derive_pose_measures(
+        _stream(np.arange(center_x.size) * 0.1, names, points, likelihood),
+        _params(
+            nt_tracking_interpolation_max_gap=0.0,
+            nt_tracking_body_center_reconstruction_max_gap=0.29,
+        ),
+    )
+    assert np.isnan(over_limit.data["position_arena"][2:4]).all()
+    assert not np.any(over_limit.data["body_center_reconstructed"])
+
+
+def test_rejects_body_center_reconstruction_when_support_marker_jumps() -> None:
+    names = ["body_center", "neck", "tail_base"]
+    points = np.array(
+        [
+            [[0.00, 0.0], [0.02, 0.0], [-0.02, 0.0]],
+            [[0.01, 0.0], [0.03, 0.0], [-0.01, 0.0]],
+            [[0.02, 0.0], [0.50, 0.0], [0.48, 0.0]],
+            [[0.03, 0.0], [0.05, 0.0], [0.01, 0.0]],
+            [[0.04, 0.0], [0.06, 0.0], [0.02, 0.0]],
+        ]
+    )
+    likelihood = np.ones((points.shape[0], len(names)))
+    likelihood[2, 0] = 0.1
+
+    stream = derive_pose_measures(
+        _stream(np.arange(points.shape[0]) * 0.1, names, points, likelihood),
+        _params(nt_tracking_body_center_reconstruction_max_speed=1.0),
+    )
+
+    assert np.isnan(stream.data["position_arena"][2]).all()
+    assert not np.any(stream.data["body_center_reconstructed"])
+
+
+def test_tail_center_and_tail_tip_cannot_support_body_center_reconstruction() -> None:
+    names = ["body_center", "tail_center", "tail_tip"]
+    points = np.array(
+        [
+            [[0.0, 0.0], [-0.1, 0.0], [-0.2, 0.0]],
+            [[0.1, 0.0], [0.0, 0.0], [-0.1, 0.0]],
+            [[0.2, 0.0], [0.1, 0.0], [0.0, 0.0]],
+        ]
+    )
+    likelihood = np.ones((points.shape[0], len(names)))
+    likelihood[1, 0] = 0.1
+
+    stream = derive_pose_measures(
+        _stream([0.0, 0.1, 0.2], names, points, likelihood),
+        _params(
+            nt_tracking_body_center_reconstruction_support_keypoints=[
+                "tail_center",
+                "tail_tip",
+            ]
+        ),
+    )
+
+    assert np.isnan(stream.data["position_arena"][1]).all()
+    assert not np.any(stream.data["body_center_reconstructed"])
+    reconstruction = stream.metadata["derived_measures"]["body_center_reconstruction"]
+    assert reconstruction["support_keypoints"] == ()
+    assert reconstruction["status"] == "support_keypoints_unavailable"
 
 
 def test_older_nose_and_tail_base_tracking_uses_midpoint_position_and_body_axis() -> None:
