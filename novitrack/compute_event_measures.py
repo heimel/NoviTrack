@@ -111,6 +111,149 @@ def _columnar_parameters(records: list[dict[str, Any]]) -> dict[str, np.ndarray]
     return parameters
 
 
+def _string_list(value: Any, default: tuple[str, ...] = ()) -> list[str]:
+    if value is None:
+        return list(default)
+    if isinstance(value, str):
+        return [value]
+    return [str(item) for item in value]
+
+
+def _is_missing_parameter(value: Any) -> bool:
+    if value is None:
+        return True
+    try:
+        missing = pd.isna(value)
+    except (TypeError, ValueError):
+        return False
+    return bool(missing) if np.ndim(missing) == 0 else False
+
+
+def _group_stimulus_indices(
+    events: pd.DataFrame,
+    stimulus_indices: np.ndarray,
+    parameter_name: str,
+) -> list[tuple[Any, np.ndarray]]:
+    """Group stimulus rows by a non-missing event parameter, preserving order."""
+    groups: list[tuple[Any, list[int]]] = []
+    for stimulus_index in stimulus_indices:
+        value = _parameter(events.loc[stimulus_index], parameter_name)
+        if _is_missing_parameter(value):
+            continue
+        for group_value, group_indices in groups:
+            if _same_parameter(group_value, value):
+                group_indices.append(int(stimulus_index))
+                break
+        else:
+            groups.append((value, [int(stimulus_index)]))
+    return [
+        (value, np.asarray(group_indices, dtype=int))
+        for value, group_indices in groups
+    ]
+
+
+def _compute_behavior_response(
+    events: pd.DataFrame,
+    behaviors: pd.DataFrame,
+    stimulus_indices: np.ndarray,
+    event_type: str,
+    motif: str,
+    *,
+    stop_marker_id: str,
+    posttime: float,
+    posttime_event_types: set[str],
+    max_time: float,
+    log_warnings: bool = True,
+) -> dict[str, float]:
+    """Compute one motif's response statistics for selected stimulus rows."""
+    latency_minimum = np.inf
+    latencies: list[float] = []
+    total_duration = 0.0
+    n_occurrences = 0
+    n_responses = 0
+    total_stim_duration = 0.0
+    intervals: list[float] = []
+
+    for stimulus_index in stimulus_indices:
+        stim_start = float(events.loc[stimulus_index, "time"])
+        stimulus_id = _parameter(events.loc[stimulus_index], "stimulus_id")
+        duration = float(events.loc[stimulus_index, "duration"])
+        stop_event = "opto_off" if event_type == "opto_on" else stop_marker_id
+        stop_candidates = events.index[
+            (events["time"] > stim_start)
+            & (events["marker_id"] == stop_event)
+            & _matching_parameter(events, "stimulus_id", stimulus_id)
+        ].to_numpy()
+        if event_type in posttime_event_types or event_type in {"opto_off", stop_marker_id}:
+            stim_stop = stim_start + posttime
+            if np.isfinite(max_time):
+                stim_stop = min(stim_stop, max_time)
+        elif np.isfinite(duration) and duration > 0:
+            stim_stop = stim_start + duration
+        elif stop_candidates.size == 0:
+            if log_warnings:
+                logmsg(
+                    f"Stop marker missing for event type {event_type}. "
+                    "Temporarily taking to end of video."
+                )
+            stim_stop = max_time
+        else:
+            stim_stop = float(events.loc[stop_candidates[0], "time"])
+
+        stim_duration = stim_stop - stim_start
+        total_stim_duration += stim_duration
+
+        behavior_indices = behaviors.index[
+            (behaviors["time"] > stim_start)
+            & (behaviors["time"] < stim_stop)
+            & (behaviors["event"] == motif)
+        ].to_numpy()
+        if stimulus_id is not None and behavior_indices.size:
+            candidate_behaviors = behaviors.loc[behavior_indices]
+            linked = candidate_behaviors["parameters"].apply(
+                lambda values: isinstance(values, Mapping) and "stimulus_id" in values
+            )
+            matches = _matching_parameter(candidate_behaviors, "stimulus_id", stimulus_id)
+            behavior_indices = candidate_behaviors.index[~linked | matches].to_numpy()
+        if behavior_indices.size == 0:
+            continue
+
+        n_responses += 1
+        n_occurrences += int(behavior_indices.size)
+        latency = float(behaviors.loc[behavior_indices[0], "time"] - stim_start)
+        latency_minimum = min(latency_minimum, latency)
+        latencies.append(latency)
+        intervals.extend(np.diff(behaviors.loc[behavior_indices, "time"].to_numpy()).tolist())
+
+        for behavior_index in behavior_indices:
+            if behavior_index == len(behaviors) - 1:
+                behavior_duration = stim_stop - float(behaviors.loc[behavior_index, "time"])
+                if log_warnings:
+                    logmsg(
+                        f"No end for {behaviors.loc[behavior_index, 'event']}. "
+                        "Taking end of stimulus"
+                    )
+            else:
+                behavior_duration = float(
+                    behaviors.loc[behavior_index + 1, "time"]
+                    - behaviors.loc[behavior_index, "time"]
+                )
+            total_duration += behavior_duration
+
+    n_stimuli = len(stimulus_indices)
+    return {
+        "n_occurrences_per_stimulus": _safe_div(n_occurrences, n_stimuli),
+        "n_responses_per_stimulus": _safe_div(n_responses, n_stimuli),
+        "latency_minimum": latency_minimum,
+        "latency_median": float(np.median(latencies)) if latencies else np.nan,
+        "duration_per_stimulus": _safe_div(total_duration, n_stimuli),
+        "duration_fraction": _safe_div(total_duration, total_stim_duration),
+        "duration_per_occurrence": _safe_div(total_duration, n_occurrences),
+        "interval_mean": _safe_mean(intervals),
+        "rate": _safe_div(n_occurrences, total_stim_duration),
+    }
+
+
 def compute_event_measures(
     snippets: Mapping[str, Any] | None,
     measures: Mapping[str, Any],
@@ -120,6 +263,7 @@ def compute_event_measures(
 ) -> dict[str, Any]:
     """Compute event and behavior measures from snippets and markers."""
     out = deepcopy(dict(measures)) if copy else dict(measures)
+    out["behavior"] = {}
     events = get_events(out, params)
     if events.empty:
         out["event"] = {}
@@ -129,10 +273,15 @@ def compute_event_measures(
     behaviors = _get_behaviors(events, motif_list)
     unique_events = pd.unique(events["event"])
 
-    out.setdefault("behavior", {})
     motif_set = set(motif_list)
     stop_marker_id = str(_get(params, "nt_stop_marker_id", "stop"))
     posttime = float(_get(params, "nt_posttime", 20))
+    posttime_event_types = set(
+        _string_list(_get(params, "nt_behavior_posttime_events", None), ("overhead",))
+    )
+    grouping_parameters = _string_list(
+        _get(params, "nt_behavior_grouping_parameters", None), ("stimulus_id",)
+    )
     has_movie_bounds = "max_time" in out and "min_time" in out
     max_time = float(_get(out, "max_time", np.nan))
     min_time = float(_get(out, "min_time", np.nan))
@@ -143,86 +292,61 @@ def compute_event_measures(
             continue
 
         stim_indices = events.index[events["event"] == event_type].to_numpy()
-        n_stimuli = len(stim_indices)
         out["behavior"].setdefault(event_type, {})
 
         for motif in motif_list:
-            shortest_latency = np.inf
-            total_duration = 0.0
-            n_occurrences = 0
-            n_responses = 0
-            total_stim_duration = 0.0
-            intervals: list[float] = []
-
-            for stim_index in stim_indices:
-                stim_start = float(events.loc[stim_index, "time"])
-                stimulus_id = _parameter(events.loc[stim_index], "stimulus_id")
-                duration = float(events.loc[stim_index, "duration"])
-                stop_event = "opto_off" if event_type == "opto_on" else stop_marker_id
-                stop_candidates = events.index[
-                    (events["time"] > stim_start)
-                    & (events["marker_id"] == stop_event)
-                    & _matching_parameter(events, "stimulus_id", stimulus_id)
-                ].to_numpy()
-                if np.isfinite(duration) and duration > 0:
-                    stim_stop = stim_start + duration
-                elif event_type in {"opto_off", stop_marker_id}:
-                    # These markers describe an instant rather than the start of
-                    # an interval. Use the standard post-event response window.
-                    stim_stop = stim_start + posttime
-                    if np.isfinite(max_time):
-                        stim_stop = min(stim_stop, max_time)
-                elif stop_candidates.size == 0:
-                    logmsg(f"Stop marker missing for event type {event_type}. Temporarily taking to end of video.")
-                    stim_stop = max_time
-                else:
-                    stim_stop = float(events.loc[stop_candidates[0], "time"])
-
-                stim_duration = stim_stop - stim_start
-                total_stim_duration += stim_duration
-
-                behavior_indices = behaviors.index[
-                    (behaviors["time"] > stim_start)
-                    & (behaviors["time"] < stim_stop)
-                    & (behaviors["event"] == motif)
-                ].to_numpy()
-                if stimulus_id is not None and behavior_indices.size:
-                    candidate_behaviors = behaviors.loc[behavior_indices]
-                    linked = candidate_behaviors["parameters"].apply(
-                        lambda values: isinstance(values, Mapping) and "stimulus_id" in values
-                    )
-                    matches = _matching_parameter(candidate_behaviors, "stimulus_id", stimulus_id)
-                    behavior_indices = candidate_behaviors.index[~linked | matches].to_numpy()
-                if behavior_indices.size == 0:
+            result = _compute_behavior_response(
+                events,
+                behaviors,
+                stim_indices,
+                event_type,
+                motif,
+                stop_marker_id=stop_marker_id,
+                posttime=posttime,
+                posttime_event_types=posttime_event_types,
+                max_time=max_time,
+            )
+            grouped_results: dict[str, Any] = {}
+            result_fields = tuple(result)
+            for parameter_name in grouping_parameters:
+                groups = _group_stimulus_indices(events, stim_indices, parameter_name)
+                if not groups:
                     continue
-
-                n_responses += 1
-                n_occurrences += int(behavior_indices.size)
-                latency = float(behaviors.loc[behavior_indices[0], "time"] - stim_start)
-                shortest_latency = min(shortest_latency, latency)
-                intervals.extend(np.diff(behaviors.loc[behavior_indices, "time"].to_numpy()).tolist())
-
-                for behavior_index in behavior_indices:
-                    if behavior_index == len(behaviors) - 1:
-                        duration = stim_stop - float(behaviors.loc[behavior_index, "time"])
-                        logmsg(f"No end for {behaviors.loc[behavior_index, 'event']}. Taking end of stimulus")
-                    else:
-                        duration = float(
-                            behaviors.loc[behavior_index + 1, "time"]
-                            - behaviors.loc[behavior_index, "time"]
+                parameter_results = [
+                    _compute_behavior_response(
+                        events,
+                        behaviors,
+                        group_indices,
+                        event_type,
+                        motif,
+                        stop_marker_id=stop_marker_id,
+                        posttime=posttime,
+                        posttime_event_types=posttime_event_types,
+                        max_time=max_time,
+                        log_warnings=False,
+                    )
+                    for _value, group_indices in groups
+                ]
+                grouped_result = {
+                    "values": np.asarray([value for value, _indices in groups]),
+                    "n_stimuli": np.asarray(
+                        [len(group_indices) for _value, group_indices in groups],
+                        dtype=int,
+                    ),
+                }
+                grouped_result.update(
+                    {
+                        field: np.asarray(
+                            [parameter_result[field] for parameter_result in parameter_results],
+                            dtype=float,
                         )
-                    total_duration += duration
-
-            out["behavior"][event_type][motif] = {
-                "n_occurrences_per_stimulus": _safe_div(n_occurrences, n_stimuli),
-                "n_responses_per_stimulus": _safe_div(n_responses, n_stimuli),
-                "shortest_latency": shortest_latency,
-                "duration_per_stimulus": _safe_div(total_duration, n_stimuli),
-                "duration_fraction": _safe_div(total_duration, total_stim_duration),
-                "duration_per_occurrence": _safe_div(total_duration, n_occurrences),
-                "interval": _safe_mean(intervals),
-                "rate": _safe_div(n_occurrences, total_stim_duration),
-            }
+                        for field in result_fields
+                    }
+                )
+                grouped_results[parameter_name] = grouped_result
+            if grouped_results:
+                result["by_parameter"] = grouped_results
+            out["behavior"][event_type][motif] = result
 
     out["behavior"].setdefault("session", {})
     for motif in motif_list:
@@ -252,7 +376,7 @@ def compute_event_measures(
             "n_occurrences_per_session": n_occurrences,
             "duration_per_session": total_duration,
             "duration_per_occurrence": _safe_div(total_duration, n_occurrences),
-            "interval": _safe_mean(np.diff(event_times_at_behavior_indices)),
+            "interval_mean": _safe_mean(np.diff(event_times_at_behavior_indices)),
             "duration_fraction": _safe_div(total_duration, marked_period),
             "rate": _safe_div(n_occurrences, marked_period),
             "duration_fraction_of_movie": _safe_div(total_duration, movie_duration),

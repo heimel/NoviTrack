@@ -196,6 +196,140 @@ def test_stop_uses_posttime_as_behavior_response_period(capsys):
     assert "Stop marker missing for event type stop" not in capsys.readouterr().out
 
 
+def test_event_measures_replace_stale_behavior_results():
+    measures = {
+        "markers": [
+            _marker(1.0, "stop", duration=0.0),
+            _marker(1.5, "approach"),
+        ],
+        "behavior": {
+            "obsolete_event": {"obsolete_motif": {"rate": 99.0}},
+            "session": {"obsolete_motif": {"rate": 99.0}},
+        },
+        "min_time": 0.0,
+        "max_time": 10.0,
+    }
+
+    out = compute_event_measures(None, measures, _params())
+
+    assert "obsolete_event" not in out["behavior"]
+    assert "obsolete_motif" not in out["behavior"]["session"]
+    assert "approach" in out["behavior"]["stop"]
+    assert "approach" in out["behavior"]["session"]
+
+
+def test_event_measures_clear_behavior_results_when_no_events_remain():
+    measures = {
+        "markers": [],
+        "behavior": {"obsolete_event": {"approach": {"rate": 99.0}}},
+    }
+
+    out = compute_event_measures(None, measures, _params())
+
+    assert out["behavior"] == {}
+    assert out["event"] == {}
+
+
+def test_overhead_behavior_uses_posttime_and_groups_overlapping_stimuli():
+    params = _params()
+    params.nt_posttime = 3.0
+    params.nt_behavior_posttime_events = ["overhead"]
+    params.nt_behavior_grouping_parameters = ["stimulus_id"]
+    params.markers = pd.concat(
+        [
+            params.markers,
+            pd.DataFrame(
+                [
+                    {
+                        "marker_id": "overhead",
+                        "marker": "h",
+                        "description": "overhead stimulus",
+                        "color": [0.5, 0.5, 0.5],
+                        "behavior": False,
+                        "linked": True,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    measures = {
+        "markers": [
+            _marker(1.0, "overhead", duration=0.25, stimulus_id=1),
+            _marker(2.0, "overhead", duration=0.25, stimulus_id=2),
+            _marker(2.5, "approach"),
+        ],
+        "min_time": 0.0,
+        "max_time": 10.0,
+    }
+
+    out = compute_event_measures(None, measures, params)
+
+    result = out["behavior"]["overhead"]["approach"]
+    assert result["n_occurrences_per_stimulus"] == 1.0
+    assert result["n_responses_per_stimulus"] == 1.0
+    assert result["latency_minimum"] == 0.5
+    assert result["latency_median"] == 1.0
+    assert "shortest_latency" not in result
+    assert "interval" not in result
+    assert "interval_mean" in result
+    grouped = result["by_parameter"]["stimulus_id"]
+    assert grouped["values"].tolist() == [1, 2]
+    assert grouped["n_stimuli"].tolist() == [1, 1]
+    assert grouped["n_occurrences_per_stimulus"].tolist() == [1.0, 1.0]
+    assert grouped["n_responses_per_stimulus"].tolist() == [1.0, 1.0]
+    assert grouped["latency_minimum"].tolist() == [1.5, 0.5]
+    assert grouped["latency_median"].tolist() == [1.5, 0.5]
+    session_result = out["behavior"]["session"]["approach"]
+    assert "interval" not in session_result
+    assert "interval_mean" in session_result
+
+
+def test_linked_behavior_is_only_counted_for_matching_stimulus_id():
+    params = _params()
+    params.nt_posttime = 3.0
+    params.nt_behavior_posttime_events = ["overhead"]
+    params.nt_behavior_grouping_parameters = ["stimulus_id"]
+    params.markers = pd.concat(
+        [
+            params.markers,
+            pd.DataFrame(
+                [
+                    {
+                        "marker_id": "overhead",
+                        "marker": "h",
+                        "description": "overhead stimulus",
+                        "color": [0.5, 0.5, 0.5],
+                        "behavior": False,
+                        "linked": True,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    measures = {
+        "markers": [
+            _marker(1.0, "overhead", duration=0.25, stimulus_id=1),
+            _marker(2.0, "overhead", duration=0.25, stimulus_id=2),
+            _marker(2.5, "approach", stimulus_id=2),
+        ],
+        "min_time": 0.0,
+        "max_time": 10.0,
+    }
+
+    out = compute_event_measures(None, measures, params)
+
+    grouped = out["behavior"]["overhead"]["approach"]["by_parameter"]["stimulus_id"]
+    assert grouped["values"].tolist() == [1, 2]
+    assert grouped["n_occurrences_per_stimulus"].tolist() == [0.0, 1.0]
+    assert grouped["n_responses_per_stimulus"].tolist() == [0.0, 1.0]
+    assert np.isinf(grouped["latency_minimum"][0])
+    assert np.isnan(grouped["latency_median"][0])
+    assert grouped["latency_minimum"][1] == 0.5
+    assert grouped["latency_median"][1] == 0.5
+
+
 def test_ethogram_uses_marker_id_and_allows_duration_events_to_overlap():
     record = {
         "sessionid": "test",

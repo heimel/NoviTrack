@@ -145,6 +145,38 @@ snippets is a struct with fields:
 
 For each record, the function nt\_compute\_event\_measures computes several measures using these snippets, e.g. `measures.event.(event_type).(channel_type).snippet_mean = snippet_mean`. Event occurrence metadata is stored once per event type. `measures.event.(event_type).duration` is an array aligned with the event rows and with each channel's `event_mean`. Each `measures.event.(event_type).parameters.(parameter_name)` array has the same alignment when values vary between events, but is stored as a one-element array when the parameter is constant across all events. The `parameters` and `duration` names are reserved at the event-type level. The structure event is saved in the session measures.
 
+Behavior summaries are stored as
+`measures.behavior.(event_type).(motif)`. The scalar fields summarize all
+stimuli of that event type. When a configured event parameter is present,
+`by_parameter.(parameter_name)` contains aligned `values`, `n_stimuli`, and
+one array for every behavior statistic. By default, behavior is grouped by
+`stimulus_id`. Unlinked behavior markers are counted in every overlapping
+stimulus response window; behavior markers carrying a `stimulus_id` are counted
+only for the matching stimulus. Event types listed in
+`nt_behavior_posttime_events` use the interval from event onset through
+`nt_posttime` as their behavioral response window, regardless of the event's
+stored duration. The default list contains `overhead`.
+
+Behavior statistics use the selected stimuli's response windows:
+
+| Field | Definition |
+|---|---|
+| `n_occurrences_per_stimulus` | Total behavior onsets divided by the number of stimuli; multiple onsets may occur per stimulus. |
+| `n_responses_per_stimulus` | Fraction of stimuli containing at least one behavior onset. |
+| `latency_minimum` | Minimum latency from stimulus onset to the first behavior onset (`Inf` if there is no response). |
+| `latency_median` | Median first-response latency across responding stimuli (`NaN` if there is no response). |
+| `duration_per_stimulus` | Total behavior duration divided by the number of stimuli, including stimuli without a response. |
+| `duration_fraction` | Total behavior duration divided by the summed response-window duration. |
+| `duration_per_occurrence` | Total behavior duration divided by the number of behavior onsets (`NaN` if there are none). |
+| `interval_mean` | Mean interval between consecutive behavior onsets within a response window. |
+| `rate` | Total behavior onsets divided by the summed response-window duration, in occurrences per second. |
+
+A behavior duration runs from its onset to the next behavior marker (not
+necessarily the same motif); if no later behavior marker exists, it ends at the
+response-window boundary. With overlapping windows, an eligible unlinked
+behavior contributes independently to each window, as do the corresponding
+window durations.
+
 Motion channel types are selected with `nt_motion_snippet_observables` in
 `nt_default_parameters.yaml`. The default is `Speed`, `Forward_speed`,
 `Abs_angular_velocity`, and `Distance_to_center`. Available channels receive the

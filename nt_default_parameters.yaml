@@ -237,6 +237,8 @@ nt_save_snippets: true # save generated peri-event snippets to nt_snippets.mat
 nt_motion_snippet_observables: [Speed, Forward_speed, Abs_angular_velocity, Distance_to_center]
 nt_pretime: 10 # s, pre-event time (baseline)
 nt_posttime: 20 # s, post-event time (response period)
+nt_behavior_posttime_events: [overhead] # event types whose behavior window is onset + nt_posttime
+nt_behavior_grouping_parameters: [stimulus_id] # store behavior summaries by these event parameters
 use_clean_baseline: false # if true, then removes all following same events within pretime of event.
 use_ultraclean_baseline: false # if true, then removes all following events within pretime of event.
 

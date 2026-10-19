@@ -13,19 +13,20 @@ function measures = nt_compute_event_measures(snippets,measures,params)
 %   FIELD is
 %       n_occurences_per_stimulus: # of occurrences per stimulus, multiple per stimulus possible.
 %       n_responses_per_stimulus: # of occurrences per stimulus, with max. one per stim.
-%       shortest_latency: shortest latency of the first response 
+%       latency_minimum: minimum latency of the first response
+%       latency_median: median first-response latency across responding stimuli
 %       duration_per_stimulus: average duration of the response per stimulus;
 %           duration can be longer than the stimulus, as it is counted
 %           until the end of the behavior, not of the stimulus
 %       duration_fraction: fraction of average duration of the stimulus duration
 %       duration_per_occurence: total duration / # of occurrences
-%       interval: mean time between start of occurrences 
+%       interval_mean: mean time between start of occurrences
 %       rate: # of occurrences / total stimulus time
 %   for EVENT_TYPE is 'session', FIELD is
 %       n_occurrences_per_session: # occurrences per session
 %       duration_per_session: total duration per session
 %       duration_per_occurrence: total duration / # of occurrence
-%       interval: mean time between start of occurrences 
+%       interval_mean: mean time between start of occurrences
 %       duration_fraction:  duration / marked_period;
 %       rate: # of occurrences / marked_period; 
 %       duration_fraction_of_movie: duration / movie_duration; 
@@ -67,7 +68,8 @@ for event_type = unique_events(:)'
     n_stimuli = length(ind_stim);
     for i = 1:n_motifs % behaviors
         motif = motif_list{i};
-        shortest_latency = inf; % s
+        latency_minimum = inf; % s
+        latencies = [];
         total_duration = 0; % s
         n_occurrences = 0;
         n_responses = 0;
@@ -98,9 +100,10 @@ for event_type = unique_events(:)'
             n_occurrences = n_occurrences + length(ind);
 
             latency = behaviors.time(ind(1)) - stim_start; 
-            if latency < shortest_latency
-                shortest_latency = latency;
+            if latency < latency_minimum
+                latency_minimum = latency;
             end
+            latencies = [latencies; latency];
 
             intervals = [intervals; diff(behaviors.time(ind))];
 
@@ -117,11 +120,12 @@ for event_type = unique_events(:)'
 
         res.n_occurrences_per_stimulus = n_occurrences / n_stimuli;
         res.n_responses_per_stimulus = n_responses / n_stimuli; 
-        res.shortest_latency = shortest_latency;
+        res.latency_minimum = latency_minimum;
+        res.latency_median = median(latencies);
         res.duration_per_stimulus = total_duration / n_stimuli;
         res.duration_fraction = total_duration / total_stim_duration;
         res.duration_per_occurrence = total_duration / n_occurrences;
-        res.interval = mean(intervals);
+        res.interval_mean = mean(intervals);
         res.rate = n_occurrences / total_stim_duration;
 
         % temporary fixes for illegal field names
@@ -170,7 +174,7 @@ for i = 1:n_motifs
     else
         res.duration_per_occurrence = NaN;
     end
-    res.interval = mean(diff(events.time(ind)));
+    res.interval_mean = mean(diff(events.time(ind)));
     res.duration_fraction = total_duration / marked_period;
     res.rate = n_occurrences / marked_period; 
     res.duration_fraction_of_movie = total_duration / movie_duration; 
