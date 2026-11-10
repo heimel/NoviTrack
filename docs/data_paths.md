@@ -58,7 +58,7 @@ one or more longest-prefix mappings locally:
 ```python
 def processparams_local(params):
     params.nt_deeplabcut_path_mappings = [
-        [r"\\vs03.herseninstituut.knaw.nl\VS03-CSF-1", "/mnt/vs03"],
+        [r"\\vs03.herseninstituut.knaw.nl\VS04-CSF-1", "/mnt/vs04"],
     ]
     return params
 ```

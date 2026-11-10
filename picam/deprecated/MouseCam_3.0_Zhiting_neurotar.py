@@ -46,7 +46,7 @@ listener = keyboard.Listener(
     on_release=on_release)
 listener.start()
 
-genOutputPath = '/mnt/VS03-CSF-1/Ren/Innate_approach/Data_collection'
+genOutputPath = '/mnt/VS04-CSF-1/Ren/Innate_approach/Data_collection'
 today = datetime.today().strftime('%Y%m%d')
 
 

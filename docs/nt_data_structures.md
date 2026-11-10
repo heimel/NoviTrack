@@ -98,7 +98,7 @@ Databases contain records with session information for a specific study dossier.
 
 Databases are stored individually in mat-file in variable 'db'.
 
-Example location: \\vs03.herseninstituut.knaw.nl\\VS03-CSF-1\\Ou\\SC\_Dopamine\\Data\_collection\\24.35.02\\nttestdb\_24.35.02.mat
+Example location: \\vs04.herseninstituut.knaw.nl\\VS04-CSF-1\\Ou\\SC\_Dopamine\\Data\_collection\\24.35.02\\nttestdb\_24.35.02.mat
 
 
 
@@ -187,7 +187,7 @@ angular velocity).
 
 Snippets are saved per session in variable 'snippets' in a mat-file 'nt_snippets.mat' in nt_session_folder(record).
 
-Example location: \\vs03.herseninstituut.knaw.nl\\VS03-CSF-1\\Ou\\SC\_Dopamine\\Data\_collection\\24.35.02\\0115018\\0115018\_20250826\_001\\nt\_snippets.mat
+Example location: \\vs04.herseninstituut.knaw.nl\\VS04-CSF-1\\Ou\\SC\_Dopamine\\Data\_collection\\24.35.02\\0115018\\0115018\_20250826\_001\\nt\_snippets.mat
 
 
 
@@ -199,5 +199,5 @@ photometry.(channel).(type) = struct with fields
 
 Photometry data is saved per session in variable 'photometry' in mat-file 'nt_photometry.mat' in nt_photometry_folder(record).
 
-Example location: \\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Ou\SC_Dopamine\Data_collection\24.35.02\0115018\0115018_20250826_001\2025_08_26-16_18_00\nt_photometry.mat
+Example location: \\vs04.herseninstituut.knaw.nl\VS04-CSF-1\Ou\SC_Dopamine\Data_collection\24.35.02\0115018\0115018_20250826_001\2025_08_26-16_18_00\nt_photometry.mat
 

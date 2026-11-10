@@ -49,7 +49,7 @@ function params = nt_load_parameters_20231201(record)
 % General
 params = struct;
 
-params.networkpathbase = '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Ren'; 
+params.networkpathbase = '\\vs04.herseninstituut.knaw.nl\VS04-CSF-1\Ren'; 
 
 if nargin<1 || isempty(record.date) || datetime(record.date,'inputformat','yyyy-MM-dd') >  datetime('2023-11-03','inputformat','yyyy-MM-dd')
     % since about 2023-11-03

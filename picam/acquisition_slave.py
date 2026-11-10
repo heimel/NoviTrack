@@ -11,7 +11,7 @@ import json
 
 def read_acqready( setup):
     # returns sessions path specifiec in acqReady
-    root_communication_path = os.path.join(os.path.sep+os.path.sep,"vs03.herseninstituut.knaw.nl",'VS03-CSF-1','Communication')
+    root_communication_path = os.path.join(os.path.sep+os.path.sep,"vs04.herseninstituut.knaw.nl",'VS04-CSF-1','Communication')
     communication_path = os.path.join(root_communication_path, setup)
     acqready_filename = os.path.join(communication_path,'acqReady')
     print('ACQUISITION_SLAVE: Reading ' + acqready_filename)

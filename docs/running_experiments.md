@@ -42,7 +42,7 @@ Configure the remote communication directory in `NewStimConfiguration`, for
 example:
 
 ```matlab
-Remote_Comm_dir = '\\vs03.herseninstituut.knaw.nl\vs03-csf-1\Communication\SETUP';
+Remote_Comm_dir = '\\vs04.herseninstituut.knaw.nl\vs04-csf-1\Communication\SETUP';
 ```
 
 If the stimulus and control PCs refer to the data folder differently, adapt:

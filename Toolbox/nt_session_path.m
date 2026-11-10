@@ -3,7 +3,7 @@ function [pth,exists] = nt_session_path(record,params)
 %
 %   [PTH,EXISTS] = nt_session_path(RECORD)
 %
-%   Uses params.networkpathbase as root folder, e.g. '\\vs03.herseninstituut.knaw.nl\VS03-CSF-1\Ren'
+%   Uses params.networkpathbase as root folder, e.g. '\\vs04.herseninstituut.knaw.nl\VS04-CSF-1\Ren'
 %   This can be overridden in processparams_local, e.g. params.networkpathbase = 'C:\Users\heimel.HERSENINSTITUUT\OneDrive\Desktop';
 %
 % 2024-2025, Alexander Heimel
