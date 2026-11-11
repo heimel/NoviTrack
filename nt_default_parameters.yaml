@@ -338,6 +338,7 @@ nt_show_markers: true # false increases speed at the cost of information loss
 nt_show_markers_in_bottom_panels: true # false increases tracking-window display speed
 nt_show_position_changes: true # false reduces visual clutter at the cost of information loss
 nt_show_overhead_mouse: true
+nt_show_overhead_center: true
 nt_show_behavior_markers: true
 nt_track_timeline_max_speed: 0.375 # m/s
 nt_show_help: false

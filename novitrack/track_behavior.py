@@ -689,6 +689,8 @@ class NTTrackBehaviorWindow(QMainWindow):
         self._last_tick = time.perf_counter()
         self._fps_filtered = 0.0
         self._closed = False
+        self._awaiting_overhead_center_click = False
+        self._resume_playback_after_center_click = False
         self._video_to_reference: dict[int, ClockTransform] = {}
         self._reference_to_video: dict[int, ClockTransform] = {}
         self._current_video_frames: dict[int, int] = {}
@@ -1110,6 +1112,7 @@ class NTTrackBehaviorWindow(QMainWindow):
         self.video_images: dict[int, pg.ImageItem] = {}
         self.video_info_by_camera: dict[int, VideoInfo] = {}
         self.overhead_mouse_item: pg.PlotDataItem | None = None
+        self.overhead_center_item: Any = None
         self.tracking_keypoint_item: Any = None
         self.tracking_skeleton_item: Any = None
         self.tracking_keypoint_brushes: tuple[Any, ...] = ()
@@ -1137,14 +1140,31 @@ class NTTrackBehaviorWindow(QMainWindow):
         )
         has_generic_pose = np.asarray(keypoint_data).ndim == 3
         overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
-        if overhead_index in self.video_views and not has_generic_pose:
-            self.overhead_mouse_item = pg.PlotDataItem(
-                pen=pg.mkPen((0, 255, 0), width=2),
-                symbol="o" if bool(_get(self.params, "nt_show_mouse_keypoints", True)) else None,
-                symbolBrush=(0, 255, 0),
-                symbolSize=5,
+        if overhead_index in self.video_views:
+            overhead_view = self.video_views[overhead_index]
+            self.overhead_center_item = pg.ScatterPlotItem(
+                pen=pg.mkPen((255, 255, 0), width=2),
+                brush=None,
+                symbol="o",
+                size=6,
             )
-            self.video_views[overhead_index].addItem(self.overhead_mouse_item)
+            self.overhead_center_item.setZValue(100)
+            overhead_view.addItem(self.overhead_center_item)
+            overhead_view.scene().sigMouseClicked.connect(
+                lambda event, camera_index=overhead_index: self._video_clicked(
+                    camera_index, event
+                )
+            )
+            self._update_overhead_center_overlay()
+
+            if not has_generic_pose:
+                self.overhead_mouse_item = pg.PlotDataItem(
+                    pen=pg.mkPen((0, 255, 0), width=2),
+                    symbol="o" if bool(_get(self.params, "nt_show_mouse_keypoints", True)) else None,
+                    symbolBrush=(0, 255, 0),
+                    symbolSize=5,
+                )
+                overhead_view.addItem(self.overhead_mouse_item)
 
         if has_generic_pose and self.tracking_stream is not None:
             camera_id = self.tracking_stream.camera_id
@@ -1271,6 +1291,103 @@ class NTTrackBehaviorWindow(QMainWindow):
 
     def _report_status(self, message: str) -> None:
         self.message_label.setText(message)
+
+    def set_overhead_center(self) -> None:
+        """Use the next click in the overhead video as its arena centre."""
+        overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
+        if overhead_index not in self.video_views:
+            self._report_status("Cannot set arena center: overhead video is not open")
+            return
+
+        self._awaiting_overhead_center_click = True
+        self._resume_playback_after_center_click = self.playing
+        self._set_playing(False)
+        label = "Neurotar" if bool(_get(self.params, "neurotar", False)) else "arena"
+        self._report_status(
+            f"Click the {label} center in the overhead video (Esc to cancel)"
+        )
+
+    def _video_clicked(self, camera_index: int, event: Any) -> None:
+        """Handle a pending calibration click in a video plot."""
+        if not self._awaiting_overhead_center_click:
+            return
+        overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
+        if camera_index != overhead_index or event.button() != Qt.MouseButton.LeftButton:
+            return
+
+        view_box = self.video_views[camera_index].getViewBox()
+        scene_position = event.scenePos()
+        if not view_box.sceneBoundingRect().contains(scene_position):
+            return
+        position = view_box.mapSceneToView(scene_position)
+        if self._set_overhead_center_from_display(
+            camera_index, float(position.x()), float(position.y())
+        ):
+            event.accept()
+
+    def _set_overhead_center_from_display(
+        self, camera_index: int, display_x: float, display_y: float
+    ) -> bool:
+        """Store a displayed video point in original overhead-image coordinates."""
+        info = self.video_info_by_camera[camera_index]
+        if not (0.0 <= display_x < info.width and 0.0 <= display_y < info.height):
+            self._report_status("Click inside the overhead video frame")
+            return False
+
+        center = np.array(
+            [display_x, float(_orient_camera_y(np.asarray(display_y), info.height))],
+            dtype=float,
+        )
+        field = (
+            "overhead_neurotar_center"
+            if bool(_get(self.params, "neurotar", False))
+            else "overhead_arena_center"
+        )
+        self.measures[field] = center
+        if isinstance(self.params, MutableMapping):
+            self.params[field] = center
+        else:
+            setattr(self.params, field, center)
+
+        self._awaiting_overhead_center_click = False
+        self._update_overhead_center_overlay()
+        self._record_changed()
+        self._set_playing(self._resume_playback_after_center_click)
+        self._last_tick = time.perf_counter()
+        self._report_status(
+            f"Overhead center set to ({center[0]:.1f}, {center[1]:.1f})"
+        )
+        return True
+
+    def _update_overhead_center_overlay(self) -> None:
+        """Draw the stored center in displayed-video coordinates."""
+        if self.overhead_center_item is None:
+            return
+        if not bool(_get(self.params, "nt_show_overhead_center", True)):
+            self.overhead_center_item.setData([], [])
+            return
+        field = (
+            "overhead_neurotar_center"
+            if bool(_get(self.params, "neurotar", False))
+            else "overhead_arena_center"
+        )
+        center = np.asarray(
+            self.measures.get(field, _get(self.params, field, [np.nan, np.nan])),
+            dtype=float,
+        ).reshape(-1)
+        overhead_index = int(_get(self.params, "nt_overhead_camera", 1)) - 1
+        info = self.video_info_by_camera.get(overhead_index)
+        if info is None or center.size < 2 or not np.all(np.isfinite(center[:2])):
+            self.overhead_center_item.setData([], [])
+            return
+        display_y = _orient_camera_y(center[1], info.height)
+        self.overhead_center_item.setData([float(center[0])], [float(display_y)])
+
+    def _cancel_overhead_center_selection(self) -> None:
+        self._awaiting_overhead_center_click = False
+        self._set_playing(self._resume_playback_after_center_click)
+        self._last_tick = time.perf_counter()
+        self._report_status("Setting overhead center cancelled")
 
     def _record_changed(self) -> None:
         """Store tracker edits and notify an owning database browser."""
@@ -1847,6 +1964,7 @@ class NTTrackBehaviorWindow(QMainWindow):
                     "B: toggle behavior markers",
                     "Shift+K: toggle tracking keypoints",
                     "Shift+S: toggle tracking skeleton",
+                    "Shift+C: set overhead arena center",
                     "Shift+G: go to time",
                     "Delete: delete next marker",
                     "Shift+D: delete all markers",
@@ -1875,12 +1993,17 @@ class NTTrackBehaviorWindow(QMainWindow):
             self.toggle_mouse_keypoints()
         elif key == Qt.Key.Key_S and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.toggle_mouse_skeleton()
+        elif key == Qt.Key.Key_C and modifiers == Qt.KeyboardModifier.ShiftModifier:
+            self.set_overhead_center()
         elif key == Qt.Key.Key_G and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.goto_dialog()
         elif key == Qt.Key.Key_Q and modifiers == Qt.KeyboardModifier.ShiftModifier:
             self.close()
         elif key == Qt.Key.Key_Escape:
-            self.close()
+            if self._awaiting_overhead_center_click:
+                self._cancel_overhead_center_selection()
+            else:
+                self.close()
         elif key == Qt.Key.Key_Left and modifiers == Qt.KeyboardModifier.AltModifier:
             self._seek(self.master_time - 5.0, force=True)
         elif key == Qt.Key.Key_Right and modifiers == Qt.KeyboardModifier.AltModifier:

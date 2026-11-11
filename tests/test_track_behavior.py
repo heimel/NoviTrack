@@ -711,6 +711,7 @@ def test_tracking_overlay_visibility_toggles_are_independent():
     [
         (Qt.Key.Key_K, "toggle_mouse_keypoints"),
         (Qt.Key.Key_S, "toggle_mouse_skeleton"),
+        (Qt.Key.Key_C, "set_overhead_center"),
     ],
 )
 def test_tracking_overlay_shortcuts(key, method_name):
@@ -723,11 +724,93 @@ def test_tracking_overlay_shortcuts(key, method_name):
     window = SimpleNamespace(
         toggle_mouse_keypoints=lambda: calls.append("toggle_mouse_keypoints"),
         toggle_mouse_skeleton=lambda: calls.append("toggle_mouse_skeleton"),
+        set_overhead_center=lambda: calls.append("set_overhead_center"),
     )
 
     track_behavior.NTTrackBehaviorWindow.keyPressEvent(window, event)
 
     assert calls == [method_name]
+
+
+def test_set_overhead_center_arms_next_click_and_pauses_playback():
+    playing_states = []
+    statuses = []
+    window = SimpleNamespace(
+        params={"nt_overhead_camera": 2, "neurotar": False},
+        video_views={1: object()},
+        playing=True,
+        _set_playing=playing_states.append,
+        _report_status=statuses.append,
+    )
+
+    track_behavior.NTTrackBehaviorWindow.set_overhead_center(window)
+
+    assert window._awaiting_overhead_center_click is True
+    assert window._resume_playback_after_center_click is True
+    assert playing_states == [False]
+    assert statuses == ["Click the arena center in the overhead video (Esc to cancel)"]
+
+
+def test_overhead_center_click_is_saved_in_original_image_coordinates():
+    class FakeCenterItem:
+        def __init__(self):
+            self.data = None
+
+        def setData(self, x, y):
+            self.data = (x, y)
+
+    changes = []
+    playing_states = []
+    statuses = []
+    center_item = FakeCenterItem()
+    params = {"nt_overhead_camera": 2, "neurotar": False}
+    window = SimpleNamespace(
+        params=params,
+        measures={},
+        video_info_by_camera={1: SimpleNamespace(width=640, height=480)},
+        overhead_center_item=center_item,
+        _awaiting_overhead_center_click=True,
+        _resume_playback_after_center_click=True,
+        _record_changed=lambda: changes.append(True),
+        _set_playing=playing_states.append,
+        _report_status=statuses.append,
+    )
+    window._update_overhead_center_overlay = lambda: (
+        track_behavior.NTTrackBehaviorWindow._update_overhead_center_overlay(window)
+    )
+
+    accepted = track_behavior.NTTrackBehaviorWindow._set_overhead_center_from_display(
+        window, 1, 123.25, 45.5
+    )
+
+    assert accepted is True
+    np.testing.assert_allclose(window.measures["overhead_arena_center"], [123.25, 433.5])
+    np.testing.assert_allclose(params["overhead_arena_center"], [123.25, 433.5])
+    assert center_item.data == ([123.25], [45.5])
+    assert window._awaiting_overhead_center_click is False
+    assert changes == [True]
+    assert playing_states == [True]
+    assert statuses == ["Overhead center set to (123.2, 433.5)"]
+
+
+def test_overhead_center_overlay_can_be_hidden():
+    class FakeCenterItem:
+        def __init__(self):
+            self.data = None
+
+        def setData(self, x, y):
+            self.data = (x, y)
+
+    center_item = FakeCenterItem()
+    window = SimpleNamespace(
+        params={"nt_show_overhead_center": False},
+        measures={"overhead_arena_center": [123.0, 234.0]},
+        overhead_center_item=center_item,
+    )
+
+    track_behavior.NTTrackBehaviorWindow._update_overhead_center_overlay(window)
+
+    assert center_item.data == ([], [])
 
 
 def test_bad_video_trigger_alignment_is_reported_and_excluded(monkeypatch, tmp_path):
